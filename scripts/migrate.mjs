@@ -31,6 +31,31 @@ if (!env.DATABASE_URL.startsWith("postgres")) {
 env.DATABASE_URL_UNPOOLED ||= directUrl(env.DATABASE_URL);
 if (!env.AUTH_SECRET) console.warn("⚠ AUTH_SECRET não definida — o login não vai funcionar até configurá-la.");
 
+/**
+ * Uma conexão que ficou presa no pool (ex.: deploy que falhou) pode manter o
+ * advisory lock do Prisma para sempre. Encerra só conexões OCIOSAS que seguram
+ * essa trava — uma migração realmente em andamento (ativa) não é afetada.
+ */
+async function releaseStaleLock() {
+  try {
+    const { PrismaClient } = await import("@prisma/client");
+    const db = new PrismaClient({ datasourceUrl: env.DATABASE_URL_UNPOOLED });
+    const rows = await db.$queryRawUnsafe(`
+      select pg_terminate_backend(a.pid) as ok
+      from pg_locks l join pg_stat_activity a on a.pid = l.pid
+      where l.locktype = 'advisory' and l.objid = ${PRISMA_LOCK_ID}
+        and a.pid <> pg_backend_pid() and a.state <> 'active'`);
+    await db.$disconnect();
+    return rows.length;
+  } catch (e) {
+    console.warn("Não foi possível liberar a trava:", e.message);
+    return 0;
+  }
+}
+
+// ID fixo do advisory lock usado pelo `prisma migrate` (ver pris.ly/d/migrate-advisory-locking)
+const PRISMA_LOCK_ID = 72707369;
+
 // P1002 = timeout (ex.: dois deploys disputando a trava): tenta de novo
 for (let attempt = 1; ; attempt++) {
   try {
@@ -40,8 +65,9 @@ for (let attempt = 1; ; attempt++) {
     const out = `${e.stdout ?? ""}${e.stderr ?? ""}`;
     console.error(out);
     if (!out.includes("P1002") || attempt >= 3) process.exit(1);
-    const wait = attempt * 15;
-    console.warn(`⚠ Timeout nas migrações (P1002), tentativa ${attempt}/3 — nova tentativa em ${wait}s…`);
+    const released = await releaseStaleLock();
+    const wait = attempt * 10;
+    console.warn(`⚠ Timeout nas migrações (P1002), tentativa ${attempt}/3 — ${released} conexão(ões) ociosa(s) com a trava encerrada(s); nova tentativa em ${wait}s…`);
     await new Promise((r) => setTimeout(r, wait * 1000));
   }
 }
