@@ -17,7 +17,7 @@ export async function GET(_: Request, ctx: RouteContext<"/api/media/[...path]">)
 
   const file = await readStored(path);
   if (!file) return new NextResponse("Not found", { status: 404 });
-  return new NextResponse(new Uint8Array(file.data), {
+  return new NextResponse(file.body as BodyInit, {
     headers: {
       "Content-Type": file.mime,
       "Content-Length": String(file.size),

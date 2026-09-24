@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { mkdir, writeFile, rm } from "node:fs/promises";
+import { del, list, put } from "@vercel/blob";
 import path from "node:path";
 
 const db = new PrismaClient();
@@ -31,16 +32,34 @@ function scene(kind: "before" | "after", title: string, hue: number) {
 </svg>`;
 }
 
+// Mesmo esquema de lib/storage.ts: Vercel Blob (privado) se houver token, senão disco
+const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+
 async function svgMedia(orderId: string, kind: "before" | "after", title: string, hue: number) {
-  const dir = path.join(ROOT, orderId);
-  await mkdir(dir, { recursive: true });
   const name = `${kind}-seed.svg`;
-  await writeFile(path.join(dir, name), scene(kind, title, hue));
+  if (useBlob) {
+    await put(`os/${orderId}/${name}`, scene(kind, title, hue), { access: "private", contentType: "image/svg+xml", addRandomSuffix: false, allowOverwrite: true });
+  } else {
+    const dir = path.join(ROOT, orderId);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, name), scene(kind, title, hue));
+  }
   return `/api/media/${orderId}/${name}`;
 }
 
+/** Remove mídias antigas (o seed recria todas as OS). */
+async function clearMedia() {
+  if (!useBlob) return rm(ROOT, { recursive: true, force: true });
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: "os/", cursor, limit: 1000 });
+    if (page.blobs.length) await del(page.blobs.map((b) => b.url));
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+}
+
 async function main() {
-  await rm(ROOT, { recursive: true, force: true });
+  await clearMedia();
   for (const m of [
     db.auditLog, db.payment, db.subscription, db.notification, db.serviceEvent, db.serviceMedia, db.serviceOrder, db.announcement,
     db.serviceCategory, db.commonArea, db.userUnit, db.unit, db.building, db.user, db.condominium,

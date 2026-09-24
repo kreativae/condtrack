@@ -10,7 +10,7 @@ import { notify } from "@/lib/notify";
 import { nextProtocol } from "@/lib/orders";
 import type { Role } from "@/lib/roles";
 import { can, canView, PRIORITY_META, STATUSES, STATUS_META, type OrderAction, type Priority, type Status } from "@/lib/workflow";
-import { deleteFolder } from "@/lib/storage";
+import { deleteFile, deleteFolder } from "@/lib/storage";
 
 export type ActionState = { error?: string; ok?: boolean; id?: string } | undefined;
 
@@ -284,6 +284,7 @@ export async function deleteMedia(mediaId: string) {
   const allowed = m.uploadedById === user.id && (m.phase === "opening" ? m.serviceOrder.status === "open" : can(phaseAction, m.serviceOrder, user));
   if (!allowed) return;
   await db.serviceMedia.delete({ where: { id: mediaId } });
+  await deleteFile(m.url);
   await audit(user, "delete_media", "service_media", mediaId, { old: { url: m.url, phase: m.phase }, condominiumId: m.serviceOrder.condominiumId });
   revalidatePath(`/os/${m.serviceOrderId}`);
 }

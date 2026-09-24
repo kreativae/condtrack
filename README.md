@@ -31,6 +31,7 @@ Variáveis de ambiente do projeto:
 | `DATABASE_URL` | sim | PostgreSQL (Neon). A integração Neon da Vercel cria automaticamente. |
 | `DATABASE_URL_UNPOOLED` | não | Conexão direta para migrações; se ausente, usa `DATABASE_URL`. |
 | `AUTH_SECRET` | sim | `openssl rand -base64 32`. Sem ela o login não funciona. |
+| `BLOB_READ_WRITE_TOKEN` | sim, em produção | Fotos e vídeos das OS no **Vercel Blob** (privado). Criado ao conectar um Blob store ao projeto (Storage → Create → Blob). Sem ele, usa o disco local (`./storage`), que não persiste na Vercel. |
 | `SEED_ON_DEPLOY` | não | `true` roda o seed de demonstração **apenas se o banco estiver sem usuários**. Remova após o primeiro deploy. |
 
 O build (`npm run build`) aplica as migrações pendentes via `scripts/migrate.mjs`.
@@ -87,7 +88,7 @@ src/lib/auth.ts             sessão, requireUser(), "visualizar como" (impersona
 src/lib/workflow.ts         máquina de estados da OS + permissões por papel
 src/lib/notify.ts           notificações in-app (ponto de extensão p/ push/e-mail)
 src/lib/audit.ts            log de auditoria (IP, user-agent, antes/depois)
-src/lib/storage.ts          armazenamento de mídia (local → trocar por R2/Blob)
+src/lib/storage.ts          mídias: Vercel Blob privado (produção) ou disco local (dev)
 src/app/actions/*           server actions (auth, OS, admin, comunicados)
 src/app/api/upload          upload de mídia (1 arquivo/req, com checagem de permissão)
 src/app/api/media           entrega de mídia autenticada
@@ -136,7 +137,6 @@ Em dev, para receber webhooks: `stripe listen --forward-to localhost:3000/api/st
 
 | Item | Observação |
 |---|---|
-| Armazenamento de mídia | Implementar `saveFile/readStored` com R2 ou Vercel Blob (URLs assinadas). O disco local não persiste em serverless. |
 | 2FA síndico/superadmin | Fase 1 restante. |
 | Push / e-mail / WhatsApp | Plugar em `src/lib/notify.ts`. |
 | Fase 2 | Documentos, reservas de áreas comuns, chat, inspeções/rondas persistidas, manutenção preventiva, relatórios PDF/Excel. |
