@@ -179,3 +179,94 @@ export async function toggleCondominium(id: string) {
   revalidatePath("/admin/condominios");
   revalidatePath(`/admin/condominios/${id}`);
 }
+
+// ───────────────────────────── Exclusão de usuários inativos ─────────────────────────────
+
+/** Registros que dependem do usuário (histórico das OS, comunicados). */
+async function historyCount(id: string) {
+  const [orders, media, events, announcements] = await Promise.all([
+    db.serviceOrder.count({ where: { OR: [{ requestedById: id }, { assignedToId: id }, { validatedById: id }, { approvedById: id }] } }),
+    db.serviceMedia.count({ where: { uploadedById: id } }),
+    db.serviceEvent.count({ where: { userId: id } }),
+    db.announcement.count({ where: { authorId: id } }),
+  ]);
+  return orders + media + events + announcements;
+}
+
+/**
+ * Remove um usuário inativo. Sem histórico → exclusão definitiva.
+ * Com histórico → anonimização (LGPD): dados pessoais apagados, histórico das
+ * OS preservado sem identificar a pessoa.
+ */
+async function removeUser(me: CurrentUser, u: { id: string; name: string; email: string; role: string; condominiumId: string | null }) {
+  const kept = await historyCount(u.id);
+  if (!kept) {
+    await db.user.delete({ where: { id: u.id } });
+  } else {
+    await db.$transaction([
+      db.userUnit.deleteMany({ where: { userId: u.id } }),
+      db.passkey.deleteMany({ where: { userId: u.id } }),
+      db.notification.deleteMany({ where: { userId: u.id } }),
+      db.user.update({
+        where: { id: u.id },
+        data: {
+          name: "Usuário removido",
+          email: `removido-${u.id}@removido.invalid`,
+          phone: null,
+          cpf: null,
+          avatarUrl: null,
+          company: null,
+          specialty: null,
+          status: "inactive",
+          passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 10),
+        },
+      }),
+    ]);
+  }
+  await audit(me, kept ? "user_anonymized" : "user_deleted", "user", u.id, { old: { name: u.name, role: u.role }, new: { history: kept }, condominiumId: u.condominiumId });
+  return kept ? "anonymized" : "deleted";
+}
+
+async function checkRemovable(me: CurrentUser, u: { id: string; role: string; status: string; condominiumId: string | null; email: string }) {
+  if (!canManage(me, u)) return "Você não pode excluir este usuário.";
+  if (u.status !== "inactive") return "Desative o acesso antes de excluir.";
+  if (u.email.endsWith("@removido.invalid")) return "Este usuário já foi removido.";
+  if (u.role === "superadmin" && (await db.user.count({ where: { role: "superadmin", status: "active" } })) < 1) return "O sistema precisa de ao menos um superadmin ativo.";
+  return null;
+}
+
+export async function deleteUser(id: string, _prev: AdminState): Promise<AdminState> {
+  const me = await requireUser("superadmin", "syndic");
+  const u = await db.user.findUnique({ where: { id } });
+  if (!u) return { error: "Usuário não encontrado." };
+  const blocked = await checkRemovable(me, u);
+  if (blocked) return { error: blocked };
+  const result = await removeUser(me, u);
+  revalidatePath("/usuarios");
+  revalidatePath("/admin/usuarios");
+  return { ok: true, message: result === "deleted" ? `${u.name} foi excluído(a).` : `${u.name} tinha histórico em OS: dados pessoais apagados e histórico preservado de forma anônima.` };
+}
+
+/** Exclui todos os inativos que o usuário atual pode gerenciar. */
+export async function deleteInactiveUsers(_prev: AdminState, form: FormData): Promise<AdminState> {
+  const me = await requireUser("superadmin", "syndic");
+  if (String(form.get("confirm") ?? "").trim().toUpperCase() !== "EXCLUIR") return { error: "Digite EXCLUIR para confirmar." };
+  const candidates = await db.user.findMany({
+    where: {
+      status: "inactive",
+      NOT: [{ id: me.id }, { email: { endsWith: "@removido.invalid" } }],
+      ...(me.role === "syndic" ? { condominiumId: me.condominiumId, role: { in: MANAGEABLE_ROLES.syndic } } : {}),
+    },
+  });
+  let deleted = 0;
+  let anonymized = 0;
+  for (const u of candidates) {
+    if (await checkRemovable(me, u)) continue;
+    if ((await removeUser(me, u)) === "deleted") deleted++;
+    else anonymized++;
+  }
+  revalidatePath("/usuarios");
+  revalidatePath("/admin/usuarios");
+  if (!deleted && !anonymized) return { ok: true, message: "Nenhum usuário inativo para excluir." };
+  return { ok: true, message: `${deleted} excluído(s) definitivamente${anonymized ? ` e ${anonymized} anonimizado(s) por terem histórico em OS` : ""}.` };
+}

@@ -144,7 +144,7 @@ export function RateForm({ action }: { action: Action }) {
       </div>
       <Textarea name="ratingComment" rows={2} placeholder="Conte como foi (opcional)" />
       {state?.error && <Alert>{state.error}</Alert>}
-      <Button type="submit" disabled={!value} className="w-full">Enviar avaliação</Button>
+      <Button type="submit" disabled={!value || pending} className="w-full">{pending ? "Enviando…" : "Enviar avaliação"}</Button>
     </form>
   );
 }

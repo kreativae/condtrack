@@ -3,6 +3,8 @@ import { UserPlus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { MANAGEABLE_ROLES } from "@/lib/roles";
 import { UsersTable } from "@/components/admin/users-table";
+import { DeleteInactiveUsers } from "@/components/admin/delete-inactive";
+import { db } from "@/lib/db";
 import { FrozenPage, FrozenTop } from "@/components/frozen";
 import { LinkButton, PageHeader } from "@/components/ui";
 
@@ -13,13 +15,14 @@ export default async function PeoplePage({ searchParams }: PageProps<"/usuarios"
   const params = await searchParams;
   const { role } = params;
   const roles = MANAGEABLE_ROLES.syndic;
+  const inactive = await db.user.count({ where: { status: "inactive", condominiumId: me.condominiumId, role: { in: roles }, NOT: { email: { endsWith: "@removido.invalid" } } } });
   return (
     <FrozenPage>
       <FrozenTop>
         <PageHeader
           eyebrow={me.condominium?.name}
           title="Moradores, equipe e prestadores"
-          actions={<LinkButton href={`/usuarios/novo${typeof role === "string" ? `?role=${role}` : ""}`}><UserPlus className="size-4" />Cadastrar</LinkButton>}
+          actions={<><DeleteInactiveUsers count={inactive} /><LinkButton href={`/usuarios/novo${typeof role === "string" ? `?role=${role}` : ""}`}><UserPlus className="size-4" />Cadastrar</LinkButton></>}
         />
       </FrozenTop>
       <UsersTable params={params} meId={me.id} where={{ condominiumId: me.condominiumId, role: { in: [...roles, "syndic"] } }} base="/usuarios" role={typeof role === "string" ? role : undefined} roles={roles} />

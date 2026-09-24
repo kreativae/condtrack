@@ -3,6 +3,8 @@ import { Search, UserPlus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { ROLES } from "@/lib/roles";
 import { UsersTable } from "@/components/admin/users-table";
+import { DeleteInactiveUsers } from "@/components/admin/delete-inactive";
+import { db } from "@/lib/db";
 import { FrozenPage, FrozenTop } from "@/components/frozen";
 import { Input, LinkButton, PageHeader } from "@/components/ui";
 
@@ -12,6 +14,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
   const me = await requireUser("superadmin");
   const params = await searchParams;
   const { role, q } = params;
+  const inactive = await db.user.count({ where: { status: "inactive", NOT: [{ id: me.id }, { email: { endsWith: "@removido.invalid" } }] } });
   return (
     <FrozenPage>
       <FrozenTop>
@@ -19,7 +22,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
           eyebrow="Superadministração"
           title="Usuários da plataforma"
           description="Use o ícone de olho para visualizar a plataforma como qualquer usuário."
-          actions={<LinkButton href="/admin/usuarios/novo"><UserPlus className="size-4" />Novo usuário</LinkButton>}
+          actions={<><DeleteInactiveUsers count={inactive} /><LinkButton href="/admin/usuarios/novo"><UserPlus className="size-4" />Novo usuário</LinkButton></>}
         />
         <form className="relative mb-4 max-w-md">
           {typeof role === "string" && <input type="hidden" name="role" value={role} />}

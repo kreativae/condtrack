@@ -28,6 +28,7 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
     db.unit.count({ where: { building: { condominiumId: id } } }),
   ]);
   const s = condo.subscription;
+  const stripeCustomerUrl = s?.stripeCustomerId ? await stripeDashboardUrl(`customers/${s.stripeCustomerId}`) : null;
   const live = !!s?.stripeSubscriptionId && ENTITLED.includes(s.status);
   const totalPaid = invoices.filter((i) => i.status === "paid").reduce((a, i) => a + i.amountPaid, 0);
   const lastPaid = invoices.find((i) => i.status === "paid");
@@ -44,7 +45,7 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
         actions={
           <>
             {s?.stripeCustomerId && (
-              <a href={await stripeDashboardUrl(`customers/${s.stripeCustomerId}`)} target="_blank" rel="noreferrer" className={buttonClass("outline")}>
+              <a href={stripeCustomerUrl!} target="_blank" rel="noreferrer" className={buttonClass("outline")}>
                 Abrir no Stripe <ExternalLink className="size-3.5" />
               </a>
             )}
