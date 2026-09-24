@@ -14,7 +14,7 @@ export type SessionPayload = {
 
 function secret() {
   const s = process.env.AUTH_SECRET;
-  if (!s) throw new Error("AUTH_SECRET não configurado");
+  if (!s) throw new Error("AUTH_SECRET não configurado — defina a variável de ambiente (ex.: openssl rand -base64 32)");
   return new TextEncoder().encode(s);
 }
 

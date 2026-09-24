@@ -7,12 +7,33 @@ de **antes e depois**, validação do zelador, aprovação do síndico e feed p�
 
 ## Rodando localmente
 
+Banco: **PostgreSQL no Neon**, provisionado pela integração Neon do Vercel Marketplace
+(projeto Vercel `kreativae-projetos/condtrack`).
+
 ```bash
 npm install
-npx prisma db push      # cria o banco SQLite (prisma/dev.db)
-npm run db:seed         # dados de demonstração
-npm run dev             # http://localhost:3000
+vercel env pull .env.local --yes   # traz DATABASE_URL / DATABASE_URL_UNPOOLED do Neon
+npm run db:migrate                 # aplica prisma/migrations
+npm run db:seed                    # dados de demonstração
+npm run dev                        # http://localhost:3000
 ```
+
+Os scripts `db:*` leem `.env.local` e `.env` (via dotenv-cli), porque o Prisma CLI não lê `.env.local`.
+Alterou o schema? `npm run db:migrate:dev -- --name descricao` cria uma nova migração.
+No deploy, `npm run build` roda `prisma migrate deploy` antes do `next build`.
+
+### Deploy na Vercel
+
+Variáveis de ambiente do projeto:
+
+| Variável | Obrigatória | Observação |
+|---|---|---|
+| `DATABASE_URL` | sim | PostgreSQL (Neon). A integração Neon da Vercel cria automaticamente. |
+| `DATABASE_URL_UNPOOLED` | não | Conexão direta para migrações; se ausente, usa `DATABASE_URL`. |
+| `AUTH_SECRET` | sim | `openssl rand -base64 32`. Sem ela o login não funciona. |
+| `SEED_ON_DEPLOY` | não | `true` roda o seed de demonstração **apenas se o banco estiver sem usuários**. Remova após o primeiro deploy. |
+
+O build (`npm run build`) aplica as migrações pendentes via `scripts/migrate.mjs`.
 
 Contas de demonstração (senha `condtrack123`):
 
@@ -26,7 +47,6 @@ Contas de demonstração (senha `condtrack123`):
 | Conselho | conselho@condtrack.app |
 | Morador (somente visualização) | morador@condtrack.app |
 
-`npm run db:reset` recria o banco e o seed.
 
 ## Perfis
 
@@ -41,7 +61,7 @@ Contas de demonstração (senha `condtrack123`):
 
 ## Stack
 
-Next.js 16 (App Router, Server Actions, `proxy.ts`) · React 19 · Tailwind CSS 4 · Prisma 6 ·
+Next.js 16 (App Router, Server Actions, `proxy.ts`) · React 19 · Tailwind CSS 4 · Prisma 6 + PostgreSQL (Neon) ·
 Zod · jose (JWT em cookie httpOnly) · bcryptjs · Recharts · Lucide.
 
 ## Fluxo da OS
@@ -116,7 +136,6 @@ Em dev, para receber webhooks: `stripe listen --forward-to localhost:3000/api/st
 
 | Item | Observação |
 |---|---|
-| Banco de produção | Trocar `provider` para `postgresql` em `schema.prisma` e usar Neon/Supabase. Os enums estão como `String` para facilitar. |
 | Armazenamento de mídia | Implementar `saveFile/readStored` com R2 ou Vercel Blob (URLs assinadas). O disco local não persiste em serverless. |
 | 2FA síndico/superadmin | Fase 1 restante. |
 | Push / e-mail / WhatsApp | Plugar em `src/lib/notify.ts`. |

@@ -34,7 +34,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/os">) {
   if (user.role === "syndic" && view === "approve") and.push({ status: "validated" });
   if (priority) and.push({ priority });
   if (category) and.push({ categoryId: category });
-  if (q) and.push({ OR: [{ title: { contains: q } }, { protocol: { contains: q.toUpperCase() } }, { description: { contains: q } }] });
+  if (q) and.push({ OR: [{ title: { contains: q, mode: "insensitive" } }, { protocol: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }] });
 
   const total = await db.serviceOrder.count({ where });
   const page = pageParam(sp.page, total, PAGE);

@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && node scripts/migrate.mjs && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "db:migrate": "dotenv -e .env.local -e .env -- node scripts/migrate.mjs",
+    "db:migrate:dev": "dotenv -e .env.local -e .env -- prisma migrate dev",
+    "db:seed": "dotenv -e .env.local -e .env -- tsx prisma/seed.ts",
+    "db:studio": "dotenv -e .env.local -e .env -- prisma studio",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "prisma": "^6.19.3",

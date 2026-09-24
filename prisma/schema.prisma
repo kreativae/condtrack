@@ -1,15 +1,16 @@
-// Odyssey — Gestão Condominial
-// Desenvolvimento em SQLite; para produção troque o provider para "postgresql"
-// e aponte DATABASE_URL para Neon/Supabase (os enums estão como String para
-// manter compatibilidade entre os dois bancos).
+// Condtrack — Gestão Condominial
+// Banco: PostgreSQL (Neon, provisionado pela integração do Vercel Marketplace).
+// DATABASE_URL = conexão com pool (app); DATABASE_URL_UNPOOLED = direta (migrações).
+// Os "enums" são String para manter o schema simples de evoluir.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model Condominium {
@@ -21,7 +22,7 @@ model Condominium {
   phone        String?
   email        String?
   logoUrl      String?
-  accentColor  String   @default("#C9A84C")
+  accentColor  String   @default("#5B5BD6")
   settings     String   @default("{}")
   active       Boolean  @default(true)
   osCounter    Int      @default(0)
@@ -111,7 +112,7 @@ model ServiceCategory {
   condominiumId String
   name          String
   icon          String      @default("wrench")
-  color         String      @default("#C9A84C")
+  color         String      @default("#5B5BD6")
   condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   orders        ServiceOrder[]
 }
