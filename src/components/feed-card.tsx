@@ -7,6 +7,7 @@ import { locationLabel } from "@/lib/orders";
 import type { Prisma } from "@prisma/client";
 
 export const feedInclude = {
+  condominium: { select: { name: true } },
   category: true,
   commonArea: true,
   unit: { include: { building: true } },
@@ -18,7 +19,8 @@ export const feedInclude = {
 
 export type FeedItem = Prisma.ServiceOrderGetPayload<{ include: typeof feedInclude }>;
 
-export function FeedCard({ o }: { o: FeedItem }) {
+/** `showCondo`: exibe o condomínio (feed do superadmin, com todos os prédios). */
+export function FeedCard({ o, showCondo }: { o: FeedItem; showCondo?: boolean }) {
   const before = o.media.find((m) => m.phase === "before");
   const after = o.media.find((m) => m.phase === "after");
   return (
@@ -30,7 +32,7 @@ export function FeedCard({ o }: { o: FeedItem }) {
             <span className="font-medium">{o.assignedTo?.name}</span>
             {o.assignedTo?.company && <span className="text-muted"> · {o.assignedTo.company}</span>}
           </p>
-          <p className="text-xs text-muted">Concluído {o.approvedAt ? fmtRelative(o.approvedAt) : ""}</p>
+          <p className="text-xs text-muted">Concluído {o.approvedAt ? fmtRelative(o.approvedAt) : ""}{showCondo && <> · <span className="font-medium text-fg-2">{o.condominium.name}</span></>}</p>
         </div>
         {o.category && (
           <span className="rounded-full px-2.5 py-0.5 text-[11px] ring-1 ring-inset ring-line" style={{ color: o.category.color }}>

@@ -7,6 +7,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/dashboard", label: "Visão global", icon: "gauge", mobile: true },
     { href: "/admin/condominios", label: "Condomínios", icon: "building", mobile: true },
     { href: "/os", label: "Ordens de serviço", icon: "clipboard", mobile: true },
+    { href: "/feed", label: "Feed de serviços", icon: "sparkles" },
     { href: "/admin/usuarios", label: "Usuários", icon: "users", mobile: true },
     { href: "/admin/assinaturas", label: "Assinaturas", icon: "card", mobile: true },
     { href: "/admin/auditoria", label: "Auditoria", icon: "shield" },
