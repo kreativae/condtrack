@@ -9,7 +9,7 @@ import { del, get, list, put } from "@vercel/blob";
 // - Disco local (./storage) caso contrário — desenvolvimento.
 // Em ambos, a URL gravada no banco é /api/media/<pasta>/<arquivo>: a entrega
 // passa sempre pela rota que confere a permissão de quem está vendo.
-const ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR ?? "./storage");
+const ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR || "./storage");
 const BLOB_PREFIX = "os";
 
 const EXT: Record<string, string> = {

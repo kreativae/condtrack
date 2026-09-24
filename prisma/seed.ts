@@ -5,7 +5,7 @@ import { del, list, put } from "@vercel/blob";
 import path from "node:path";
 
 const db = new PrismaClient();
-const ROOT = path.resolve(process.env.UPLOAD_DIR ?? "./storage");
+const ROOT = path.resolve(process.env.UPLOAD_DIR || "./storage");
 const PASSWORD = "condtrack123";
 
 const hours = (h: number) => new Date(Date.now() + h * 3600_000);

@@ -26,6 +26,7 @@ export async function passkeyConfig() {
 }
 
 function secret() {
+  if (!process.env.AUTH_SECRET) throw new Error("AUTH_SECRET não configurado");
   return new TextEncoder().encode(`webauthn:${process.env.AUTH_SECRET}`);
 }
 

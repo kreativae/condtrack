@@ -6,7 +6,8 @@ import { groupDef, type SettingsGroup } from "./settings-schema";
 // Valores cifrados com AES-256-GCM. Chave: SETTINGS_ENCRYPTION_KEY (recomendado)
 // ou derivada do AUTH_SECRET. Trocar a chave invalida as configurações salvas.
 function key() {
-  const base = process.env.SETTINGS_ENCRYPTION_KEY ?? process.env.AUTH_SECRET;
+  // `||`: variável vazia (ex.: importada de um .env.example) conta como ausente
+  const base = process.env.SETTINGS_ENCRYPTION_KEY || process.env.AUTH_SECRET;
   if (!base) throw new Error("SETTINGS_ENCRYPTION_KEY/AUTH_SECRET não configurado");
   return createHash("sha256").update(`condtrack-settings:${base}`).digest();
 }
