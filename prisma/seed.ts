@@ -33,7 +33,7 @@ function scene(kind: "before" | "after", title: string, hue: number) {
 }
 
 // Mesmo esquema de lib/storage.ts: Vercel Blob (privado) se houver token, senão disco
-const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+const useBlob = !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 
 async function svgMedia(orderId: string, kind: "before" | "after", title: string, hue: number) {
   const name = `${kind}-seed.svg`;

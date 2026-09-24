@@ -31,7 +31,7 @@ Variáveis de ambiente do projeto:
 | `DATABASE_URL` | sim | PostgreSQL (Neon). A integração Neon da Vercel cria automaticamente. |
 | `DATABASE_URL_UNPOOLED` | não | Conexão direta para migrações; se ausente, usa `DATABASE_URL`. |
 | `AUTH_SECRET` | sim | `openssl rand -base64 32`. Sem ela o login não funciona. |
-| `BLOB_READ_WRITE_TOKEN` | sim, em produção | Fotos e vídeos das OS no **Vercel Blob** (privado). Criado ao conectar um Blob store ao projeto (Storage → Create → Blob). Sem ele, usa o disco local (`./storage`), que não persiste na Vercel. |
+| `BLOB_STORE_ID` ou `BLOB_READ_WRITE_TOKEN` | sim, em produção | Fotos e vídeos das OS no **Vercel Blob** (privado). Criado ao conectar um Blob store ao projeto (Storage → Create → Blob); o formato novo usa `BLOB_STORE_ID` + OIDC. Sem ele, usa o disco local (`./storage`), que não persiste na Vercel. |
 | `SEED_ON_DEPLOY` | não | `true` roda o seed de demonstração **apenas se o banco estiver sem usuários**. Remova após o primeiro deploy. |
 
 O build (`npm run build`) aplica as migrações pendentes via `scripts/migrate.mjs`.

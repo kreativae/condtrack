@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { del, get, list, put } from "@vercel/blob";
 
 // Armazenamento de mídias das OS.
-// - Vercel Blob (privado) quando BLOB_READ_WRITE_TOKEN existe — produção.
+// - Vercel Blob (privado) quando configurado (token ou BLOB_STORE_ID + OIDC) — produção.
 // - Disco local (./storage) caso contrário — desenvolvimento.
 // Em ambos, a URL gravada no banco é /api/media/<pasta>/<arquivo>: a entrega
 // passa sempre pela rota que confere a permissão de quem está vendo.
@@ -27,8 +27,12 @@ export const ALLOWED_MIME = Object.keys(EXT).filter((m) => m !== "image/svg+xml"
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
 
+/**
+ * Blob ativo com token (BLOB_READ_WRITE_TOKEN) ou com o formato novo da Vercel:
+ * BLOB_STORE_ID + OIDC (o SDK obtém o VERCEL_OIDC_TOKEN sozinho).
+ */
 export function blobEnabled() {
-  return !!process.env.BLOB_READ_WRITE_TOKEN;
+  return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 const safe = (s: string) => s.replace(/[^a-zA-Z0-9_.-]/g, "");
