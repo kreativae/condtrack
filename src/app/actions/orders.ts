@@ -9,7 +9,7 @@ import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { nextProtocol } from "@/lib/orders";
 import type { Role } from "@/lib/roles";
-import { can, canView, PRIORITY_META, STATUSES, STATUS_META, type OrderAction, type Priority, type Status } from "@/lib/workflow";
+import { can, canView, PRIORITY_META, STATUSES, STATUS_META, type OrderAction, type Priority, type Status, canDeleteMedia } from "@/lib/workflow";
 import { deleteFile, deleteFolder } from "@/lib/storage";
 
 export type ActionState = { error?: string; ok?: boolean; id?: string } | undefined;
@@ -276,18 +276,17 @@ export async function rateOrder(id: string, _: ActionState, form: FormData): Pro
   return { ok: true };
 }
 
-export async function deleteMedia(mediaId: string) {
+export async function deleteMedia(mediaId: string): Promise<{ ok?: boolean; error?: string }> {
   const user = await requireUser();
   const m = await db.serviceMedia.findUnique({ where: { id: mediaId }, include: { serviceOrder: true } });
-  if (!m) return;
-  const phaseAction = m.phase === "after" ? "upload_after" : "upload_before";
-  const allowed = m.uploadedById === user.id && (m.phase === "opening" ? m.serviceOrder.status === "open" : can(phaseAction, m.serviceOrder, user));
-  if (!allowed) return;
+  if (!m) return { error: "Arquivo não encontrado." };
+  if (!canDeleteMedia(m.serviceOrder, m, user)) return { error: "Você não pode excluir este arquivo." };
   await db.serviceMedia.delete({ where: { id: mediaId } });
   await deleteFile(m.url);
   await audit(user, "delete_media", "service_media", mediaId, { old: { url: m.url, phase: m.phase }, condominiumId: m.serviceOrder.condominiumId });
   revalidatePath(`/os/${m.serviceOrderId}`);
   if (m.serviceOrder.status === "approved") revalidatePath("/feed");
+  return { ok: true };
 }
 
 

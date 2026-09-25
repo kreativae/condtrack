@@ -5,7 +5,7 @@ import { ArrowLeft, CalendarClock, Pencil, Check, Clock, MapPin, Package, Star, 
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { locationLabel } from "@/lib/orders";
-import { can, canView, FLOW_STEPS, isOverdue, MAX_MEDIA_PER_PHASE, PHASE_LABEL, STATUS_META, type Phase, type Status } from "@/lib/workflow";
+import { can, canDeleteMedia, canView, FLOW_STEPS, isOverdue, MAX_MEDIA_PER_PHASE, PHASE_LABEL, STATUS_META, type Phase, type Status } from "@/lib/workflow";
 import { DELETED_USER, fmtDate, fmtDateTime, fmtDuration, fmtRelative } from "@/lib/format";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { assignOrder, commentOrder, completeOrder, rateOrder, transitionOrder } from "@/app/actions/orders";
@@ -174,7 +174,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
                   <MediaGrid
                     items={items.map((m) => ({
                       id: m.id, url: m.url, type: m.type, uploadedAt: m.uploadedAt.toISOString(), uploadedBy: m.uploadedBy?.name ?? DELETED_USER,
-                      deletable: uploadable[p] && m.uploadedById === user.id,
+                      deletable: canDeleteMedia(o, m, user),
                     }))}
                   />
                   {uploadable[p] && <MediaUploader orderId={o.id} phase={p} watermark={watermark} remaining={MAX_MEDIA_PER_PHASE - items.length} compact={items.length > 0} />}

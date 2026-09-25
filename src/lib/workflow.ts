@@ -111,6 +111,16 @@ export function can(action: OrderAction, o: OrderLike, u: UserLike): boolean {
 }
 
 /** Quem pode visualizar a OS (detalhe). Conselho vê as próprias e as aprovadas; morador só as aprovadas (feed). */
+/**
+ * Excluir mídia anexada: quem enviou pode apagar até a OS ser aprovada/cancelada;
+ * síndico e superadmin podem apagar qualquer uma (correções depois da aprovação).
+ */
+export function canDeleteMedia(o: OrderLike, m: { uploadedById: string | null }, u: UserLike) {
+  if (!sameCondo(o, u)) return false;
+  if (u.role === "superadmin" || u.role === "syndic") return true;
+  return m.uploadedById === u.id && !["approved", "cancelled"].includes(o.status);
+}
+
 export function canView(o: OrderLike, u: UserLike) {
   if (!sameCondo(o, u)) return false;
   switch (u.role) {
