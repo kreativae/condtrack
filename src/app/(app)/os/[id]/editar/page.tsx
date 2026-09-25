@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { Card, PageHeader } from "@/components/ui";
 import { EditOrderForm } from "./edit-order-form";
+import { byUnit, unitLabel } from "@/lib/units";
 
 export const metadata: Metadata = { title: "Editar OS" };
 
@@ -38,7 +39,7 @@ export default async function EditOrderPage({ params }: PageProps<"/os/[id]/edit
           }}
           categories={categories.map((c) => ({ id: c.id, label: c.name }))}
           areas={areas.map((a) => ({ id: a.id, label: a.name }))}
-          units={units.map((u) => ({ id: u.id, label: `${u.building.name} · ${u.number}` }))}
+          units={units.sort(byUnit).map((u) => ({ id: u.id, label: unitLabel(u, true) }))}
           providers={providers.map((p) => ({ id: p.id, label: `${p.name}${p.company ? ` · ${p.company}` : ""}${p.status !== "active" ? " (inativo)" : ""}` }))}
         />
       </Card>

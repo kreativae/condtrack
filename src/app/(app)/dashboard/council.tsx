@@ -7,6 +7,7 @@ import { fmtRelative } from "@/lib/format";
 import { FeedCard, feedInclude } from "@/components/feed-card";
 import { OrderList } from "@/components/order-list";
 import { Card, CardHeader, LinkButton, PageHeader } from "@/components/ui";
+import { unitLabel } from "@/lib/units";
 
 export async function CouncilDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
@@ -20,7 +21,7 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
   return (
     <div className="animate-in">
       <PageHeader
-        eyebrow={unit ? `${unit.building.name} · Unidade ${unit.number}` : user.condominium?.name}
+        eyebrow={unit ? unitLabel(unit) : user.condominium?.name}
         title={`Olá, ${user.name.split(" ")[0]}`}
         actions={<LinkButton href="/os/nova"><Plus className="size-4" />Nova solicitação</LinkButton>}
       />

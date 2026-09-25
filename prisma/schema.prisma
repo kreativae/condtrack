@@ -26,6 +26,10 @@ model Condominium {
   settings     String   @default("{}")
   active       Boolean  @default(true)
   osCounter    Int      @default(0)
+  /// layout: vertical (prédios) | horizontal (casas/lotes) | mixed
+  layout       String   @default("vertical")
+  /// como chamar as unidades horizontais: house (Casa) | lot (Lote)
+  houseNoun    String   @default("house")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -40,10 +44,14 @@ model Condominium {
   payments      Payment[]
 }
 
+/// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
+/// implicit: agrupamento interno de condomínio horizontal sem quadras — o nome não aparece
 model Building {
   id            String      @id @default(cuid())
   condominiumId String
   name          String
+  kind          String      @default("tower")
+  implicit      Boolean     @default(false)
   condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   units         Unit[]
 }
@@ -53,6 +61,7 @@ model Unit {
   buildingId String
   number     String
   floor      Int?
+  /// type: apartment | house | lot | commercial | other
   type       String     @default("apartment")
   building   Building   @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   residents  UserUnit[]

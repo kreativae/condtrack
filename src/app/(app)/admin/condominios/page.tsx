@@ -44,7 +44,7 @@ export default async function CondosPage() {
                     <div><dt className="text-xs font-medium text-muted">Atrasadas</dt><dd className={m.overdue ? "font-num text-lg text-bad" : "font-num text-lg"}>{m.overdue}</dd></div>
                     <div><dt className="text-xs font-medium text-muted">Tempo méd.</dt><dd className="font-num text-lg">{fmtHours(m.avgHours)}</dd></div>
                   </dl>
-                  <p className="mt-3 text-[11px] text-muted">{c._count.buildings} torre(s) · {c._count.users} usuário(s)</p>
+                  <p className="mt-3 text-[11px] text-muted">{c._count.buildings} {c.layout === "horizontal" ? "quadra(s)" : c.layout === "mixed" ? "torre(s)/quadra(s)" : "torre(s)"} · {c._count.users} usuário(s)</p>
                 </div>
               </Card>
             </Link>

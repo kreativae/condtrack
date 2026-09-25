@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import type { CurrentUser } from "./auth";
+import { unitLabel } from "@/lib/units";
 
 /** Filtro base de OS visíveis na listagem de cada papel. */
 export function orderScope(user: CurrentUser): Prisma.ServiceOrderWhereInput {
@@ -31,8 +32,8 @@ export const orderListInclude = {
 
 export type OrderListItem = Prisma.ServiceOrderGetPayload<{ include: typeof orderListInclude }>;
 
-export function locationLabel(o: { locationType: string; commonArea?: { name: string } | null; unit?: { number: string; building: { name: string } } | null; locationNote?: string | null }) {
-  const base = o.locationType === "unit" && o.unit ? `${o.unit.building.name} · Unid. ${o.unit.number}` : o.commonArea?.name ?? "Área comum";
+export function locationLabel(o: { locationType: string; commonArea?: { name: string } | null; unit?: { number: string; type?: string | null; building: { name: string; kind?: string | null; implicit?: boolean | null } } | null; locationNote?: string | null }) {
+  const base = o.locationType === "unit" && o.unit ? unitLabel(o.unit) : o.commonArea?.name ?? "Área comum";
   return o.locationNote ? `${base} — ${o.locationNote}` : base;
 }
 

@@ -8,6 +8,7 @@ import { PasswordForm, ProfileForm } from "./forms";
 import { PasskeysCard } from "./passkeys";
 import { db } from "@/lib/db";
 import { passkeyConfig } from "@/lib/passkeys";
+import { unitLabel } from "@/lib/units";
 
 export const metadata: Metadata = { title: "Meu perfil" };
 
@@ -27,7 +28,7 @@ export default async function ProfilePage() {
             {user.condominium && ` · ${user.condominium.name}`}
           </p>
           {user.units.map((u) => (
-            <p key={u.unitId} className="mt-1 text-sm text-fg-2">{u.unit.building.name} · Unidade {u.unit.number} ({u.role === "owner" ? "proprietário" : u.role === "tenant" ? "inquilino" : "dependente"})</p>
+            <p key={u.unitId} className="mt-1 text-sm text-fg-2">{unitLabel(u.unit)} ({u.role === "owner" ? "proprietário" : u.role === "tenant" ? "inquilino" : "dependente"})</p>
           ))}
           <p className="mt-2 text-xs text-muted">Último acesso: {fmtDateTime(user.lastLoginAt)}</p>
         </div>

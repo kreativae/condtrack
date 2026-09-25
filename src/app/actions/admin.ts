@@ -12,6 +12,7 @@ import { slugify } from "@/lib/format";
 import { MANAGEABLE_ROLES, ROLE_LABEL, ROLES, type Role } from "@/lib/roles";
 import { emailConfig, renderEmail, sendEmail } from "@/lib/email";
 import { appUrl } from "@/lib/url";
+import { HOUSE_NOUNS, aptNumber, houseNumbers, isHouseNoun, isLayout, type HouseNoun, type Layout } from "@/lib/units";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
 async function emailAccess(user: { name: string; email: string; role: string }, secret: string, kind: "invite" | "reset") {
@@ -145,10 +146,25 @@ export async function saveCondominium(id: string | null, _: AdminState, form: Fo
     return { ok: true, message: "Alterações salvas." };
   }
 
-  // Estrutura inicial: torres (uma por linha), andares e unidades por andar
-  const buildings = String(form.get("buildings") ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
+  // Estrutura inicial: torres (andares × unidades) ou quadras (casas/lotes), um agrupamento por linha
+  const layout = isLayout(form.get("layout")) ? (form.get("layout") as Layout) : "vertical";
+  const houseNoun = layout !== "vertical" && isHouseNoun(form.get("houseNoun")) ? (form.get("houseNoun") as HouseNoun) : "house";
+  const groups = String(form.get("buildings") ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
   const floors = Math.min(80, Math.max(0, Number(form.get("floors") ?? 0)));
   const perFloor = Math.min(20, Math.max(0, Number(form.get("perFloor") ?? 0)));
+  const houses = Math.min(2000, Math.max(0, Number(form.get("houses") ?? 0)));
+  const buildings =
+    layout === "horizontal"
+      ? (groups.length ? groups : [HOUSE_NOUNS[houseNoun].many]).map((name) => ({
+          name,
+          kind: "block",
+          implicit: !groups.length, // sem quadras: o nome não aparece nos rótulos
+          units: { create: houseNumbers(1, houses).map((number) => ({ number, type: houseNoun })) },
+        }))
+      : (groups.length ? groups : ["Bloco Único"]).map((name) => ({
+          name,
+          units: { create: Array.from({ length: floors * perFloor }, (_, i) => ({ floor: Math.floor(i / perFloor) + 1, number: aptNumber(Math.floor(i / perFloor) + 1, (i % perFloor) + 1) })) },
+        }));
 
   let slug = slugify(d.name);
   if (await db.condominium.findUnique({ where: { slug } })) slug = `${slug}-${randomBytes(2).toString("hex")}`;
@@ -158,12 +174,9 @@ export async function saveCondominium(id: string | null, _: AdminState, form: Fo
       ...d, slug,
       categories: { create: DEFAULT_CATEGORIES.map(([name, icon, color]) => ({ name, icon, color })) },
       commonAreas: { create: DEFAULT_AREAS.map((name) => ({ name })) },
-      buildings: {
-        create: (buildings.length ? buildings : ["Bloco Único"]).map((name) => ({
-          name,
-          units: { create: Array.from({ length: floors * perFloor }, (_, i) => ({ floor: Math.floor(i / perFloor) + 1, number: `${Math.floor(i / perFloor) + 1}${String((i % perFloor) + 1).padStart(2, "0")}` })) },
-        })),
-      },
+      layout,
+      houseNoun,
+      buildings: { create: buildings },
     },
   });
   await audit(me, "create", "condominium", condo.id, { new: d, condominiumId: condo.id });

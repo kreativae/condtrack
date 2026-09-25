@@ -7,6 +7,7 @@ import { MANAGEABLE_ROLES, ROLE_LABEL, type Role } from "@/lib/roles";
 import { fmtDateTime } from "@/lib/format";
 import { Avatar, Badge, Card, PageHeader } from "@/components/ui";
 import { EditUserForm } from "./edit-user-form";
+import { byUnit, unitLabel } from "@/lib/units";
 
 /** Página de edição de usuário (superadmin: qualquer um; síndico: pessoas do condomínio). */
 export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: string; back: string }) {
@@ -53,7 +54,7 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
           }}
           roles={roles}
           condos={admin ? condos : undefined}
-          units={units.map((x) => ({ id: x.id, label: `${x.building.name} · ${x.number}`, condominiumId: x.building.condominiumId }))}
+          units={units.sort(byUnit).map((x) => ({ id: x.id, label: unitLabel(x, true), condominiumId: x.building.condominiumId }))}
         />
       </Card>
     </div>

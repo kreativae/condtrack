@@ -6,6 +6,7 @@ import { fmtHours } from "@/lib/metrics";
 import { RankBars } from "@/components/charts";
 import { FeedCard, feedInclude } from "@/components/feed-card";
 import { Card, CardHeader, PageHeader, Stat } from "@/components/ui";
+import { unitLabel } from "@/lib/units";
 
 /** Morador: somente visualização dos serviços entregues. */
 export async function ResidentDashboard({ user }: { user: CurrentUser }) {
@@ -34,7 +35,7 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
   return (
     <div className="animate-in">
       <PageHeader
-        eyebrow={unit ? `${unit.building.name} · Unidade ${unit.number}` : user.condominium?.name}
+        eyebrow={unit ? unitLabel(unit) : user.condominium?.name}
         title={`Olá, ${user.name.split(" ")[0]}`}
         description="Acompanhe tudo o que foi feito no seu condomínio."
       />

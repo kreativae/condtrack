@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { MANAGEABLE_ROLES, isRole } from "@/lib/roles";
 import { UserForm } from "@/components/admin/user-form";
 import { Card, PageHeader } from "@/components/ui";
+import { byUnit, unitLabel } from "@/lib/units";
 
 export const metadata: Metadata = { title: "Novo usuário" };
 
@@ -22,7 +23,7 @@ export default async function AdminNewUserPage({ searchParams }: PageProps<"/adm
           roles={MANAGEABLE_ROLES.superadmin}
           defaultRole={typeof role === "string" && isRole(role) ? role : "syndic"}
           condos={condos}
-          units={units.map((u) => ({ id: u.id, label: `${u.building.name} · ${u.number}`, condominiumId: u.building.condominiumId }))}
+          units={units.sort(byUnit).map((u) => ({ id: u.id, label: unitLabel(u, true), condominiumId: u.building.condominiumId }))}
         />
       </Card>
     </div>

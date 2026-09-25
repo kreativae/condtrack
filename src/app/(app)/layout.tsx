@@ -11,6 +11,7 @@ import { SideNav, BottomNav } from "@/components/nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui";
+import { unitLabel } from "@/lib/units";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -64,7 +65,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <p className="truncate font-medium">{user.name}</p>
               <p className="truncate text-xs text-muted">
                 {ROLE_LABEL[user.role]}
-                {unit && ` · ${unit.building.name} ${unit.number}`}
+                {unit && ` · ${unitLabel(unit, true)}`}
               </p>
             </div>
           </Link>

@@ -8,6 +8,7 @@ import { Pager, ScrollCard, pageParam, withPage } from "@/components/frozen";
 
 const PAGE = 50;
 import { UserRowActions } from "./user-row-actions";
+import { unitLabel } from "@/lib/units";
 
 /** Lista paginada de usuários — renderizar dentro de um FrozenPage. */
 export async function UsersTable({ where, base, role, roles, showCondo, canImpersonate, q, meId, params }: { meId: string; where: Prisma.UserWhereInput; base: string; role?: string; roles: Role[]; showCondo?: boolean; canImpersonate?: boolean; q?: string; params: Record<string, string | string[] | undefined> }) {
@@ -44,7 +45,7 @@ export async function UsersTable({ where, base, role, roles, showCondo, canImper
                 {u.email}
                 {u.company && ` · ${u.company}`}
                 {u.specialty && ` (${u.specialty})`}
-                {u.units.map((x) => ` · ${x.unit.building.name} ${x.unit.number}`).join("")}
+                {u.units.map((x) => ` · ${unitLabel(x.unit, true)}`).join("")}
                 {showCondo && u.condominium && ` · ${u.condominium.name}`}
               </p>
             </div>

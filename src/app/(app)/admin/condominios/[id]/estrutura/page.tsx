@@ -21,7 +21,7 @@ export default async function AdminStructurePage({ params, searchParams }: PageP
       <Link href={`/admin/condominios/${id}`} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand">
         <ArrowLeft className="size-3.5" /> {condo.name}
       </Link>
-      <PageHeader eyebrow={condo.name} title="Estrutura do condomínio" description="Torres, unidades, áreas comuns e categorias de serviço." />
+      <PageHeader eyebrow={condo.name} title="Estrutura do condomínio" description="Torres ou quadras, unidades, áreas comuns e categorias de serviço." />
       <StructureManager condominiumId={id} basePath={`/admin/condominios/${id}/estrutura`} tab={current} />
     </div>
   );

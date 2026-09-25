@@ -9,6 +9,7 @@ import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { saveCondominium, toggleCondominium } from "@/app/actions/admin";
 import { CondoForm } from "@/components/admin/condo-form";
 import { Card, CardHeader, LinkButton, PageHeader, Stat, buttonClass } from "@/components/ui";
+import { LAYOUTS, type Layout } from "@/lib/units";
 
 export const metadata: Metadata = { title: "Condomínio" };
 
@@ -56,9 +57,9 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
             </ul>
           </Card>
           <Card>
-            <CardHeader title="Estrutura" action={<Link href={`/admin/condominios/${c.id}/estrutura`} className="text-xs font-medium text-brand hover:underline">Gerenciar</Link>} />
+            <CardHeader title="Estrutura" subtitle={LAYOUTS[c.layout as Layout]?.label ?? undefined} action={<Link href={`/admin/condominios/${c.id}/estrutura`} className="text-xs font-medium text-brand hover:underline">Gerenciar</Link>} />
             <ul className="divide-y divide-line text-sm">
-              {c.buildings.map((b) => <li key={b.id} className="flex justify-between px-5 py-3"><span>{b.name}</span><span className="text-muted">{b._count.units} unidades</span></li>)}
+              {c.buildings.map((b) => <li key={b.id} className="flex justify-between px-5 py-3"><span>{b.name}</span><span className="text-muted">{b._count.units} {b.kind === "block" ? (c.houseNoun === "lot" ? "lotes" : "casas") : "unidades"}</span></li>)}
             </ul>
             <div className="border-t border-line px-5 py-4 text-xs text-muted">
               <p><b className="text-fg-2">Categorias:</b> {c.categories.map((x) => x.name).join(", ")}</p>

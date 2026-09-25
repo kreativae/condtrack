@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState, type ReactNode } from "rea
 import { Loader2, Trash2 } from "lucide-react";
 import type { StructState } from "@/app/actions/structure";
 import { CATEGORY_ICONS } from "@/lib/category-icons";
+import { HOUSE_NOUNS, LAYOUTS, UNIT_TYPES } from "@/lib/units";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { Alert, Field, Input, Select, Textarea, cx } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
@@ -58,56 +59,123 @@ export function DeleteButton({ action, confirmText, label }: { action: (s: Struc
 
 // ───────────────────────────── Específicos ─────────────────────────────
 
-export function BuildingCreateForm({ action }: { action: FormAction }) {
+type Kind = "tower" | "block";
+
+/** Tipo do condomínio e nome das unidades horizontais (casa ou lote). */
+export function LayoutForm({ action, layout, houseNoun, unitCount }: { action: FormAction; layout: string; houseNoun: string; unitCount: number }) {
+  const [value, setValue] = useState(layout);
   return (
-    <ActionForm action={action} submit="Adicionar torre/bloco" reset>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Nome"><Input name="name" required placeholder="Torre C" /></Field>
-        <Field label="Andares" hint="Opcional: gera as unidades"><Input name="floors" type="number" min={0} max={80} placeholder="0" /></Field>
-        <Field label="Unidades por andar"><Input name="perFloor" type="number" min={0} max={30} placeholder="0" /></Field>
+    <ActionForm action={action} submit="Salvar tipo">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {Object.entries(LAYOUTS).map(([k, l]) => (
+          <label key={k} className={cx("cursor-pointer rounded-xl border px-4 py-3 transition", value === k ? "border-brand bg-brand-soft" : "border-line hover:bg-bg-2")}>
+            <input type="radio" name="layout" value={k} checked={value === k} onChange={() => setValue(k)} className="sr-only" />
+            <span className={cx("block text-sm font-semibold", value === k && "text-brand")}>{l.label}</span>
+            <span className="mt-0.5 block text-xs text-muted">{l.hint}</span>
+          </label>
+        ))}
       </div>
+      {value !== "vertical" && (
+        <Field label="Como chamar as unidades das quadras" className="sm:max-w-xs">
+          <Select name="houseNoun" defaultValue={houseNoun}>
+            {Object.entries(HOUSE_NOUNS).map(([k, n]) => <option key={k} value={k}>{n.one} ({n.many.toLowerCase()})</option>)}
+          </Select>
+        </Field>
+      )}
+      {value !== layout && unitCount > 0 && (
+        <p className="rounded-xl bg-warn/10 px-3 py-2 text-xs text-warn">
+          {value === "vertical" ? "As casas/lotes existentes passarão a ser apartamentos." : value === "horizontal" ? "Torres viram quadras e os apartamentos existentes passam a ser casas/lotes." : "Os agrupamentos atuais continuam como estão; escolha o tipo de cada novo."}
+        </p>
+      )}
     </ActionForm>
   );
 }
 
-export function RenameForm({ action, name }: { action: FormAction; name: string }) {
+export function BuildingCreateForm({ action, layout, houseNoun }: { action: FormAction; layout: string; houseNoun: string }) {
+  const [kind, setKind] = useState<Kind>(layout === "horizontal" ? "block" : "tower");
+  const house = HOUSE_NOUNS[houseNoun as keyof typeof HOUSE_NOUNS] ?? HOUSE_NOUNS.house;
   return (
-    <ActionForm action={action} submit="Renomear" inline>
-      <Field label="Nome" className="min-w-48 flex-1"><Input name="name" defaultValue={name} required /></Field>
+    <ActionForm action={action} submit={kind === "block" ? "Adicionar quadra/rua" : "Adicionar torre/bloco"} reset>
+      {layout === "mixed" && (
+        <div className="inline-flex rounded-xl bg-bg-2 p-1 text-sm">
+          {(["tower", "block"] as const).map((k) => (
+            <button key={k} type="button" onClick={() => setKind(k)} className={cx("rounded-lg px-3 py-1.5 font-medium transition", kind === k ? "bg-surface text-fg shadow-card" : "text-muted hover:text-fg")}>
+              {k === "tower" ? "Torre/bloco" : "Quadra/rua"}
+            </button>
+          ))}
+          <input type="hidden" name="kind" value={kind} />
+        </div>
+      )}
+      {kind === "block" ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Nome"><Input name="name" required placeholder="Quadra A" /></Field>
+          <Field label={`Quantidade de ${house.many.toLowerCase()}`} hint="Opcional: numera de 1 em diante"><Input name="houses" type="number" min={0} max={2000} placeholder="0" /></Field>
+          <Field label="Prefixo" hint="Opcional, ex.: A-"><Input name="prefix" maxLength={8} placeholder="—" /></Field>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Nome"><Input name="name" required placeholder="Torre C" /></Field>
+          <Field label="Andares" hint="Opcional: gera as unidades"><Input name="floors" type="number" min={0} max={80} placeholder="0" /></Field>
+          <Field label="Unidades por andar"><Input name="perFloor" type="number" min={0} max={30} placeholder="0" /></Field>
+        </div>
+      )}
     </ActionForm>
   );
 }
 
-const UNIT_TYPES = [
-  ["apartment", "Apartamento"],
-  ["house", "Casa"],
-  ["commercial", "Sala comercial"],
-  ["other", "Outro"],
-] as const;
+export function RenameForm({ action, name, kind, implicit }: { action: FormAction; name: string; kind: string; implicit: boolean }) {
+  return (
+    <ActionForm action={action} submit="Salvar" inline>
+      <Field label="Nome" className="min-w-48 flex-1"><Input name="name" defaultValue={name} required /></Field>
+      {kind === "block" && (
+        <label className="flex basis-full items-center gap-2 text-sm text-fg-2">
+          <input type="checkbox" name="implicit" defaultChecked={implicit} className="size-4 accent-[var(--brand)]" />
+          Condomínio sem quadras: não mostrar este nome (aparece só “Casa 12” / “Lote 12”)
+        </label>
+      )}
+    </ActionForm>
+  );
+}
 
-export function UnitFields({ number, floor, type }: { number?: string; floor?: number | null; type?: string }) {
+export function UnitFields({ number, floor, type, kind, houseNoun }: { number?: string; floor?: number | null; type?: string; kind: string; houseNoun: string }) {
+  const block = kind === "block";
+  // Na quadra não existe apartamento; na torre não existe lote
+  const types = Object.entries(UNIT_TYPES).filter(([k]) => (block ? k !== "apartment" : k !== "lot"));
   return (
     <>
-      <Field label="Número" className="w-28"><Input name="number" defaultValue={number} required placeholder="101" /></Field>
-      <Field label="Andar" className="w-24"><Input name="floor" type="number" defaultValue={floor ?? ""} /></Field>
+      <Field label="Número" className="w-28"><Input name="number" defaultValue={number} required placeholder={block ? "12" : "101"} /></Field>
+      {!block && <Field label="Andar" className="w-24"><Input name="floor" type="number" defaultValue={floor ?? ""} /></Field>}
       <Field label="Tipo" className="w-44">
-        <Select name="type" defaultValue={type ?? "apartment"}>
-          {UNIT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        <Select name="type" defaultValue={type ?? (block ? houseNoun : "apartment")}>
+          {types.map(([v, l]) => <option key={v} value={v}>{l.one}</option>)}
         </Select>
       </Field>
     </>
   );
 }
 
-export function UnitCreateForm({ action }: { action: FormAction }) {
-  return <ActionForm action={action} submit="Adicionar" inline reset><UnitFields /></ActionForm>;
+export function UnitCreateForm({ action, kind, houseNoun }: { action: FormAction; kind: string; houseNoun: string }) {
+  return <ActionForm action={action} submit="Adicionar" inline reset><UnitFields kind={kind} houseNoun={houseNoun} /></ActionForm>;
 }
 
-export function UnitEditForm({ action, number, floor, type }: { action: FormAction; number: string; floor: number | null; type: string }) {
-  return <ActionForm action={action} submit="Salvar" inline><UnitFields number={number} floor={floor} type={type} /></ActionForm>;
+export function UnitEditForm({ action, number, floor, type, kind, houseNoun }: { action: FormAction; number: string; floor: number | null; type: string; kind: string; houseNoun: string }) {
+  return <ActionForm action={action} submit="Salvar" inline><UnitFields number={number} floor={floor} type={type} kind={kind} houseNoun={houseNoun} /></ActionForm>;
 }
 
-export function UnitGenerateForm({ action }: { action: FormAction }) {
+export function UnitGenerateForm({ action, kind, houseNoun }: { action: FormAction; kind: string; houseNoun: string }) {
+  if (kind === "block") {
+    const house = HOUSE_NOUNS[houseNoun as keyof typeof HOUSE_NOUNS] ?? HOUSE_NOUNS.house;
+    return (
+      <ActionForm action={action} submit={`Gerar ${house.many.toLowerCase()}`} inline reset>
+        <Field label="Do número" className="w-24"><Input name="from" type="number" min={0} required defaultValue={1} /></Field>
+        <Field label="Até o número" className="w-28"><Input name="to" type="number" min={0} required /></Field>
+        <Field label="Prefixo" className="w-24"><Input name="prefix" maxLength={8} placeholder="—" /></Field>
+        <label className="flex h-10 items-center gap-2 text-sm text-fg-2">
+          <input type="checkbox" name="pad" className="size-4 accent-[var(--brand)]" /> Zeros à esquerda (01, 02…)
+        </label>
+      </ActionForm>
+    );
+  }
   return (
     <ActionForm action={action} submit="Gerar unidades" inline reset>
       <Field label="Do andar" className="w-24"><Input name="fromFloor" type="number" min={0} required defaultValue={1} /></Field>

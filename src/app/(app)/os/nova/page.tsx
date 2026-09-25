@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { Card, PageHeader } from "@/components/ui";
 import { NewOrderForm } from "./new-order-form";
+import { byUnit, unitLabel } from "@/lib/units";
 
 export const metadata: Metadata = { title: "Nova ordem de serviço" };
 
@@ -39,7 +40,7 @@ export default async function NewOrderPage() {
           condos={condos}
           categories={categories}
           areas={areas}
-          units={units.map((u) => ({ id: u.id, label: `${u.building.name} · ${u.number}`, condominiumId: u.building.condominiumId }))}
+          units={units.sort(byUnit).map((u) => ({ id: u.id, label: unitLabel(u, true), condominiumId: u.building.condominiumId }))}
           defaultUnitId={user.units[0]?.unitId}
         />
       </Card>
