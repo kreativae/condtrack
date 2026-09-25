@@ -109,6 +109,26 @@ export const TEMPLATES: TemplateDef[] = [
     ],
   },
   {
+    key: "email_changed",
+    group: "Acesso",
+    label: "E-mail de acesso alterado",
+    audience: "Endereço antigo de quem teve o e-mail trocado (aviso de segurança)",
+    channels: [],
+    vars: [
+      { name: "nome", desc: "Primeiro nome", sample: "Ana" },
+      { name: "email_antigo", desc: "E-mail anterior", sample: "ana@antigo.com" },
+      { name: "email_novo", desc: "Novo e-mail de login", sample: "ana@novo.com" },
+      { name: "autor", desc: "Quem fez a troca", sample: "Ana Carvalho" },
+    ],
+    fields: [
+      { key: "subject", label: "Assunto", kind: "text", default: "Seu e-mail de acesso foi alterado — Condtrack" },
+      { key: "title", label: "Título", kind: "text", default: "Seu e-mail de acesso foi alterado" },
+      { key: "message", label: "Mensagem", kind: "textarea", default: "Olá, {nome}.\nO e-mail de login da sua conta mudou de {email_antigo} para {email_novo}.\nAlteração feita por {autor}." },
+      { key: "cta", label: "Botão", kind: "text", default: "Entrar no Condtrack" },
+      { key: "footnote", label: "Nota de rodapé", kind: "textarea", default: "Se você não reconhece esta alteração, fale imediatamente com a administração do condomínio." },
+    ],
+  },
+  {
     key: "email_layout",
     group: "Layout dos e-mails",
     label: "Saudação, botões e rodapé",

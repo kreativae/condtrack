@@ -15,8 +15,10 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
   const u = await db.user.findUnique({ where: { id }, include: { units: true, condominium: { select: { name: true } } } });
   const roles = MANAGEABLE_ROLES[me.role];
   // Mesmas regras das ações do servidor: síndico só no próprio condomínio e perfis gerenciáveis
-  if (!u || u.id === me.id) notFound();
-  if (!admin && (u.condominiumId !== me.condominiumId || !roles.includes(u.role as Role))) notFound();
+  // Superadmin edita os próprios dados (sem mudar perfil/status); síndico usa Meu perfil
+  const self = !!u && u.id === me.id;
+  if (!u || (self && !admin)) notFound();
+  if (!self && !admin && (u.condominiumId !== me.condominiumId || !roles.includes(u.role as Role))) notFound();
 
   const [condos, units] = await Promise.all([
     admin ? db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }) : [],
@@ -53,6 +55,7 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
             condominiumId: u.condominiumId, status: u.status, unitId: u.units[0]?.unitId ?? null, unitRole: u.units[0]?.role ?? null,
           }}
           roles={roles}
+          self={self}
           condos={admin ? condos : undefined}
           units={units.sort(byUnit).map((x) => ({ id: x.id, label: unitLabel(x, true), condominiumId: x.building.condominiumId }))}
         />

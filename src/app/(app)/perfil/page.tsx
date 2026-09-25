@@ -4,7 +4,7 @@ import { ROLE_LABEL } from "@/lib/roles";
 import { fmtDateTime } from "@/lib/format";
 import { logout } from "@/app/actions/auth";
 import { Avatar, Card, CardHeader, PageHeader, buttonClass } from "@/components/ui";
-import { PasswordForm, ProfileForm } from "./forms";
+import { EmailForm, PasswordForm, ProfileForm } from "./forms";
 import { PasskeysCard } from "./passkeys";
 import { db } from "@/lib/db";
 import { passkeyConfig } from "@/lib/passkeys";
@@ -36,6 +36,10 @@ export default async function ProfilePage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card><CardHeader title="Dados pessoais" /><div className="p-5"><ProfileForm name={user.name} phone={user.phone} /></div></Card>
         <Card><CardHeader title="Segurança" /><div className="p-5"><PasswordForm /></div></Card>
+        <Card className="md:col-span-2">
+          <CardHeader title="E-mail de acesso" subtitle="O e-mail que você usa para entrar. O endereço antigo recebe um aviso da troca." />
+          <div className="p-5 md:max-w-md"><EmailForm email={user.email} /></div>
+        </Card>
       </div>
       <Card className="mt-6">
         <CardHeader title="Face ID / biometria" subtitle="Login sem senha neste e em outros aparelhos" />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
@@ -50,6 +51,9 @@ export async function UsersTable({ where, base, role, roles, showCondo, canImper
               </p>
             </div>
             <p className="hidden text-xs text-muted md:block">{u.lastLoginAt ? `Acesso ${fmtRelative(u.lastLoginAt)}` : "Nunca acessou"}</p>
+            {u.id === meId && roles.includes("superadmin") && (
+              <Link href={`${base}/${u.id}/editar`} title="Editar meus dados" className="rounded-lg p-1.5 text-muted transition hover:bg-bg-2 hover:text-fg"><Pencil className="size-4" /></Link>
+            )}
             {u.id !== meId && roles.includes(u.role as Role) && <UserRowActions id={u.id} name={u.name} editHref={`${base}/${u.id}/editar`} active={u.status === "active"} canImpersonate={canImpersonate} />}
           </div>
         )) : <Empty title="Nenhum usuário encontrado" />}

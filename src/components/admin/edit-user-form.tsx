@@ -25,12 +25,14 @@ export type EditableUser = {
 type Props = {
   user: EditableUser;
   roles: Role[];
+  /** Editando a própria conta: perfil, condomínio e status ficam travados. */
+  self?: boolean;
   /** Só o superadmin escolhe o condomínio. */
   condos?: { id: string; name: string }[];
   units: { id: string; label: string; condominiumId: string }[];
 };
 
-export function EditUserForm({ user, roles, condos, units }: Props) {
+export function EditUserForm({ user, roles, condos, units, self }: Props) {
   const [state, form, pending] = useFormSubmit(updateUser.bind(null, user.id));
   const [role, setRole] = useState<Role>(user.role);
   const [condo, setCondo] = useState(user.condominiumId ?? condos?.[0]?.id ?? "");
@@ -50,7 +52,7 @@ export function EditUserForm({ user, roles, condos, units }: Props) {
         </div>
       </section>
 
-      <section className="space-y-5 border-t border-line pt-6">
+      <section className={cx("space-y-5 border-t border-line pt-6", self && "hidden")}>
         <h2 className="font-display text-base font-semibold">Acesso</h2>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Perfil">
@@ -80,6 +82,11 @@ export function EditUserForm({ user, roles, condos, units }: Props) {
           {status === "inactive" && <p className="mt-1.5 text-xs text-muted">Usuários inativos não conseguem entrar no sistema.</p>}
         </div>
       </section>
+      {self && (
+        <p className="rounded-xl bg-bg-2 px-4 py-3 text-xs text-muted">
+          Esta é a sua conta: perfil de acesso e status não podem ser alterados por você mesmo. Ao trocar o e-mail, o endereço antigo recebe um aviso.
+        </p>
+      )}
 
       {role === "provider" && (
         <section className="space-y-5 border-t border-line pt-6">
@@ -115,7 +122,7 @@ export function EditUserForm({ user, roles, condos, units }: Props) {
       {state?.error && <Alert>{state.error}</Alert>}
       {state?.message && <Alert tone="ok">{state.message}</Alert>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
-        <p className="text-xs text-muted">A senha é redefinida pelo ícone de chave na lista de usuários.</p>
+        <p className="text-xs text-muted">{self ? "Sua senha é alterada em Meu perfil." : "A senha é redefinida pelo ícone de chave na lista de usuários."}</p>
         <SubmitButton pending={pending} pendingText="Salvando…">Salvar alterações</SubmitButton>
       </div>
     </form>

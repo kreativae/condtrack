@@ -13,6 +13,7 @@ import { MANAGEABLE_ROLES, ROLE_LABEL, ROLES, type Role } from "@/lib/roles";
 import { emailConfig, renderEmail, sendEmail } from "@/lib/email";
 import { appUrl } from "@/lib/url";
 import { renderTemplate } from "@/lib/messages-server";
+import { sendEmailChangedNotice } from "@/lib/account-email";
 import { HOUSE_NOUNS, aptNumber, houseNumbers, isHouseNoun, isLayout, type HouseNoun, type Layout } from "@/lib/units";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
@@ -256,11 +257,13 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
   const me = await requireUser("superadmin", "syndic");
   const u = await db.user.findUnique({ where: { id }, include: { units: true } });
   if (!u) return { error: "Usuário não encontrado." };
-  if (!canManage(me, u)) return { error: "Você não pode editar este usuário." };
+  // O superadmin pode editar os próprios dados; perfil, status e condomínio ficam como estão
+  const self = u.id === me.id && me.role === "superadmin";
+  if (!self && !canManage(me, u)) return { error: "Você não pode editar este usuário." };
 
   const parsed = editUserSchema.safeParse(Object.fromEntries([...form.entries()].filter(([, v]) => v !== "")));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const d = parsed.data;
+  const d = self ? { ...parsed.data, role: u.role as Role, status: u.status as "active" | "inactive", condominiumId: u.condominiumId ?? undefined } : parsed.data;
   if (!MANAGEABLE_ROLES[me.role].includes(d.role)) return { error: "Você não pode atribuir esse perfil." };
 
   // Síndico não troca o condomínio; superadmin não tem condomínio
@@ -306,6 +309,7 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
   const before = { name: u.name, email: u.email, role: u.role, phone: u.phone, cpf: u.cpf, company: u.company, specialty: u.specialty, condominiumId: u.condominiumId, status: u.status, unitId: currentUnit?.unitId ?? null };
   const after = { ...data, unitId: livesInUnit ? d.unitId ?? null : null };
   const changed = (Object.keys(before) as (keyof typeof before)[]).filter((k) => String(before[k] ?? "") !== String(after[k as keyof typeof after] ?? ""));
+  if (data.email !== u.email) await sendEmailChangedNotice(u, u.email, data.email, me.name);
   if (changed.length) {
     await audit(me, "update", "user", id, {
       old: Object.fromEntries(changed.map((k) => [k, before[k]])),

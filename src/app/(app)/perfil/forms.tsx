@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormSubmit } from "@/components/use-form-submit";
-import { changePassword, updateProfile } from "@/app/actions/misc";
+import { changeEmail, changePassword, updateProfile } from "@/app/actions/misc";
 import { Alert, Field, Input } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -28,6 +28,20 @@ export function PasswordForm() {
       {state?.error && <Alert>{state.error}</Alert>}
       {state?.message && <Alert tone="ok">{state.message}</Alert>}
       <SubmitButton pending={pending} variant="outline">Alterar senha</SubmitButton>
+    </form>
+  );
+}
+
+export function EmailForm({ email }: { email: string }) {
+  const [state, form, pending] = useFormSubmit(changeEmail);
+  return (
+    <form {...form} className="space-y-4">
+      <p className="text-sm text-muted">Atual: <b className="font-medium text-fg-2">{email}</b></p>
+      <Field label="Novo e-mail"><Input type="email" name="email" required autoComplete="email" /></Field>
+      <Field label="Senha atual" hint="Para confirmar que é você."><Input type="password" name="password" required autoComplete="current-password" /></Field>
+      {state?.error && <Alert>{state.error}</Alert>}
+      {state?.message && <Alert tone="ok">{state.message}</Alert>}
+      <SubmitButton pending={pending} variant="outline">Alterar e-mail</SubmitButton>
     </form>
   );
 }

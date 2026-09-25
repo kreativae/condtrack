@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
+import { sendEmailChangedNotice } from "@/lib/account-email";
 
 export type FormState = { error?: string; ok?: boolean; message?: string } | undefined;
 
@@ -36,6 +37,23 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   await db.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(next, 10) } });
   await audit(user, "change_password", "user", user.id);
   return { ok: true, message: "Senha alterada com sucesso." };
+}
+
+/** Troca o próprio e-mail de login (confirma com a senha atual e avisa o endereço antigo). */
+export async function changeEmail(_: FormState, form: FormData): Promise<FormState> {
+  const user = await requireUser();
+  if (user.impersonator) return { error: "Não é possível alterar o e-mail em modo de visualização." };
+  const parsed = z.string().trim().toLowerCase().email().max(200).safeParse(form.get("email"));
+  if (!parsed.success) return { error: "Informe um e-mail válido." };
+  const email = parsed.data;
+  if (email === user.email) return { error: "Este já é o seu e-mail de acesso." };
+  if (!(await bcrypt.compare(String(form.get("password") ?? ""), user.passwordHash))) return { error: "Senha atual incorreta." };
+  if (await db.user.findUnique({ where: { email } })) return { error: "Já existe um usuário com este e-mail." };
+  await db.user.update({ where: { id: user.id }, data: { email } });
+  await audit(user, "change_email", "user", user.id, { old: { email: user.email }, new: { email } });
+  await sendEmailChangedNotice(user, user.email, email, user.name);
+  revalidatePath("/", "layout");
+  return { ok: true, message: `E-mail alterado. Use ${email} no próximo login.` };
 }
 
 export async function updateProfile(_: FormState, form: FormData): Promise<FormState> {
