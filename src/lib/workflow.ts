@@ -86,10 +86,13 @@ export function can(action: OrderAction, o: OrderLike, u: UserLike): boolean {
     case "assign":
       return manager && ["open", "assigned", "rejected"].includes(s);
     case "upload_before":
+      // Superadmin pode completar o registro em qualquer etapa (ex.: OS aprovada pela edição administrativa)
+      if (u.role === "superadmin") return !["open", "cancelled"].includes(s);
       return (isProvider || manager) && ["assigned", "rejected"].includes(s);
     case "start":
       return isProvider && ["assigned", "rejected"].includes(s);
     case "upload_after":
+      if (u.role === "superadmin") return !["open", "cancelled"].includes(s);
       return (isProvider || manager) && s === "in_progress";
     case "complete":
       return isProvider && s === "in_progress";

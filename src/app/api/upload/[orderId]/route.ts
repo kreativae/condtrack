@@ -74,5 +74,6 @@ export async function POST(req: Request, ctx: RouteContext<"/api/upload/[orderId
     );
   }
   revalidatePath(`/os/${orderId}`);
+  if (order.status === "approved") revalidatePath("/feed");
   return NextResponse.json({ id: media.id, url });
 }

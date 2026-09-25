@@ -287,6 +287,7 @@ export async function deleteMedia(mediaId: string) {
   await deleteFile(m.url);
   await audit(user, "delete_media", "service_media", mediaId, { old: { url: m.url, phase: m.phase }, condominiumId: m.serviceOrder.condominiumId });
   revalidatePath(`/os/${m.serviceOrderId}`);
+  if (m.serviceOrder.status === "approved") revalidatePath("/feed");
 }
 
 

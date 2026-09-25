@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { CheckCircle2, MapPin, Star } from "lucide-react";
+import { CheckCircle2, ImageOff, MapPin, Star } from "lucide-react";
 import { BeforeAfter } from "./before-after";
-import { Avatar, Card } from "./ui";
+import { Avatar, Card, cx } from "./ui";
 import { DELETED_USER, fmtDateTime, fmtRelative } from "@/lib/format";
 import { locationLabel } from "@/lib/orders";
 import type { Prisma } from "@prisma/client";
@@ -14,15 +14,17 @@ export const feedInclude = {
   assignedTo: { select: { name: true, company: true } },
   validatedBy: { select: { name: true } },
   approvedBy: { select: { name: true } },
-  media: { where: { phase: { in: ["before", "after"] }, type: "photo" }, orderBy: { uploadedAt: "asc" } },
+  media: { where: { phase: { in: ["opening", "before", "after"] } }, orderBy: { uploadedAt: "asc" } },
 } satisfies Prisma.ServiceOrderInclude;
 
 export type FeedItem = Prisma.ServiceOrderGetPayload<{ include: typeof feedInclude }>;
 
 /** `showCondo`: exibe o condomínio (feed do superadmin, com todos os prédios). */
 export function FeedCard({ o, showCondo }: { o: FeedItem; showCondo?: boolean }) {
-  const before = o.media.find((m) => m.phase === "before");
-  const after = o.media.find((m) => m.phase === "after");
+  // Prefere fotos; na falta, usa vídeo. Sem "antes", usa o registro da abertura.
+  const pick = (phase: string) => o.media.find((m) => m.phase === phase && m.type === "photo") ?? o.media.find((m) => m.phase === phase);
+  const before = pick("before") ?? pick("opening");
+  const after = pick("after");
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4">
@@ -40,12 +42,27 @@ export function FeedCard({ o, showCondo }: { o: FeedItem; showCondo?: boolean })
           </span>
         )}
       </div>
-      {before && after ? (
+      {before?.type === "photo" && after?.type === "photo" ? (
         <div className="px-3"><BeforeAfter before={before.url} after={after.url} alt={o.title} /></div>
-      ) : after ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={after.url} alt={o.title} className="aspect-[16/10] w-full object-cover" />
-      ) : null}
+      ) : before || after ? (
+        <div className={cx("grid gap-2 px-3", before && after && "grid-cols-2")}>
+          {[before && { m: before, label: "Antes" }, after && { m: after, label: "Depois" }].filter((x) => !!x).map(({ m, label }) => (
+            <div key={m.id} className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-bg-2">
+              {m.type === "video" ? (
+                <video src={m.url} controls playsInline preload="metadata" className="size-full object-cover" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.url} alt={`${o.title} — ${label.toLowerCase()}`} className="size-full object-cover" />
+              )}
+              <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">{label}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mx-3 flex aspect-[16/10] items-center justify-center gap-2 rounded-2xl bg-bg-2 text-sm text-muted">
+          <ImageOff className="size-4" />Sem fotos de antes e depois
+        </div>
+      )}
       <div className="space-y-3 px-5 py-4">
         <Link href={`/os/${o.id}`} className="block font-display font-semibold text-xl leading-snug hover:text-brand">{o.title}</Link>
         <p className="flex items-center gap-1.5 text-xs text-muted"><MapPin className="size-3.5 text-brand" />{locationLabel(o)}</p>
