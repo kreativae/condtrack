@@ -9,11 +9,12 @@ import { ResidentDashboard } from "./resident";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const user = await requireUser();
+  const welcome = (await searchParams)["bem-vindo"] === "1";
   switch (user.role) {
     case "superadmin":
-      return <SuperadminDashboard />;
+      return <SuperadminDashboard welcome={welcome} />;
     case "syndic":
       return <SyndicDashboard user={user} />;
     case "caretaker":

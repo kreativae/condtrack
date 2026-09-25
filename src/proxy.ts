@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session-token";
 
-const PUBLIC = ["/login"];
+const PUBLIC = ["/login", "/primeiro-acesso"];
 
 // Checagem otimista: apenas redireciona. A autorização real acontece em cada
 // página/ação via requireUser() e nas regras de lib/workflow.ts.

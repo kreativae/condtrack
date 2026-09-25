@@ -4,6 +4,8 @@ import { LoginForm } from "./login-form";
 import { Logo } from "@/components/logo";
 import { passkeyConfig } from "@/lib/passkeys";
 import { turnstileSiteKey } from "@/lib/turnstile";
+import { setupAvailable } from "@/lib/setup";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Entrar" };
 
@@ -20,7 +22,7 @@ const STEPS = ["Aberta", "Em execução", "Validada", "Aprovada"];
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next } = await searchParams;
-  const [pk, turnstile] = await Promise.all([passkeyConfig(), turnstileSiteKey()]);
+  const [pk, turnstile, firstAccess] = await Promise.all([passkeyConfig(), turnstileSiteKey(), setupAvailable()]);
   return (
     <main className="grid min-h-dvh bg-surface lg:grid-cols-[1fr_1.05fr]">
       <section className="flex items-center justify-center p-6 sm:p-12">
@@ -30,6 +32,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </div>
           <h1 className="font-display text-[28px] font-bold">Bem-vindo de volta</h1>
           <p className="mb-8 mt-2 text-sm text-muted">Entre para acompanhar os serviços do seu condomínio.</p>
+          {firstAccess && (
+            <Link href="/primeiro-acesso" className="mb-6 block rounded-2xl border border-brand/30 bg-brand-soft px-4 py-3 text-sm text-brand hover:bg-brand/10">
+              <b>Primeiro acesso?</b> Nenhum administrador cadastrado ainda — crie a conta de superadmin →
+            </Link>
+          )}
           <LoginForm next={typeof next === "string" ? next : undefined} passkeys={pk.enabled} turnstileSiteKey={turnstile} />
 
           {process.env.NODE_ENV !== "production" && (

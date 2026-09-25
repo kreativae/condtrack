@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { del, list, put } from "@vercel/blob";
+import { ensureDefaultPlans } from "../src/lib/default-plans";
 import path from "node:path";
 
 const db = new PrismaClient();
@@ -67,20 +68,8 @@ async function main() {
     await m.deleteMany();
   }
 
-  // Planos (upsert: preserva os IDs do Stripe entre execuções do seed)
-  const PLANS = [
-    { key: "essencial", name: "Essencial", description: "Para condomínios de até 100 unidades", maxUnits: 100, monthlyPrice: 15000, sortOrder: 1,
-      features: ["Até 100 unidades", "Ordens de serviço ilimitadas", "Registro antes/depois", "Feed para moradores"] },
-    { key: "profissional", name: "Profissional", description: "Para condomínios de até 150 unidades", maxUnits: 150, monthlyPrice: 20000, sortOrder: 2,
-      features: ["Até 150 unidades", "Tudo do Essencial", "Relatórios e indicadores", "Comunicados com confirmação de leitura"] },
-    { key: "premium", name: "Premium", description: "Unidades ilimitadas", maxUnits: null, monthlyPrice: 40000, sortOrder: 3,
-      features: ["Unidades ilimitadas", "Tudo do Profissional", "Suporte prioritário", "Personalização visual"] },
-  ];
-  for (const p of PLANS) {
-    // Anual = 11 × mensal (1 mês grátis)
-    const data = { ...p, yearlyPrice: p.monthlyPrice * 11, features: JSON.stringify(p.features) };
-    await db.plan.upsert({ where: { key: p.key }, create: data, update: {} });
-  }
+  // Planos padrão (upsert: preserva os IDs do Stripe entre execuções do seed)
+  await ensureDefaultPlans(db);
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
   const mkUser = (data: { name: string; email: string; role: string; condominiumId?: string; company?: string; specialty?: string; phone?: string }) =>

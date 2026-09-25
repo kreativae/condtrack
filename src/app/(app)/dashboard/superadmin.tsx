@@ -9,7 +9,7 @@ import { PAYING, brl, monthlyEquivalent } from "@/lib/billing-shared";
 import { OrderList } from "@/components/order-list";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 
-export async function SuperadminDashboard() {
+export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
   const [condos, m, users, late, subs] = await Promise.all([
     db.condominium.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     orderMetrics({}),
@@ -34,6 +34,16 @@ export async function SuperadminDashboard() {
         title="Visão global da plataforma"
         actions={<LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton>}
       />
+      {welcome && (
+        <div className="mb-6 rounded-2xl border border-brand/30 bg-brand-soft p-5 text-sm">
+          <p className="font-display text-base font-semibold text-brand">Bem-vindo ao Condtrack! Sua conta de administrador foi criada.</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-fg-2">
+            <li>Remova a variável <b>SETUP_TOKEN</b> na Vercel.</li>
+            <li>Configure as integrações em <Link href="/admin/configuracoes" className="text-brand underline">Configurações</Link> (e-mail, Stripe…).</li>
+            <li>Cadastre o primeiro <Link href="/admin/condominios/novo" className="text-brand underline">condomínio</Link> e o síndico em <Link href="/admin/usuarios/novo" className="text-brand underline">Usuários</Link>.</li>
+          </ol>
+        </div>
+      )}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <Stat label="MRR" value={brl(mrr)} tone="brand" hint={`${subs.length} pagante(s)`} />
         <Stat label="Condomínios ativos" value={condos.length} />
