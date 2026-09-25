@@ -1,18 +1,20 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Eye, KeyRound, Power, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Eye, KeyRound, Pencil, Power, Trash2 } from "lucide-react";
 import { deleteUser, resetPassword, toggleUserStatus } from "@/app/actions/admin";
 import { impersonate } from "@/app/actions/auth";
 import { SecretBox } from "./secret-box";
 
-export function UserRowActions({ id, name, active, canImpersonate }: { id: string; name: string; active: boolean; canImpersonate?: boolean }) {
+export function UserRowActions({ id, name, active, canImpersonate, editHref }: { id: string; name: string; active: boolean; canImpersonate?: boolean; editHref: string }) {
   const [state, reset, pending] = useActionState(resetPassword.bind(null, id), undefined);
   const [removal, remove, removing] = useActionState(deleteUser.bind(null, id), undefined);
   const [asking, setAsking] = useState(false);
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex gap-1">
+        <Link href={editHref} title="Editar usuário" className="rounded-lg p-2 text-muted hover:bg-brand/10 hover:text-brand"><Pencil className="size-4" /></Link>
         {canImpersonate && active && (
           <form action={impersonate.bind(null, id)}>
             <button title="Visualizar como" className="rounded-lg p-2 text-muted hover:bg-brand/10 hover:text-brand"><Eye className="size-4" /></button>

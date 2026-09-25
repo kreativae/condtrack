@@ -270,3 +270,73 @@ export async function deleteInactiveUsers(_prev: AdminState, form: FormData): Pr
   if (!deleted && !anonymized) return { ok: true, message: "Nenhum usuário inativo para excluir." };
   return { ok: true, message: `${deleted} excluído(s) definitivamente${anonymized ? ` e ${anonymized} anonimizado(s) por terem histórico em OS` : ""}.` };
 }
+
+// ───────────────────────────── Edição de usuário ─────────────────────────────
+
+const editUserSchema = userSchema.extend({ status: z.enum(["active", "inactive"]) });
+
+export async function updateUser(id: string, _prev: AdminState, form: FormData): Promise<AdminState> {
+  const me = await requireUser("superadmin", "syndic");
+  const u = await db.user.findUnique({ where: { id }, include: { units: true } });
+  if (!u || u.email.endsWith("@removido.invalid")) return { error: "Usuário não encontrado." };
+  if (!canManage(me, u)) return { error: "Você não pode editar este usuário." };
+
+  const parsed = editUserSchema.safeParse(Object.fromEntries([...form.entries()].filter(([, v]) => v !== "")));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  if (!MANAGEABLE_ROLES[me.role].includes(d.role)) return { error: "Você não pode atribuir esse perfil." };
+
+  // Síndico não troca o condomínio; superadmin não tem condomínio
+  const condominiumId = d.role === "superadmin" ? null : me.role === "superadmin" ? d.condominiumId ?? null : me.condominiumId;
+  if (d.role !== "superadmin" && !condominiumId) return { error: "Selecione o condomínio." };
+  if (d.email !== u.email && (await db.user.findUnique({ where: { email: d.email } }))) return { error: "Já existe um usuário com este e-mail." };
+  const livesInUnit = d.role === "council" || d.role === "resident";
+  if (livesInUnit && d.unitId && !(await db.unit.findFirst({ where: { id: d.unitId, building: { condominiumId: condominiumId! } } }))) {
+    return { error: "Unidade inválida para este condomínio." };
+  }
+  // O sistema precisa manter ao menos um superadmin ativo
+  if (u.role === "superadmin" && (d.role !== "superadmin" || d.status !== "active")) {
+    const others = await db.user.count({ where: { role: "superadmin", status: "active", NOT: { id: u.id } } });
+    if (!others) return { error: "O sistema precisa de ao menos um superadmin ativo." };
+  }
+
+  const data = {
+    name: d.name,
+    email: d.email,
+    role: d.role,
+    phone: d.phone ?? null,
+    cpf: d.cpf ?? null,
+    company: d.role === "provider" ? d.company ?? null : null,
+    specialty: d.role === "provider" ? d.specialty ?? null : null,
+    condominiumId,
+    status: d.status,
+    ...(d.status === "active" && u.status !== "active" ? { failedLogins: 0, lockedUntil: null } : {}),
+  };
+  const currentUnit = u.units[0];
+  const unitChanged = (livesInUnit ? d.unitId ?? null : null) !== (currentUnit?.unitId ?? null) || (livesInUnit && d.unitId && (d.unitRole ?? "owner") !== currentUnit?.role);
+
+  await db.$transaction([
+    db.user.update({ where: { id }, data }),
+    // Vínculo com unidade: só conselho/morador; troca de condomínio ou perfil limpa
+    ...(unitChanged || condominiumId !== u.condominiumId
+      ? [
+          db.userUnit.deleteMany({ where: { userId: id } }),
+          ...(livesInUnit && d.unitId ? [db.userUnit.create({ data: { userId: id, unitId: d.unitId, role: d.unitRole ?? "owner" } })] : []),
+        ]
+      : []),
+  ]);
+
+  const before = { name: u.name, email: u.email, role: u.role, phone: u.phone, cpf: u.cpf, company: u.company, specialty: u.specialty, condominiumId: u.condominiumId, status: u.status, unitId: currentUnit?.unitId ?? null };
+  const after = { ...data, unitId: livesInUnit ? d.unitId ?? null : null };
+  const changed = (Object.keys(before) as (keyof typeof before)[]).filter((k) => String(before[k] ?? "") !== String(after[k as keyof typeof after] ?? ""));
+  if (changed.length) {
+    await audit(me, "update", "user", id, {
+      old: Object.fromEntries(changed.map((k) => [k, before[k]])),
+      new: Object.fromEntries(changed.map((k) => [k, after[k as keyof typeof after]])),
+      condominiumId: condominiumId ?? u.condominiumId,
+    });
+  }
+  revalidatePath("/usuarios");
+  revalidatePath("/admin/usuarios");
+  return { ok: true, message: changed.length ? "Alterações salvas." : "Nenhuma alteração." };
+}

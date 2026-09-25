@@ -49,7 +49,7 @@ export async function UsersTable({ where, base, role, roles, showCondo, canImper
               </p>
             </div>
             <p className="hidden text-xs text-muted md:block">{u.lastLoginAt ? `Acesso ${fmtRelative(u.lastLoginAt)}` : "Nunca acessou"}</p>
-            {u.id !== meId && <UserRowActions id={u.id} name={u.name} active={u.status === "active"} canImpersonate={canImpersonate} />}
+            {u.id !== meId && roles.includes(u.role as Role) && <UserRowActions id={u.id} name={u.name} editHref={`${base}/${u.id}/editar`} active={u.status === "active"} canImpersonate={canImpersonate} />}
           </div>
         )) : <Empty title="Nenhum usuário encontrado" />}
       </ScrollCard>
