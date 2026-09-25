@@ -135,7 +135,7 @@ export async function sendTestEmail(_prev: SettingsState, form: FormData): Promi
     lines: [`Provedor: ${c.provider === "resend" ? "Resend" : `SMTP (${c.smtpHost}:${c.smtpPort})`}`, `Remetente: ${c.fromName} <${c.fromEmail}>`],
     cta: { label: "Abrir o Condtrack", url: `${await appUrl()}/dashboard` },
   });
-  const res = await sendEmail({ to, subject: "Teste de e-mail — Condtrack", html, text }, c);
+  const res = await sendEmail({ to, subject: "Teste de e-mail — Condtrack", html, text }, c, "test");
   await audit(user, res.ok ? "email_test_sent" : "email_test_failed", "settings", "email", { new: { to, provider: c.provider, error: res.ok ? undefined : res.error } });
   return res.ok ? { ok: true, message: `E-mail de teste enviado para ${to}.` } : { error: `Falha no envio: ${res.error}` };
 }

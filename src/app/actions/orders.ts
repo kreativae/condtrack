@@ -92,8 +92,7 @@ export async function createOrder(_: ActionState, form: FormData): Promise<Actio
     { condominiumId, roles: ["syndic", "caretaker"], exclude: user.id },
     {
       type: user.role === "council" ? "council_request" : "os_created",
-      title: user.role === "council" ? "Nova solicitação do conselho" : "Nova OS aberta",
-      message: `${order.protocol} · ${order.title}`,
+      vars: { protocolo: order.protocol, titulo: order.title, autor: user.name },
       ...orderLink(order.id),
     },
   );
@@ -125,7 +124,7 @@ export async function assignOrder(id: string, _: ActionState, form: FormData): P
   await audit(user, "assign", "service_order", id, { old: { assignedToId: o.assignedToId }, new: { assignedToId: provider.id, dueDate }, condominiumId: o.condominiumId });
   await notify(
     { condominiumId: o.condominiumId, roles: ["syndic", "caretaker"], userIds: [provider.id], exclude: user.id },
-    { type: "os_assigned", title: "OS atribuída", message: `${o.protocol} · ${o.title} → ${provider.name}`, ...orderLink(id) },
+    { type: "os_assigned", vars: { protocolo: o.protocol, titulo: o.title, autor: user.name, prestador: provider.name }, ...orderLink(id) },
   );
   revalidatePath(`/os/${id}`);
   return { ok: true };
@@ -140,33 +139,34 @@ type Transition = {
   requireComment?: boolean;
   defaultComment: string;
   notify: (o: { requestedById: string | null; assignedToId: string | null }) => { roles?: Role[]; userIds?: (string | null)[] };
-  title: string;
+  /** Modelo em Configurações → Mensagens */
+  template: string;
 };
 
 const TRANSITIONS: Record<"start" | "validate" | "return" | "approve" | "reject" | "cancel", Transition> = {
   start: {
     action: "start", to: "in_progress", event: "status_change", defaultComment: "Serviço iniciado.",
-    notify: () => ({ roles: ["syndic", "caretaker"] }), title: "OS em andamento",
+    notify: () => ({ roles: ["syndic", "caretaker"] }), template: "os_started",
   },
   validate: {
     action: "validate", to: "validated", event: "validation", defaultComment: "Serviço conferido e validado.",
-    notify: (o) => ({ roles: ["syndic"], userIds: [o.assignedToId] }), title: "OS validada pelo zelador",
+    notify: (o) => ({ roles: ["syndic"], userIds: [o.assignedToId] }), template: "os_validated",
   },
   return: {
     action: "return", to: "rejected", event: "rejection", requireComment: true, defaultComment: "",
-    notify: (o) => ({ roles: ["syndic"], userIds: [o.assignedToId] }), title: "OS devolvida para ajustes",
+    notify: (o) => ({ roles: ["syndic"], userIds: [o.assignedToId] }), template: "os_returned",
   },
   approve: {
     action: "approve", to: "approved", event: "approval", defaultComment: "Serviço aprovado e publicado no feed.",
-    notify: (o) => ({ roles: ["caretaker", "council"], userIds: [o.assignedToId, o.requestedById] }), title: "Serviço aprovado",
+    notify: (o) => ({ roles: ["caretaker", "council"], userIds: [o.assignedToId, o.requestedById] }), template: "os_approved",
   },
   reject: {
     action: "reject", to: "rejected", event: "rejection", requireComment: true, defaultComment: "",
-    notify: (o) => ({ roles: ["caretaker"], userIds: [o.assignedToId] }), title: "OS rejeitada pelo síndico",
+    notify: (o) => ({ roles: ["caretaker"], userIds: [o.assignedToId] }), template: "os_rejected",
   },
   cancel: {
     action: "cancel", to: "cancelled", event: "status_change", requireComment: true, defaultComment: "",
-    notify: (o) => ({ roles: ["syndic", "caretaker"], userIds: [o.assignedToId, o.requestedById] }), title: "OS cancelada",
+    notify: (o) => ({ roles: ["syndic", "caretaker"], userIds: [o.assignedToId, o.requestedById] }), template: "os_cancelled",
   },
 };
 
@@ -195,7 +195,7 @@ export async function transitionOrder(id: string, kind: keyof typeof TRANSITIONS
   const target = t.notify(o);
   await notify(
     { condominiumId: o.condominiumId, roles: target.roles, userIds: target.userIds, exclude: user.id },
-    { type: `os_${t.to}`, title: t.title, message: `${o.protocol} · ${o.title}${comment ? ` — “${comment}”` : ""}`, ...orderLink(id) },
+    { type: t.template, vars: { protocolo: o.protocol, titulo: o.title, autor: user.name, comentario: comment }, ...orderLink(id) },
   );
   revalidatePath(`/os/${id}`);
   revalidatePath("/feed");
@@ -238,7 +238,7 @@ export async function completeOrder(id: string, _: ActionState, form: FormData):
   await audit(user, "complete", "service_order", id, { new: { status: "completed" }, condominiumId: o.condominiumId });
   await notify(
     { condominiumId: o.condominiumId, roles: ["syndic", "caretaker"] },
-    { type: "os_completed", title: "OS concluída — aguardando validação", message: `${o.protocol} · ${o.title}`, ...orderLink(id) },
+    { type: "os_completed", vars: { protocolo: o.protocol, titulo: o.title, autor: user.name }, ...orderLink(id) },
   );
   revalidatePath(`/os/${id}`);
   return { ok: true };
@@ -255,7 +255,7 @@ export async function commentOrder(id: string, _: ActionState, form: FormData): 
   await db.serviceEvent.create({ data: { serviceOrderId: id, userId: user.id, type: "comment", comment: comment.slice(0, 2000) } });
   await notify(
     { condominiumId: o.condominiumId, roles: ["syndic"], userIds: [o.assignedToId, o.requestedById], exclude: user.id },
-    { type: "os_comment", title: `Novo comentário de ${user.name}`, message: `${o.protocol} · ${comment.slice(0, 120)}`, ...orderLink(id) },
+    { type: "os_comment", vars: { protocolo: o.protocol, titulo: o.title, autor: user.name, comentario: comment.slice(0, 280) }, ...orderLink(id) },
   );
   revalidatePath(`/os/${id}`);
   return { ok: true };
@@ -378,7 +378,7 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
   if (d.status !== o.status || (provider && provider.id !== o.assignedToId)) {
     await notify(
       { condominiumId: cid, roles: ["syndic", "caretaker"], userIds: [provider?.id, o.requestedById], exclude: user.id },
-      { type: "os_admin_update", title: "OS alterada pela administração", message: `${o.protocol} · ${d.title} — ${STATUS_META[d.status].label}`, ...orderLink(id) },
+      { type: "os_admin_update", vars: { protocolo: o.protocol, titulo: d.title, autor: user.name, status: STATUS_META[d.status].label }, ...orderLink(id) },
     );
   }
   revalidatePath(`/os/${id}`);

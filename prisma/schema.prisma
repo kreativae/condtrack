@@ -380,3 +380,20 @@ model Passkey {
 
   @@index([userId])
 }
+
+/// Histórico de e-mails enviados pelo sistema (Configurações → Mensagens → Histórico).
+/// type: chave do modelo (os_assigned, invite…) ou "test". status: sent | failed
+model EmailLog {
+  id         String   @id @default(cuid())
+  type       String
+  to         String
+  subject    String
+  status     String
+  error      String?
+  provider   String?
+  providerId String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type])
+}

@@ -64,7 +64,7 @@ export async function createAnnouncement(_: FormState, form: FormData): Promise<
   await audit(user, "create", "announcement", a.id, { new: parsed.data });
   await notify(
     { condominiumId: user.condominiumId!, roles: ["caretaker", "council"] },
-    { type: "announcement", title: `Novo comunicado: ${a.title}`, message: a.content.slice(0, 140), referenceType: "announcement", referenceId: a.id },
+    { type: "announcement", vars: { titulo: a.title, resumo: a.content.slice(0, 140), autor: user.name }, referenceType: "announcement", referenceId: a.id },
   );
   revalidatePath("/comunicados");
   return { ok: true, message: "Comunicado publicado." };

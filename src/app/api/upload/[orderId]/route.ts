@@ -70,7 +70,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/upload/[orderId
   if (phase === "before" && count === 0) {
     await notify(
       { condominiumId: order.condominiumId, roles: ["syndic", "caretaker"], exclude: user.id },
-      { type: "os_before_media", title: "Fotos do ANTES anexadas", message: `${order.protocol} · ${order.title}`, referenceType: "service_order", referenceId: orderId },
+      { type: "os_before_media", vars: { protocolo: order.protocol, titulo: order.title, autor: user.name }, referenceType: "service_order", referenceId: orderId },
     );
   }
   revalidatePath(`/os/${orderId}`);

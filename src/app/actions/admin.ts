@@ -12,6 +12,7 @@ import { slugify } from "@/lib/format";
 import { MANAGEABLE_ROLES, ROLE_LABEL, ROLES, type Role } from "@/lib/roles";
 import { emailConfig, renderEmail, sendEmail } from "@/lib/email";
 import { appUrl } from "@/lib/url";
+import { renderTemplate } from "@/lib/messages-server";
 import { HOUSE_NOUNS, aptNumber, houseNumbers, isHouseNoun, isLayout, type HouseNoun, type Layout } from "@/lib/units";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
@@ -19,17 +20,17 @@ async function emailAccess(user: { name: string; email: string; role: string }, 
   const cfg = await emailConfig();
   if (!cfg.active || !cfg.sendInvites) return null;
   const base = await appUrl();
+  // Textos editáveis em Configurações → Mensagens (modelos "invite" e "reset")
+  const t = await renderTemplate(kind, { nome: user.name.split(" ")[0], perfil: ROLE_LABEL[user.role as Role] ?? user.role, email: user.email, senha: secret });
+  const layout = await renderTemplate("email_layout", {});
   const { html, text } = renderEmail({
-    title: kind === "invite" ? "Seu acesso ao Condtrack" : "Sua senha foi redefinida",
-    intro: `Olá, ${user.name.split(" ")[0]}!`,
-    lines:
-      kind === "invite"
-        ? [`Você foi cadastrado(a) no Condtrack como ${ROLE_LABEL[user.role as Role] ?? user.role}.`, `E-mail: ${user.email}`, `Senha provisória: ${secret}`]
-        : ["A administração redefiniu a sua senha de acesso.", `Nova senha provisória: ${secret}`],
-    cta: { label: "Entrar no Condtrack", url: `${base}/login` },
-    footnote: "Por segurança, altere a senha em Meu perfil após o primeiro acesso. Se você não esperava este e-mail, ignore-o.",
+    title: t.title,
+    lines: t.message.split("\n"),
+    cta: { label: t.get("cta"), url: `${base}/login` },
+    footnote: t.get("footnote"),
+    footer: layout.get("footer"),
   });
-  return sendEmail({ to: user.email, subject: kind === "invite" ? "Seu acesso ao Condtrack" : "Nova senha de acesso — Condtrack", html, text }, cfg);
+  return sendEmail({ to: user.email, subject: t.get("subject"), html, text }, cfg, kind);
 }
 
 export type AdminState = { error?: string; ok?: boolean; message?: string; secret?: string } | undefined;

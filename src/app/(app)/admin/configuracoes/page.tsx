@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CreditCard, Database, LogIn, Mail, ScanFace, ShieldCheck, Triangle } from "lucide-react";
+import { CreditCard, Database, LogIn, Mail, MessagesSquare, ScanFace, ShieldCheck, Triangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings, maskSecret, settingsSource } from "@/lib/settings";
@@ -17,10 +17,13 @@ import { Badge, Card, CardHeader, PageHeader, cx } from "@/components/ui";
 import { CopyField, SettingsForm, type ClientField } from "./settings-form";
 import { LoginAppearanceForm } from "./login-appearance-form";
 import { getLoginAppearance } from "@/lib/login-appearance-server";
+import { MessagesEditor } from "./messages-editor";
+import { MessagesHistory } from "./messages-history";
+import { getAllTemplates, getTemplateOverrides } from "@/lib/messages-server";
 
 export const metadata: Metadata = { title: "Configurações" };
 
-const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace, login: LogIn } as const;
+const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace, login: LogIn, mensagens: MessagesSquare } as const;
 const STRIPE_EVENTS = [
   "checkout.session.completed",
   "customer.subscription.created",
@@ -36,13 +39,44 @@ const STRIPE_EVENTS = [
 
 export default async function SettingsPage({ searchParams }: PageProps<"/admin/configuracoes">) {
   const me = await requireUser("superadmin");
-  const { aba } = await searchParams;
+  const sp = await searchParams;
+  const { aba } = sp;
   // "login" é uma aba própria (editor visual), fora dos grupos de integração
   if (aba === "login") {
     const [a, pk] = await Promise.all([getLoginAppearance(), passkeyConfig()]);
     return (
       <SettingsShell current="login">
         <LoginAppearanceForm initial={a} passkeys={pk.enabled} />
+      </SettingsShell>
+    );
+  }
+  // "mensagens": modelos das mensagens automáticas + histórico do que foi enviado
+  if (aba === "mensagens") {
+    const historico = sp.sub === "historico";
+    const [values, overrides, cfg] = await Promise.all([getAllTemplates(), getTemplateOverrides(), emailConfig()]);
+    return (
+      <SettingsShell current="mensagens">
+        <div className="min-w-0 space-y-6">
+          <nav className="flex gap-1 border-b border-line">
+            {([["modelos", "Modelos"], ["historico", "Histórico de envios"]] as const).map(([k, l]) => (
+              <Link
+                key={k}
+                href={`/admin/configuracoes?aba=mensagens${k === "historico" ? "&sub=historico" : ""}`}
+                className={cx("-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition", (k === "historico") === historico ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}
+              >
+                {l}
+              </Link>
+            ))}
+          </nav>
+          {historico ? (
+            <MessagesHistory sp={sp} />
+          ) : (
+            <>
+              <p className="text-sm text-muted">Textos das notificações e e-mails enviados automaticamente. Ligue ou desligue cada canal, edite os textos com variáveis e veja a prévia antes de salvar.</p>
+              <MessagesEditor values={values} customized={Object.keys(overrides)} emailReady={cfg.ready} adminEmail={me.email} />
+            </>
+          )}
+        </div>
       </SettingsShell>
     );
   }
@@ -141,8 +175,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
 }
 
 /** Cabeçalho + menu lateral das abas de Configurações. */
-function SettingsShell({ current, configured, children }: { current: SettingsGroup | "login"; configured?: Partial<Record<SettingsGroup, boolean>>; children: React.ReactNode }) {
-  const tabs = [...SETTINGS.map((g) => ({ key: g.key as SettingsGroup | "login", title: g.title })), { key: "login" as const, title: "Página de login" }];
+function SettingsShell({ current, configured, children }: { current: SettingsGroup | "login" | "mensagens"; configured?: Partial<Record<SettingsGroup, boolean>>; children: React.ReactNode }) {
+  const tabs = [
+    ...SETTINGS.map((g) => ({ key: g.key as SettingsGroup | "login" | "mensagens", title: g.title })),
+    { key: "login" as const, title: "Página de login" },
+    { key: "mensagens" as const, title: "Mensagens" },
+  ];
   return (
     <div className="animate-in">
       <PageHeader eyebrow="Superadministração" title="Configurações" description="Integrações, APIs e aparência da plataforma. Chaves secretas são guardadas criptografadas e nunca exibidas por completo." />
@@ -151,7 +189,7 @@ function SettingsShell({ current, configured, children }: { current: SettingsGro
         <nav className="flex gap-1 self-start overflow-x-auto lg:sticky lg:top-[calc(4rem+var(--chrome,0rem)+0.75rem)] lg:flex-col">
           {tabs.map((g) => {
             const Icon = ICON[g.key];
-            const ok = g.key === "login" ? undefined : configured?.[g.key];
+            const ok = g.key === "login" || g.key === "mensagens" ? undefined : configured?.[g.key];
             return (
               <Link
                 key={g.key}

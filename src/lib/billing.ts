@@ -261,8 +261,7 @@ export async function notifyPaymentFailed(condominiumId: string, amount: number)
     { condominiumId, roles: ["syndic"], userIds: admins.map((a) => a.id) },
     {
       type: "billing_payment_failed",
-      title: "Falha no pagamento da assinatura",
-      message: `${condo?.name}: não conseguimos cobrar ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amount / 100)}. Atualize a forma de pagamento.`,
+      vars: { condominio: condo?.name, valor: new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amount / 100) },
       referenceType: "billing",
     },
   );
