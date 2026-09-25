@@ -11,7 +11,7 @@ import { UserRowActions } from "./user-row-actions";
 
 /** Lista paginada de usuários — renderizar dentro de um FrozenPage. */
 export async function UsersTable({ where, base, role, roles, showCondo, canImpersonate, q, meId, params }: { meId: string; where: Prisma.UserWhereInput; base: string; role?: string; roles: Role[]; showCondo?: boolean; canImpersonate?: boolean; q?: string; params: Record<string, string | string[] | undefined> }) {
-  const filter: Prisma.UserWhereInput = { AND: [where, { NOT: { email: { endsWith: "@removido.invalid" } } }, role ? { role } : {}, q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] } : {}] };
+  const filter: Prisma.UserWhereInput = { AND: [where, role ? { role } : {}, q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] } : {}] };
   const total = await db.user.count({ where: filter });
   const page = pageParam(params.page, total, PAGE);
   const users = await db.user.findMany({

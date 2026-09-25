@@ -14,7 +14,7 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
   const u = await db.user.findUnique({ where: { id }, include: { units: true, condominium: { select: { name: true } } } });
   const roles = MANAGEABLE_ROLES[me.role];
   // Mesmas regras das ações do servidor: síndico só no próprio condomínio e perfis gerenciáveis
-  if (!u || u.id === me.id || u.email.endsWith("@removido.invalid")) notFound();
+  if (!u || u.id === me.id) notFound();
   if (!admin && (u.condominiumId !== me.condominiumId || !roles.includes(u.role as Role))) notFound();
 
   const [condos, units] = await Promise.all([

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CheckCircle2, MapPin, Star } from "lucide-react";
 import { BeforeAfter } from "./before-after";
 import { Avatar, Card } from "./ui";
-import { fmtDateTime, fmtRelative } from "@/lib/format";
+import { DELETED_USER, fmtDateTime, fmtRelative } from "@/lib/format";
 import { locationLabel } from "@/lib/orders";
 import type { Prisma } from "@prisma/client";
 
@@ -26,10 +26,10 @@ export function FeedCard({ o, showCondo }: { o: FeedItem; showCondo?: boolean })
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4">
-        <Avatar name={o.assignedTo?.name ?? "?"} />
+        <Avatar name={o.assignedTo?.name ?? DELETED_USER} />
         <div className="min-w-0 flex-1 text-sm">
           <p className="truncate">
-            <span className="font-medium">{o.assignedTo?.name}</span>
+            <span className="font-medium">{o.assignedTo?.name ?? DELETED_USER}</span>
             {o.assignedTo?.company && <span className="text-muted"> · {o.assignedTo.company}</span>}
           </p>
           <p className="text-xs text-muted">Concluído {o.approvedAt ? fmtRelative(o.approvedAt) : ""}{showCondo && <> · <span className="font-medium text-fg-2">{o.condominium.name}</span></>}</p>
@@ -51,8 +51,8 @@ export function FeedCard({ o, showCondo }: { o: FeedItem; showCondo?: boolean })
         <p className="flex items-center gap-1.5 text-xs text-muted"><MapPin className="size-3.5 text-brand" />{locationLabel(o)}</p>
         {o.serviceReport && <p className="line-clamp-2 text-sm text-fg-2">{o.serviceReport}</p>}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-line pt-3 text-xs text-muted">
-          <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-ok" />Validado por {o.validatedBy?.name ?? "—"}</span>
-          <span>Aprovado por {o.approvedBy?.name ?? "—"} · {fmtDateTime(o.approvedAt)}</span>
+          <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-ok" />Validado por {o.validatedBy?.name ?? (o.validatedAt ? DELETED_USER : "—")}</span>
+          <span>Aprovado por {o.approvedBy?.name ?? DELETED_USER} · {fmtDateTime(o.approvedAt)}</span>
           {o.rating && <span className="flex items-center gap-1"><Star className="size-3.5 fill-brand text-brand" />{o.rating}/5</span>}
         </div>
       </div>

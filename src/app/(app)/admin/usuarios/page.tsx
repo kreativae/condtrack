@@ -14,7 +14,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
   const me = await requireUser("superadmin");
   const params = await searchParams;
   const { role, q } = params;
-  const inactive = await db.user.count({ where: { status: "inactive", NOT: [{ id: me.id }, { email: { endsWith: "@removido.invalid" } }] } });
+  const inactive = await db.user.count({ where: { status: "inactive", NOT: { id: me.id } } });
   return (
     <FrozenPage>
       <FrozenTop>

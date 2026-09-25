@@ -139,7 +139,7 @@ type Transition = {
   event: string;
   requireComment?: boolean;
   defaultComment: string;
-  notify: (o: { requestedById: string; assignedToId: string | null }) => { roles?: Role[]; userIds?: (string | null)[] };
+  notify: (o: { requestedById: string | null; assignedToId: string | null }) => { roles?: Role[]; userIds?: (string | null)[] };
   title: string;
 };
 

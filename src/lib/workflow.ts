@@ -66,7 +66,7 @@ type OrderLike = {
   status: string;
   condominiumId: string;
   assignedToId: string | null;
-  requestedById: string;
+  requestedById: string | null;
   rating: number | null;
 };
 type UserLike = { id: string; role: Role; condominiumId: string | null };

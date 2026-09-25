@@ -57,3 +57,6 @@ export function slugify(s: string) {
 export function nowMs() {
   return Date.now();
 }
+
+/** Rótulo para referências a usuários já excluídos do sistema (histórico). */
+export const DELETED_USER = "Usuário excluído";

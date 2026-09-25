@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { locationLabel } from "@/lib/orders";
 import { can, canView, FLOW_STEPS, isOverdue, MAX_MEDIA_PER_PHASE, PHASE_LABEL, STATUS_META, type Phase, type Status } from "@/lib/workflow";
-import { fmtDate, fmtDateTime, fmtDuration, fmtRelative } from "@/lib/format";
+import { DELETED_USER, fmtDate, fmtDateTime, fmtDuration, fmtRelative } from "@/lib/format";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { assignOrder, commentOrder, completeOrder, rateOrder, transitionOrder } from "@/app/actions/orders";
 import { Avatar, Badge, Card, CardHeader, LinkButton, cx } from "@/components/ui";
@@ -142,7 +142,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
         <div className="mb-6 rounded-2xl border border-bad/30 bg-bad/5 p-5">
           <p className="text-sm font-semibold text-bad">Devolvida para ajustes</p>
           <p className="mt-2 text-sm">“{lastRejection.comment}”</p>
-          <p className="mt-2 text-xs text-muted">{lastRejection.user.name} · {fmtDateTime(lastRejection.createdAt)}</p>
+          <p className="mt-2 text-xs text-muted">{lastRejection.user?.name ?? DELETED_USER} · {fmtDateTime(lastRejection.createdAt)}</p>
         </div>
       )}
 
@@ -168,7 +168,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
                 <div className="space-y-4 p-5">
                   <MediaGrid
                     items={items.map((m) => ({
-                      id: m.id, url: m.url, type: m.type, uploadedAt: m.uploadedAt.toISOString(), uploadedBy: m.uploadedBy.name,
+                      id: m.id, url: m.url, type: m.type, uploadedAt: m.uploadedAt.toISOString(), uploadedBy: m.uploadedBy?.name ?? DELETED_USER,
                       deletable: uploadable[p] && m.uploadedById === user.id,
                     }))}
                   />
@@ -210,8 +210,8 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
                   <span className={cx("relative z-10 mt-1.5 size-2.5 shrink-0 rounded-full ring-4 ring-surface", EVENT_DOT[e.type] ?? "bg-muted")} style={{ marginLeft: 4 }} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm">
-                      <span className="font-medium">{e.user.name}</span>
-                      <span className="text-muted"> · {ROLE_LABEL[e.user.role as Role]}</span>
+                      <span className="font-medium">{e.user?.name ?? DELETED_USER}</span>
+                      {e.user && <span className="text-muted"> · {ROLE_LABEL[e.user.role as Role]}</span>}
                       {e.toStatus && e.type !== "created" && e.type !== "comment" && (
                         <span className="text-muted"> → <span className="text-fg-2">{STATUS_META[e.toStatus as Status]?.label}</span></span>
                       )}
@@ -238,10 +238,10 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
           <Card>
             <CardHeader title="Responsáveis" />
             <dl className="space-y-4 p-5 text-sm">
-              <Person label="Solicitado por" name={o.requestedBy.name} extra={ROLE_LABEL[o.requestedBy.role as Role]} when={o.createdAt} />
-              <Person label="Executado por" name={o.assignedTo?.name} extra={o.assignedTo?.company} when={o.completedAt ?? o.startedAt ?? o.assignedAt} />
-              <Person label="Validado por" name={o.validatedBy?.name} extra="Zeladoria" when={o.validatedAt} />
-              <Person label="Aprovado por" name={o.approvedBy?.name} extra="Síndico" when={o.approvedAt} />
+              <Person label="Solicitado por" name={o.requestedBy?.name ?? DELETED_USER} extra={o.requestedBy ? ROLE_LABEL[o.requestedBy.role as Role] : undefined} when={o.createdAt} />
+              <Person label="Executado por" name={o.assignedTo?.name ?? (o.startedAt ? DELETED_USER : undefined)} extra={o.assignedTo?.company} when={o.completedAt ?? o.startedAt ?? o.assignedAt} />
+              <Person label="Validado por" name={o.validatedBy?.name ?? (o.validatedAt ? DELETED_USER : undefined)} extra="Zeladoria" when={o.validatedAt} />
+              <Person label="Aprovado por" name={o.approvedBy?.name ?? (o.approvedAt ? DELETED_USER : undefined)} extra="Síndico" when={o.approvedAt} />
             </dl>
           </Card>
 

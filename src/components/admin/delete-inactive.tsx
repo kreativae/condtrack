@@ -17,7 +17,7 @@ export function DeleteInactiveUsers({ count }: { count: number }) {
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-80 rounded-2xl border border-line bg-surface p-4 shadow-pop">
         <form {...form} className="space-y-3 text-sm">
-          <p className="text-fg-2">Remove os <b>{count}</b> usuário(s) desativado(s). Quem tem histórico em OS é <b>anonimizado</b> (dados pessoais apagados, histórico preservado); os demais são excluídos definitivamente.</p>
+          <p className="text-fg-2">Exclui do banco os <b>{count}</b> usuário(s) desativado(s). O histórico das OS é mantido e passa a mostrar “Usuário excluído”.</p>
           <Input name="confirm" placeholder="Digite EXCLUIR" autoComplete="off" required />
           {state?.error && <Alert>{state.error}</Alert>}
           {state?.message && <Alert tone="ok">{state.message}</Alert>}

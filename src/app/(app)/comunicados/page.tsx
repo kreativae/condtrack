@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CheckCheck, Megaphone, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { fmtDateTime } from "@/lib/format";
+import { DELETED_USER, fmtDateTime } from "@/lib/format";
 import { confirmRead } from "@/app/actions/misc";
 import { Badge, Card, CardHeader, Empty, PageHeader, buttonClass, type Tone } from "@/components/ui";
 import { AnnouncementForm } from "./form";
@@ -42,7 +42,7 @@ export default async function AnnouncementsPage({ searchParams }: PageProps<"/co
             <h2 className="font-display font-semibold text-xl">{a.title}</h2>
             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-fg-2">{a.content}</p>
             <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs text-muted">
-              <span>{a.author.name}</span>
+              <span>{a.author?.name ?? DELETED_USER}</span>
               {syndic ? (
                 <span className="flex items-center gap-1"><CheckCheck className="size-3.5" />Lido por {readBy.length} de {audience}</span>
               ) : readBy.includes(user.id) ? (

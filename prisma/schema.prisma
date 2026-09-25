@@ -145,7 +145,7 @@ model ServiceOrder {
   priority         String    @default("medium")
   status           String    @default("open")
   dueDate          DateTime?
-  requestedById    String
+  requestedById    String?
   assignedToId     String?
   validatedById    String?
   approvedById     String?
@@ -166,10 +166,10 @@ model ServiceOrder {
   category    ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   commonArea  CommonArea?      @relation(fields: [commonAreaId], references: [id], onDelete: SetNull)
   unit        Unit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  requestedBy User             @relation("requestedBy", fields: [requestedById], references: [id])
-  assignedTo  User?            @relation("assignedTo", fields: [assignedToId], references: [id])
-  validatedBy User?            @relation("validatedBy", fields: [validatedById], references: [id])
-  approvedBy  User?            @relation("approvedBy", fields: [approvedById], references: [id])
+  requestedBy User?            @relation("requestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  assignedTo  User?            @relation("assignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  validatedBy User?            @relation("validatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
+  approvedBy  User?            @relation("approvedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   media       ServiceMedia[]
   events      ServiceEvent[]
 
@@ -187,30 +187,31 @@ model ServiceMedia {
   mimeType       String
   sizeBytes      Int
   metadata       String       @default("{}")
-  uploadedById   String
+  uploadedById   String?
   uploadedAt     DateTime     @default(now())
   serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
-  uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+  uploadedBy     User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 }
 
 /// type: created | status_change | comment | validation | approval | rejection | media | rating | assignment
+/// Referências a usuários ficam nulas quando o usuário é excluído ("Usuário excluído").
 model ServiceEvent {
   id             String       @id @default(cuid())
   serviceOrderId String
-  userId         String
+  userId         String?
   type           String
   fromStatus     String?
   toStatus       String?
   comment        String?
   createdAt      DateTime     @default(now())
   serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Announcement {
   id            String      @id @default(cuid())
   condominiumId String
-  authorId      String
+  authorId      String?
   title         String
   content       String
   category      String      @default("general")
@@ -218,7 +219,7 @@ model Announcement {
   readBy        String      @default("[]")
   publishedAt   DateTime    @default(now())
   condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
-  author        User        @relation(fields: [authorId], references: [id])
+  author        User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
 }
 
 model Notification {

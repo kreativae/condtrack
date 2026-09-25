@@ -15,7 +15,7 @@ export default async function PeoplePage({ searchParams }: PageProps<"/usuarios"
   const params = await searchParams;
   const { role } = params;
   const roles = MANAGEABLE_ROLES.syndic;
-  const inactive = await db.user.count({ where: { status: "inactive", condominiumId: me.condominiumId, role: { in: roles }, NOT: { email: { endsWith: "@removido.invalid" } } } });
+  const inactive = await db.user.count({ where: { status: "inactive", condominiumId: me.condominiumId, role: { in: roles } } });
   return (
     <FrozenPage>
       <FrozenTop>
