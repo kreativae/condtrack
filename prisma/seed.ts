@@ -62,7 +62,7 @@ async function clearMedia() {
 async function main() {
   await clearMedia();
   for (const m of [
-    db.auditLog, db.payment, db.subscription, db.notification, db.serviceEvent, db.serviceMedia, db.serviceOrder, db.announcement,
+    db.checklistCheck, db.checklistItem, db.auditLog, db.payment, db.subscription, db.notification, db.serviceEvent, db.serviceMedia, db.serviceOrder, db.announcement,
     db.serviceCategory, db.commonArea, db.userUnit, db.unit, db.building, db.user, db.condominium,
   ] as unknown as { deleteMany: () => Promise<unknown> }[]) {
     await m.deleteMany();
@@ -149,6 +149,23 @@ async function main() {
       ]),
     ),
   );
+
+  // Checklist do zelador (itens padrão; piscina e garagem ligados às áreas comuns)
+  const checklist: [string, string?, string?, string?][] = [
+    ["Iluminação das áreas comuns"],
+    ["Portões e interfones", "Hall de entrada"],
+    ["Bombas d’água e reservatórios", undefined, "Pressão, ruídos e nível da caixa"],
+    ["Limpeza do hall e elevadores", "Hall de entrada"],
+    ["Piscina — cloro e pH", "Piscina", undefined, "1,3,5"],
+    ["Extintores e rotas de fuga", undefined, "Validade e acesso livre"],
+    ["Garagem — vazamentos e lâmpadas", "Garagem G1"],
+  ];
+  for (const [n, [title, area, description, weekdays]] of checklist.entries()) {
+    await db.checklistItem.create({
+      data: { condominiumId: cid, title, description, commonAreaId: area ? areas[area].id : null, frequency: weekdays ? "weekdays" : "daily", weekdays: weekdays ?? "", sortOrder: n + 1 },
+    });
+  }
+  await db.condominium.update({ where: { id: cid }, data: { checklistDeadline: "10:00" } });
 
   let counter = 0;
   const year = new Date().getFullYear();

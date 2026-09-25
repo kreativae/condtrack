@@ -10,7 +10,10 @@ export async function GET(_: Request, ctx: RouteContext<"/api/media/[...path]">)
   const { path } = await ctx.params;
 
   const [folder] = path;
-  if (folder !== "brand") {
+  if (folder.startsWith("checklist-")) {
+    // Fotos do checklist: pessoas do próprio condomínio (e superadmin)
+    if (user.role !== "superadmin" && user.condominiumId !== folder.slice("checklist-".length)) return new NextResponse("Not found", { status: 404 });
+  } else if (folder !== "brand") {
     const order = await db.serviceOrder.findUnique({ where: { id: folder } });
     if (!order || !canView(order, user)) return new NextResponse("Not found", { status: 404 });
   }

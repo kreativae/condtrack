@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell, Building2, ClipboardList, CreditCard, Settings, Gauge, History, Home, Megaphone, Plus, ShieldCheck, Sparkles, Users, type LucideIcon,
+  Bell, Building2, ClipboardList, CreditCard, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import type { NavItem } from "@/lib/nav";
 
 const ICONS: Record<string, LucideIcon> = {
   gauge: Gauge, building: Building2, clipboard: ClipboardList, users: Users, shield: ShieldCheck, sparkles: Sparkles,
-  megaphone: Megaphone, card: CreditCard, settings: Settings, plus: Plus, history: History, home: Home, bell: Bell,
+  megaphone: Megaphone, card: CreditCard, settings: Settings, plus: Plus, history: History, home: Home, bell: Bell, checklist: ListChecks,
 };
 
 function isActive(pathname: string, href: string) {

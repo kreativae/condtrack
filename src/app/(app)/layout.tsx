@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { after } from "next/server";
+import { maybeAlertLate } from "@/lib/checklist-server";
 import { AlertTriangle, Bell, Building2, LogOut, Eye } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -15,6 +17,11 @@ import { unitLabel } from "@/lib/units";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
+  // Checklist atrasado: verifica sem atrasar a página (envia no máximo um aviso por dia)
+  if (user.condominiumId) {
+    const cid = user.condominiumId;
+    after(() => maybeAlertLate(cid, nowMs()).catch((e) => console.error("[checklist] alerta", e)));
+  }
   const unread = user.role === "resident" ? 0 : await db.notification.count({ where: { userId: user.id, read: false } });
   const items = NAV[user.role];
   const unit = user.units[0]?.unit;

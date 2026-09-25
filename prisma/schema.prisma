@@ -14,34 +14,39 @@ datasource db {
 }
 
 model Condominium {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  address      String?
-  cnpj         String?
-  phone        String?
-  email        String?
-  logoUrl      String?
-  accentColor  String   @default("#5B5BD6")
-  settings     String   @default("{}")
-  active       Boolean  @default(true)
-  osCounter    Int      @default(0)
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  address            String?
+  cnpj               String?
+  phone              String?
+  email              String?
+  logoUrl            String?
+  accentColor        String   @default("#5B5BD6")
+  settings           String   @default("{}")
+  active             Boolean  @default(true)
+  osCounter          Int      @default(0)
+  /// Horário limite do checklist do zelador ("HH:MM", fuso de Brasília); vazio = sem alerta
+  checklistDeadline  String?
+  /// Último dia (YYYY-MM-DD) em que o alerta de checklist atrasado foi enviado
+  checklistAlertedOn String?
   /// layout: vertical (prédios) | horizontal (casas/lotes) | mixed
-  layout       String   @default("vertical")
+  layout             String   @default("vertical")
   /// como chamar as unidades horizontais: house (Casa) | lot (Lote)
-  houseNoun    String   @default("house")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  houseNoun          String   @default("house")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  buildings     Building[]
-  users         User[]
-  categories    ServiceCategory[]
-  commonAreas   CommonArea[]
-  serviceOrders ServiceOrder[]
-  announcements Announcement[]
-  auditLogs     AuditLog[]
-  subscription  Subscription?
-  payments      Payment[]
+  buildings      Building[]
+  users          User[]
+  categories     ServiceCategory[]
+  commonAreas    CommonArea[]
+  serviceOrders  ServiceOrder[]
+  announcements  Announcement[]
+  auditLogs      AuditLog[]
+  subscription   Subscription?
+  payments       Payment[]
+  checklistItems ChecklistItem[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -57,13 +62,13 @@ model Building {
 }
 
 model Unit {
-  id         String     @id @default(cuid())
+  id         String         @id @default(cuid())
   buildingId String
   number     String
   floor      Int?
   /// type: apartment | house | lot | commercial | other
-  type       String     @default("apartment")
-  building   Building   @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  type       String         @default("apartment")
+  building   Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   residents  UserUnit[]
   orders     ServiceOrder[]
 
@@ -73,36 +78,37 @@ model Unit {
 /// role: superadmin | syndic | caretaker | provider | resident
 /// status: active | inactive | pending
 model User {
-  id            String       @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
-  email         String       @unique
+  email         String    @unique
   passwordHash  String
   phone         String?
   cpf           String?
   avatarUrl     String?
   role          String
-  status        String       @default("active")
+  status        String    @default("active")
   company       String?
   specialty     String?
-  failedLogins  Int          @default(0)
+  failedLogins  Int       @default(0)
   lockedUntil   DateTime?
   lastLoginAt   DateTime?
   condominiumId String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  condominium   Condominium? @relation(fields: [condominiumId], references: [id], onDelete: SetNull)
-  units         UserUnit[]
-  requested     ServiceOrder[] @relation("requestedBy")
-  assigned      ServiceOrder[] @relation("assignedTo")
-  validated     ServiceOrder[] @relation("validatedBy")
-  approved      ServiceOrder[] @relation("approvedBy")
-  media         ServiceMedia[]
-  events        ServiceEvent[]
-  notifications Notification[]
-  announcements Announcement[]
-  auditLogs     AuditLog[]
-  passkeys      Passkey[]
+  condominium     Condominium?     @relation(fields: [condominiumId], references: [id], onDelete: SetNull)
+  units           UserUnit[]
+  requested       ServiceOrder[]   @relation("requestedBy")
+  assigned        ServiceOrder[]   @relation("assignedTo")
+  validated       ServiceOrder[]   @relation("validatedBy")
+  approved        ServiceOrder[]   @relation("approvedBy")
+  media           ServiceMedia[]
+  events          ServiceEvent[]
+  notifications   Notification[]
+  announcements   Announcement[]
+  auditLogs       AuditLog[]
+  passkeys        Passkey[]
+  checklistChecks ChecklistCheck[]
 }
 
 /// role: owner | tenant | dependent
@@ -117,24 +123,25 @@ model UserUnit {
 }
 
 model ServiceCategory {
-  id            String      @id @default(cuid())
+  id            String         @id @default(cuid())
   condominiumId String
   name          String
-  icon          String      @default("wrench")
-  color         String      @default("#5B5BD6")
-  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  icon          String         @default("wrench")
+  color         String         @default("#5B5BD6")
+  condominium   Condominium    @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   orders        ServiceOrder[]
 }
 
 model CommonArea {
-  id            String      @id @default(cuid())
-  condominiumId String
-  name          String
-  description   String?
-  capacity      Int?
-  reservable    Boolean     @default(false)
-  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
-  orders        ServiceOrder[]
+  id             String          @id @default(cuid())
+  condominiumId  String
+  name           String
+  description    String?
+  capacity       Int?
+  reservable     Boolean         @default(false)
+  condominium    Condominium     @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  orders         ServiceOrder[]
+  checklistItems ChecklistItem[]
 }
 
 /// priority: urgent | high | medium | low
@@ -366,17 +373,17 @@ model Setting {
 
 /// Credenciais WebAuthn (Face ID, Touch ID, Windows Hello, chaves de segurança).
 model Passkey {
-  id           String    @id
-  userId       String
-  publicKey    Bytes
-  counter      Int       @default(0)
-  transports   String    @default("[]")
-  deviceType   String?
-  backedUp     Boolean   @default(false)
-  name         String
-  createdAt    DateTime  @default(now())
-  lastUsedAt   DateTime?
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id
+  userId     String
+  publicKey  Bytes
+  counter    Int       @default(0)
+  transports String    @default("[]")
+  deviceType String?
+  backedUp   Boolean   @default(false)
+  name       String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -396,4 +403,44 @@ model EmailLog {
 
   @@index([createdAt])
   @@index([type])
+}
+
+/// Item do checklist do zelador. frequency: daily | weekdays | weekly
+/// weekdays: dias da semana separados por vírgula (0 = domingo); em "weekly", um só dia
+model ChecklistItem {
+  id            String           @id @default(cuid())
+  condominiumId String
+  title         String
+  description   String?
+  commonAreaId  String?
+  frequency     String           @default("daily")
+  weekdays      String           @default("")
+  active        Boolean          @default(true)
+  sortOrder     Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  condominium   Condominium      @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  commonArea    CommonArea?      @relation(fields: [commonAreaId], references: [id], onDelete: SetNull)
+  checks        ChecklistCheck[]
+
+  @@index([condominiumId, active])
+}
+
+/// Conferência de um item num dia (date = YYYY-MM-DD no fuso de Brasília). status: ok | issue
+model ChecklistCheck {
+  id             String        @id @default(cuid())
+  itemId         String
+  condominiumId  String
+  date           String
+  status         String
+  note           String?
+  photoUrl       String?
+  userId         String?
+  serviceOrderId String?
+  checkedAt      DateTime      @default(now())
+  item           ChecklistItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([itemId, date])
+  @@index([condominiumId, date])
 }

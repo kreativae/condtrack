@@ -8,6 +8,7 @@ import { RankBars } from "@/components/charts";
 import { OrderList } from "@/components/order-list";
 import { StatusBreakdown } from "@/components/status-breakdown";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { ChecklistSummary } from "@/components/checklist/summary";
 
 export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
@@ -41,6 +42,8 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
         <Stat label="Atrasadas" value={m.overdue} tone={m.overdue ? "bad" : undefined} />
         <Stat label="Tempo médio de resolução" value={fmtHours(m.avgHours)} hint={`${m.approved30} concluídas em 30 dias`} />
       </div>
+
+      <ChecklistSummary condominiumId={cid} />
 
       {pending.length > 0 && (
         <section className="mb-8">

@@ -18,6 +18,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/os", label: "Ordens de serviço", short: "OS", icon: "clipboard", mobile: true },
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
     { href: "/usuarios", label: "Pessoas", icon: "users", mobile: true },
+    { href: "/checklist", label: "Checklist", icon: "checklist" },
     { href: "/estrutura", label: "Estrutura", icon: "building" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
     { href: "/assinatura", label: "Assinatura", icon: "card", mobile: true },
@@ -27,6 +28,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/os", label: "Ordens de serviço", short: "OS", icon: "clipboard", mobile: true },
     { href: "/os/nova", label: "Nova ocorrência", short: "Nova", icon: "plus", mobile: true },
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
+    { href: "/checklist", label: "Checklist", icon: "checklist", mobile: true },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
   ],
   provider: [

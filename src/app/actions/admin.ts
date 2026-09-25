@@ -15,6 +15,7 @@ import { appUrl } from "@/lib/url";
 import { renderTemplate } from "@/lib/messages-server";
 import { sendEmailChangedNotice } from "@/lib/account-email";
 import { HOUSE_NOUNS, aptNumber, houseNumbers, isHouseNoun, isLayout, type HouseNoun, type Layout } from "@/lib/units";
+import { DEFAULT_CHECKLIST } from "@/lib/checklist";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
 async function emailAccess(user: { name: string; email: string; role: string }, secret: string, kind: "invite" | "reset") {
@@ -176,6 +177,7 @@ export async function saveCondominium(id: string | null, _: AdminState, form: Fo
       ...d, slug,
       categories: { create: DEFAULT_CATEGORIES.map(([name, icon, color]) => ({ name, icon, color })) },
       commonAreas: { create: DEFAULT_AREAS.map((name) => ({ name })) },
+      checklistItems: { create: DEFAULT_CHECKLIST.map((title, i) => ({ title, sortOrder: i + 1 })) },
       layout,
       houseNoun,
       buildings: { create: buildings },

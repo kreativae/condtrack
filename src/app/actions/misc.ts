@@ -17,7 +17,8 @@ export async function openNotification(id: string) {
   const n = await db.notification.findFirst({ where: { id, userId: user.id } });
   if (!n) return;
   await db.notification.update({ where: { id }, data: { read: true, readAt: new Date() } });
-  redirect(n.referenceType === "service_order" && n.referenceId ? `/os/${n.referenceId}` : n.referenceType === "announcement" ? "/comunicados" : "/notificacoes");
+  const to: Record<string, string> = { announcement: "/comunicados", billing: "/assinatura", checklist: "/checklist" };
+  redirect(n.referenceType === "service_order" && n.referenceId ? `/os/${n.referenceId}` : (n.referenceType && to[n.referenceType]) || "/notificacoes");
 }
 
 export async function markAllRead() {

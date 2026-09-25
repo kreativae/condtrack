@@ -32,7 +32,7 @@ const OS_VARS = [V.protocolo, V.titulo, V.condominio, V.autor];
 
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -62,6 +62,19 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "resumo", desc: "Início do texto", sample: "A piscina ficará fechada na próxima segunda para limpeza." },
     V.condominio,
     V.autor,
+  ]),
+  notification("checklist_issue", "Problema encontrado no checklist", "Síndico", "Problema no checklist: {item}", "{autor} marcou “{item}” com problema.\n“{observacao}”\nOS aberta: {protocolo}", [
+    { name: "item", desc: "Item do checklist", sample: "Portões e interfones" },
+    V.autor,
+    { name: "observacao", desc: "Observação (quando houver)", sample: "Interfone do bloco B mudo." },
+    { name: "protocolo", desc: "OS aberta (quando houver)", sample: "OS-2026-00015" },
+    V.condominio,
+  ]),
+  notification("checklist_late", "Checklist do dia atrasado", "Síndico e zelador (no horário limite)", "Checklist do dia incompleto", "{pendentes} de {total} itens ainda não foram conferidos hoje (limite {prazo}).", [
+    { name: "pendentes", desc: "Itens não conferidos", sample: "3" },
+    { name: "total", desc: "Itens do dia", sample: "7" },
+    { name: "prazo", desc: "Horário limite", sample: "10:00" },
+    V.condominio,
   ]),
   notification("billing_payment_failed", "Falha no pagamento", "Síndico e superadmins", "Falha no pagamento da assinatura", "{condominio}: não conseguimos cobrar {valor}. Atualize a forma de pagamento.", [
     V.condominio,
@@ -140,6 +153,7 @@ export const TEMPLATES: TemplateDef[] = [
       { key: "ctaOrder", label: "Botão — ordens de serviço", kind: "text", default: "Ver ordem de serviço" },
       { key: "ctaAnnouncement", label: "Botão — comunicados", kind: "text", default: "Ler comunicado" },
       { key: "ctaBilling", label: "Botão — assinatura", kind: "text", default: "Ver assinatura" },
+      { key: "ctaChecklist", label: "Botão — checklist", kind: "text", default: "Ver checklist" },
       { key: "ctaDefault", label: "Botão — demais", kind: "text", default: "Abrir o Condtrack" },
       { key: "footnote", label: "Nota abaixo do botão", kind: "textarea", default: "Você pode acompanhar todas as notificações no sino do Condtrack." },
       { key: "footer", label: "Rodapé", kind: "textarea", default: "Condtrack · Gestão condominial\nVocê recebeu este e-mail por ter acesso ao Condtrack." },

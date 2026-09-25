@@ -27,7 +27,7 @@ function getPosition(): Promise<GeolocationCoordinates | null> {
  * Redimensiona e comprime. Sem texto sobre a foto: data, local, GPS e aparelho
  * ficam nos metadados (card "Metadados dos registros" na OS).
  */
-async function processImage(file: File): Promise<Blob> {
+export async function processImage(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);

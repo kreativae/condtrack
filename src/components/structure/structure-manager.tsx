@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, ChevronDown, Home, LayoutGrid, Pencil, Tags, Users } from "lucide-react";
+import { Building2, ChevronDown, Home, LayoutGrid, ListChecks, Pencil, Tags, Users } from "lucide-react";
 import { db } from "@/lib/db";
 import { categoryIcon } from "@/lib/category-icons";
 import {
@@ -7,18 +7,20 @@ import {
 } from "@/app/actions/structure";
 import { Badge, Card, CardHeader, Empty, cx } from "@/components/ui";
 import { UNIT_TYPES, byNumber, structureWords } from "@/lib/units";
+import { ChecklistAdmin } from "@/components/checklist/admin";
 import { AreaForm, BuildingCreateForm, CategoryForm, DeleteButton, LayoutForm, RenameForm, UnitCreateForm, UnitEditForm, UnitGenerateForm } from "./forms";
 
 export const STRUCTURE_TABS = [
   { key: "torres", label: "Torres e unidades", icon: Building2 },
   { key: "areas", label: "Áreas comuns", icon: LayoutGrid },
   { key: "categorias", label: "Categorias de serviço", icon: Tags },
+  { key: "checklist", label: "Checklist do zelador", icon: ListChecks },
 ] as const;
 export type StructureTab = (typeof STRUCTURE_TABS)[number]["key"];
 
 
 export async function StructureManager({ condominiumId, basePath, tab }: { condominiumId: string; basePath: string; tab: StructureTab }) {
-  const [condo, buildings, areas, categories] = await Promise.all([
+  const [condo, buildings, areas, categories, checklistCount] = await Promise.all([
     db.condominium.findUniqueOrThrow({ where: { id: condominiumId }, select: { layout: true, houseNoun: true } }),
     db.building.findMany({
       where: { condominiumId },
@@ -27,6 +29,7 @@ export async function StructureManager({ condominiumId, basePath, tab }: { condo
     }),
     db.commonArea.findMany({ where: { condominiumId }, orderBy: { name: "asc" }, include: { _count: { select: { orders: true } } } }),
     db.serviceCategory.findMany({ where: { condominiumId }, orderBy: { name: "asc" }, include: { _count: { select: { orders: true } } } }),
+    db.checklistItem.count({ where: { condominiumId, active: true } }),
   ]);
   const totalUnits = buildings.reduce((a, b) => a + b.units.length, 0);
   const words = structureWords(condo.layout, condo.houseNoun);
@@ -34,6 +37,7 @@ export async function StructureManager({ condominiumId, basePath, tab }: { condo
     torres: `${buildings.length} · ${totalUnits}`,
     areas: String(areas.length),
     categorias: String(categories.length),
+    checklist: String(checklistCount),
   };
 
   return (
@@ -162,6 +166,8 @@ export async function StructureManager({ condominiumId, basePath, tab }: { condo
           </Card>
         </div>
       )}
+
+      {tab === "checklist" && <ChecklistAdmin condominiumId={condominiumId} historyHref={`/checklist?condo=${condominiumId}`} />}
 
       {tab === "categorias" && (
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">

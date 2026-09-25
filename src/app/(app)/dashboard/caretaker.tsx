@@ -5,17 +5,22 @@ import { orderListInclude } from "@/lib/orders";
 import { ACTIVE_STATUSES } from "@/lib/workflow";
 import { OrderList } from "@/components/order-list";
 import { LinkButton, PageHeader, Stat } from "@/components/ui";
-import { DailyChecklist } from "@/components/daily-checklist";
+import Link from "next/link";
+import { ChecklistToday } from "@/components/checklist/today";
+import { dayItemsForUi } from "@/lib/checklist-server";
+import { spNow } from "@/lib/checklist";
+import { nowMs } from "@/lib/format";
 
 export async function CaretakerDashboard({ user }: { user: CurrentUser }) {
   const where = { condominiumId: user.condominiumId! };
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const [toValidate, urgent, inProgress, today] = await Promise.all([
+  const [toValidate, urgent, inProgress, today, checklist] = await Promise.all([
     db.serviceOrder.findMany({ where: { ...where, status: "completed" }, include: orderListInclude, orderBy: { completedAt: "asc" } }),
     db.serviceOrder.findMany({ where: { ...where, status: { in: ACTIVE_STATUSES }, OR: [{ priority: "urgent" }, { dueDate: { lt: new Date() } }] }, include: orderListInclude, orderBy: { dueDate: "asc" } }),
     db.serviceOrder.count({ where: { ...where, status: "in_progress" } }),
     db.serviceOrder.count({ where: { ...where, createdAt: { gte: startOfDay } } }),
+    dayItemsForUi(user.condominiumId!, spNow(nowMs()).date),
   ]);
 
   return (
@@ -41,7 +46,7 @@ export async function CaretakerDashboard({ user }: { user: CurrentUser }) {
             <OrderList orders={urgent} empty="Sem urgências no momento." />
           </section>
         </div>
-        <DailyChecklist />
+        <ChecklistToday items={checklist} canCheck condominiumId={user.condominiumId!} footer={<Link href="/checklist" className="text-xs font-medium text-brand hover:underline">Histórico do checklist →</Link>} />
       </div>
     </div>
   );
