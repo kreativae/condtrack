@@ -16,6 +16,7 @@ import { MediaGrid } from "@/components/media-grid";
 import { MediaUploader } from "@/components/media-uploader";
 import { AdminDeleteOrder } from "./admin-delete";
 import { AssignForm, CommentForm, CompleteForm, DecisionForm, RateForm, TransitionForm } from "./order-actions";
+import { MediaMetadata } from "./media-metadata";
 
 async function load(id: string) {
   return db.serviceOrder.findUnique({
@@ -249,6 +250,8 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
               <Person label="Aprovado por" name={o.approvedBy?.name ?? (o.approvedAt ? DELETED_USER : undefined)} extra="Síndico" when={o.approvedAt} />
             </dl>
           </Card>
+
+          <MediaMetadata items={o.media} stamp={watermark} />
 
           {o.rating != null && (
             <Card className="p-5">

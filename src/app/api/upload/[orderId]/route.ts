@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { saveFile, ALLOWED_MIME, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/storage";
+import { deviceLabel } from "@/lib/device";
 import { can, MAX_MEDIA_PER_PHASE, MAX_VIDEO_SECONDS, PHASE_LABEL, type Phase } from "@/lib/workflow";
 
 // Upload de uma mídia por requisição (fotos já chegam comprimidas e com marca
@@ -59,7 +60,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/upload/[orderId
       url,
       mimeType: file.type,
       sizeBytes: file.size,
-      metadata: JSON.stringify({ ...meta, originalName: file.name, receivedAt: new Date().toISOString() }),
+      metadata: JSON.stringify({ ...meta, originalName: file.name, receivedAt: new Date().toISOString(), device: deviceLabel(req.headers.get("user-agent")) }),
       uploadedById: user.id,
     },
   });
