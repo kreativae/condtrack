@@ -386,6 +386,78 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
   return { ok: true, id };
 }
 
+/** Pessoas e datas do card "Responsáveis" (correção administrativa — só superadmin). */
+const PEOPLE = ["requestedById", "assignedToId", "validatedById", "approvedById"] as const;
+const DATES = ["createdAt", "assignedAt", "startedAt", "completedAt", "validatedAt", "approvedAt"] as const;
+const DATE_LABEL: Record<(typeof DATES)[number], string> = {
+  createdAt: "abertura", assignedAt: "atribuição", startedAt: "início", completedAt: "conclusão", validatedAt: "validação", approvedAt: "aprovação",
+};
+// Datas que o status atual exige (ex.: OS aprovada precisa da data de aprovação)
+const REQUIRED_BY_STATUS: Partial<Record<Status, (typeof DATES)[number][]>> = {
+  in_progress: ["startedAt"],
+  completed: ["startedAt", "completedAt"],
+  validated: ["startedAt", "completedAt", "validatedAt"],
+  approved: ["startedAt", "completedAt", "validatedAt", "approvedAt"],
+};
+
+export async function adminUpdateResponsibles(id: string, _prev: ActionState, form: FormData): Promise<ActionState> {
+  const user = await requireUser("superadmin");
+  const o = await db.serviceOrder.findUnique({ where: { id } });
+  if (!o) return fail("OS não encontrada.");
+
+  const people: Record<string, string | null> = {};
+  for (const k of PEOPLE) people[k] = String(form.get(k) ?? "") || null;
+  if (!people.requestedById) return fail("Informe quem abriu a OS.");
+  const ids = Object.values(people).filter((x): x is string => !!x);
+  const users = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, role: true, condominiumId: true } });
+  const find = (uid: string | null) => users.find((u) => u.id === uid);
+  for (const k of PEOPLE) {
+    const u = find(people[k]);
+    if (people[k] && (!u || (u.role !== "superadmin" && u.condominiumId !== o.condominiumId))) return fail("Pessoa inválida para este condomínio.");
+  }
+  if (people.assignedToId && find(people.assignedToId)?.role !== "provider") return fail("“Executado por” precisa ser um prestador.");
+
+  const dates: Record<string, Date | null> = {};
+  const limit = Date.now() + 5 * 60_000;
+  for (const k of DATES) {
+    const raw = String(form.get(k) ?? "");
+    const d = raw ? new Date(raw) : null;
+    if (d && Number.isNaN(d.getTime())) return fail(`Data de ${DATE_LABEL[k]} inválida.`);
+    if (d && d.getTime() > limit) return fail(`A data de ${DATE_LABEL[k]} está no futuro.`);
+    dates[k] = d;
+  }
+  if (!dates.createdAt) return fail("Informe a data de abertura.");
+  for (const k of DATES) {
+    if (dates[k] && dates[k]! < dates.createdAt) return fail(`A data de ${DATE_LABEL[k]} é anterior à abertura.`);
+  }
+  for (const k of REQUIRED_BY_STATUS[o.status as Status] ?? []) {
+    if (!dates[k]) return fail(`Com o status “${STATUS_META[o.status as Status].label}”, a data de ${DATE_LABEL[k]} é obrigatória.`);
+  }
+  if (people.assignedToId && !dates.assignedAt) return fail("Informe a data de atribuição do prestador.");
+
+  const data = { ...people, ...dates } as Record<string, string | Date | null>;
+  const val = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? "" : String(v));
+  const changed = Object.keys(data).filter((k) => val(o[k as keyof typeof o]) !== val(data[k]));
+  if (!changed.length) return { ok: true, id };
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+
+  await db.$transaction([
+    db.serviceOrder.update({ where: { id }, data }),
+    db.serviceEvent.create({
+      data: { serviceOrderId: id, userId: user.id, type: "comment", comment: `Responsáveis/datas ajustados pela administração.${reason ? ` Motivo: ${reason}` : ""}` },
+    }),
+  ]);
+  await audit(user, "admin_update_responsibles", "service_order", id, {
+    old: Object.fromEntries(changed.map((k) => [k, o[k as keyof typeof o]])),
+    new: { ...Object.fromEntries(changed.map((k) => [k, data[k]])), reason: reason || undefined },
+    condominiumId: o.condominiumId,
+  });
+  revalidatePath(`/os/${id}`);
+  revalidatePath("/os");
+  revalidatePath("/feed");
+  return { ok: true, id };
+}
+
 export async function adminDeleteOrder(id: string, _prev: ActionState, form: FormData): Promise<ActionState> {
   const user = await requireUser("superadmin");
   const o = await db.serviceOrder.findUnique({ where: { id }, include: { _count: { select: { media: true, events: true } } } });

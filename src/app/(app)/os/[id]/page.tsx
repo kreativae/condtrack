@@ -17,6 +17,8 @@ import { MediaUploader } from "@/components/media-uploader";
 import { AdminDeleteOrder } from "./admin-delete";
 import { AssignForm, CommentForm, CompleteForm, DecisionForm, RateForm, TransitionForm } from "./order-actions";
 import { MediaMetadata } from "./media-metadata";
+import { ResponsiblesCard } from "./responsibles-card";
+import { ShowMore } from "@/components/show-more";
 
 async function load(id: string) {
   return db.serviceOrder.findUnique({
@@ -69,6 +71,14 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
     after: can("upload_after", o, user),
   };
 
+  // Superadmin: pessoas do condomínio (e superadmins) para corrigir os responsáveis
+  const people = user.role === "superadmin"
+    ? await db.user.findMany({
+        where: { OR: [{ condominiumId: o.condominiumId }, { role: "superadmin" }] },
+        select: { id: true, name: true, role: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
   const providers = can("assign", o, user)
     ? await db.user.findMany({ where: { role: "provider", status: "active", condominiumId: o.condominiumId }, select: { id: true, name: true, company: true, specialty: true }, orderBy: { name: "asc" } })
     : [];
@@ -208,11 +218,18 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
           )}
 
           <Card>
-            <CardHeader title="Linha do tempo" subtitle="Histórico completo de interações" />
-            <ol className="relative space-y-5 px-5 py-5">
-              <span className="absolute bottom-6 left-[29px] top-6 w-px bg-line" />
-              {o.events.map((e) => (
+            <CardHeader title="Linha do tempo" subtitle={`${o.events.length} registro(s) · mais recentes primeiro`} />
+            {/* Mais recentes primeiro; o campo de comentário fica junto delas */}
+            {canComment && (
+              <div className="border-b border-line p-4">
+                <CommentForm action={commentOrder.bind(null, o.id)} />
+              </div>
+            )}
+            <ShowMore limit={10} label="Mostrar mais" className="relative space-y-5 px-5 py-5">
+              {[...o.events].reverse().map((e, i, list) => (
                 <li key={e.id} className="relative flex gap-4">
+                  {/* trilho vertical ligando os pontos */}
+                  {i < list.length - 1 && <span className="absolute left-[8.5px] top-4 h-[calc(100%+1.25rem)] w-px bg-line" />}
                   <span className={cx("relative z-10 mt-1.5 size-2.5 shrink-0 rounded-full ring-4 ring-surface", EVENT_DOT[e.type] ?? "bg-muted")} style={{ marginLeft: 4 }} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm">
@@ -227,12 +244,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
                   </div>
                 </li>
               ))}
-            </ol>
-            {canComment && (
-              <div className="border-t border-line p-4">
-                <CommentForm action={commentOrder.bind(null, o.id)} />
-              </div>
-            )}
+            </ShowMore>
           </Card>
         </div>
 
@@ -241,15 +253,23 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
           <ActionPanel o={o} user={user} providers={providers} />
           {user.role === "superadmin" && <AdminDeleteOrder id={o.id} protocol={o.protocol} />}
 
-          <Card>
-            <CardHeader title="Responsáveis" />
+          <ResponsiblesCard
+            orderId={o.id}
+            editable={user.role === "superadmin"}
+            people={people}
+            current={{
+              requestedById: o.requestedById, assignedToId: o.assignedToId, validatedById: o.validatedById, approvedById: o.approvedById,
+              createdAt: iso(o.createdAt), assignedAt: iso(o.assignedAt), startedAt: iso(o.startedAt), completedAt: iso(o.completedAt), validatedAt: iso(o.validatedAt), approvedAt: iso(o.approvedAt),
+            }}
+            view={
             <dl className="space-y-4 p-5 text-sm">
               <Person label="Solicitado por" name={o.requestedBy?.name ?? DELETED_USER} extra={o.requestedBy ? ROLE_LABEL[o.requestedBy.role as Role] : undefined} when={o.createdAt} />
               <Person label="Executado por" name={o.assignedTo?.name ?? (o.startedAt ? DELETED_USER : undefined)} extra={o.assignedTo?.company} when={o.completedAt ?? o.startedAt ?? o.assignedAt} />
               <Person label="Validado por" name={o.validatedBy?.name ?? (o.validatedAt ? DELETED_USER : undefined)} extra="Zeladoria" when={o.validatedAt} />
               <Person label="Aprovado por" name={o.approvedBy?.name ?? (o.approvedAt ? DELETED_USER : undefined)} extra="Síndico" when={o.approvedAt} />
             </dl>
-          </Card>
+            }
+          />
 
           <MediaMetadata items={o.media} stamp={stamp} />
 
@@ -267,6 +287,8 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
     </div>
   );
 }
+
+const iso = (d: Date | null) => d?.toISOString() ?? null;
 
 function Person({ label, name, extra, when }: { label: string; name?: string | null; extra?: string | null; when?: Date | null }) {
   return (
