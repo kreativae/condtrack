@@ -12,8 +12,6 @@ const MAX_VIDEO_SECONDS = 120;
 type Props = {
   orderId: string;
   phase: "opening" | "before" | "during" | "after";
-  /** Texto gravado na marca d'água (ex.: protocolo + local). */
-  watermark: string;
   remaining: number;
   compact?: boolean;
 };
@@ -25,8 +23,11 @@ function getPosition(): Promise<GeolocationCoordinates | null> {
   });
 }
 
-/** Redimensiona, comprime e aplica marca d'água com data/hora/local. */
-async function processImage(file: File, lines: string[]): Promise<Blob> {
+/**
+ * Redimensiona e comprime. Sem texto sobre a foto: data, local, GPS e aparelho
+ * ficam nos metadados (card "Metadados dos registros" na OS).
+ */
+async function processImage(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);
@@ -34,23 +35,7 @@ async function processImage(file: File, lines: string[]): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(bitmap, 0, 0, w, h);
-
-  const fs = Math.max(14, Math.round(w / 55));
-  const pad = Math.round(fs * 0.8);
-  const bandH = pad * 2 + fs * lines.length * 1.35;
-  const grad = ctx.createLinearGradient(0, h - bandH * 1.6, 0, h);
-  grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, "rgba(0,0,0,0.65)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, h - bandH * 1.6, w, bandH * 1.6);
-  ctx.font = `600 ${fs}px Inter, system-ui, sans-serif`;
-  ctx.textBaseline = "bottom";
-  lines.forEach((line, i) => {
-    ctx.fillStyle = i === 0 ? "#ffffff" : "rgba(255,255,255,0.92)";
-    ctx.fillText(line, pad, h - pad - (lines.length - 1 - i) * fs * 1.35);
-  });
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
 
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Falha ao processar imagem"))), "image/jpeg", JPEG_QUALITY));
 }
@@ -68,7 +53,7 @@ function videoDuration(file: File): Promise<number> {
   });
 }
 
-export function MediaUploader({ orderId, phase, watermark, remaining, compact }: Props) {
+export function MediaUploader({ orderId, phase, remaining, compact }: Props) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -82,7 +67,6 @@ export function MediaUploader({ orderId, phase, watermark, remaining, compact }:
 
     const coords = await getPosition();
     const now = new Date();
-    const stamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(now);
     const geo = coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}` : null;
 
     for (let i = 0; i < list.length; i++) {
@@ -97,9 +81,8 @@ export function MediaUploader({ orderId, phase, watermark, remaining, compact }:
           meta.duration = d;
           fd.append("file", f);
         } else if (f.type.startsWith("image/")) {
-          const blob = await processImage(f, [`CONDTRACK · ${stamp}`, watermark, ...(geo ? [geo] : [])]);
+          const blob = await processImage(f);
           fd.append("file", new File([blob], f.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }));
-          meta.watermarked = true;
         } else {
           throw new Error(`Formato não suportado: ${f.name}`);
         }

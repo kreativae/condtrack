@@ -57,7 +57,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
   const beforePhoto = o.media.find((m) => m.phase === "before" && m.type === "photo");
   const afterPhoto = o.media.find((m) => m.phase === "after" && m.type === "photo");
   const location = locationLabel(o);
-  const watermark = `${o.protocol} · ${location}`;
+  const stamp = `${o.protocol} · ${location}`;
   const overdue = isOverdue(o);
   const materials: { item: string; qty: string }[] = JSON.parse(o.materialsUsed || "[]");
 
@@ -178,7 +178,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
                       deletable: canDeleteMedia(o, m, user),
                     }))}
                   />
-                  {uploadable[p] && <MediaUploader orderId={o.id} phase={p} watermark={watermark} remaining={MAX_MEDIA_PER_PHASE - items.length} compact={items.length > 0} />}
+                  {uploadable[p] && <MediaUploader orderId={o.id} phase={p} remaining={MAX_MEDIA_PER_PHASE - items.length} compact={items.length > 0} />}
                 </div>
               </Card>
             );
@@ -251,7 +251,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
             </dl>
           </Card>
 
-          <MediaMetadata items={o.media} stamp={watermark} />
+          <MediaMetadata items={o.media} stamp={stamp} />
 
           {o.rating != null && (
             <Card className="p-5">
