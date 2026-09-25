@@ -55,7 +55,7 @@ export function BottomNav({ items }: { items: NavItem[] }) {
         return (
           <Link key={it.href} href={it.href} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium", active ? "text-brand" : "text-muted")}>
             <Icon className="size-5" strokeWidth={1.6} />
-            <span className="max-w-full truncate px-1">{it.label}</span>
+            <span className="max-w-full truncate px-1">{it.short ?? it.label}</span>
           </Link>
         );
       })}

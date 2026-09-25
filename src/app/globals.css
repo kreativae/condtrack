@@ -121,6 +121,15 @@ body {
   background: linear-gradient(145deg, #7b7bf2 0%, #5b5bd6 55%, #4338ca 100%);
 }
 
+/* Itens de grade podem encolher abaixo do conteúdo: sem isso, uma tabela ou
+   gráfico largo dentro de uma coluna empurra a página inteira para o lado.
+   (Em @layer base para que utilitários como min-w-36 continuem valendo.) */
+@layer base {
+  .grid > * {
+    min-width: 0;
+  }
+}
+
 /* Faixas com rolagem horizontal (abas, filtros) sem barra visível */
 .no-scrollbar {
   scrollbar-width: none;

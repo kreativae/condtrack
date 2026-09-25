@@ -21,15 +21,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const place = user.condominium?.name ?? "Todos os condomínios";
 
   // Aviso de cobrança para o síndico (pagamento falhou ou teste acabando)
-  let billingNotice: string | null = null;
+  // full: notebook/desktop · short: celular (a faixa tem altura fixa de uma linha)
+  let billingNotice: { full: string; short: string } | null = null;
   if (user.role === "syndic" && user.condominiumId) {
     const sub = await db.subscription.findUnique({ where: { condominiumId: user.condominiumId } });
-    if (sub && ["past_due", "unpaid"].includes(sub.status)) billingNotice = "Não conseguimos cobrar a assinatura. Atualize a forma de pagamento para evitar a suspensão.";
+    if (sub && ["past_due", "unpaid"].includes(sub.status)) billingNotice = { full: "Não conseguimos cobrar a assinatura. Atualize a forma de pagamento para evitar a suspensão.", short: "Falha na cobrança da assinatura." };
     else if (sub?.status === "trialing" && sub.trialEnd && !sub.cancelAtPeriodEnd) {
       const days = Math.ceil((sub.trialEnd.getTime() - nowMs()) / 86400_000);
-      if (days <= 3) billingNotice = `Seu período de teste termina em ${Math.max(days, 0)} dia(s).`;
+      if (days <= 3) billingNotice = { full: `Seu período de teste termina em ${Math.max(days, 0)} dia(s).`, short: `Teste termina em ${Math.max(days, 0)} dia(s).` };
     } else if (!sub?.stripeSubscriptionId || ["canceled", "incomplete_expired"].includes(sub.status)) {
-      billingNotice = "Este condomínio não tem uma assinatura ativa.";
+      billingNotice = { full: "Este condomínio não tem uma assinatura ativa.", short: "Sem assinatura ativa." };
     }
   }
 
@@ -89,7 +90,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         {billingNotice && (
           <Link href="/assinatura" className="flex h-8 items-center justify-center gap-2 overflow-hidden whitespace-nowrap bg-warn/15 px-4 text-xs font-medium text-warn hover:bg-warn/20">
             <AlertTriangle className="size-4 shrink-0" />
-            <span className="truncate">{billingNotice}</span> <span className="shrink-0 underline">Ver assinatura</span>
+            <span className="truncate sm:hidden">{billingNotice.short}</span><span className="hidden truncate sm:inline">{billingNotice.full}</span> <span className="shrink-0 underline">Ver assinatura</span>
           </Link>
         )}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-8">

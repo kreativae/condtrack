@@ -110,8 +110,8 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
 
       {/* Progresso */}
       {status !== "cancelled" && (
-        <Card className="mb-6 overflow-x-auto px-5 py-5">
-          <ol className="flex min-w-[560px] items-center">
+        <Card className="mb-6 px-4 py-4 sm:px-5 sm:py-5">
+          <ol className="flex items-center">
             {FLOW_STEPS.map((s, i) => {
               const done = i <= stepIdx;
               const current = i === stepIdx + 1;
@@ -120,7 +120,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
                   <div className="flex flex-col items-center gap-2">
                     <span
                       className={cx(
-                        "flex size-8 items-center justify-center rounded-full text-xs font-semibold ring-1 transition",
+                        "flex size-7 shrink-0 items-center sm:size-8 justify-center rounded-full text-xs font-semibold ring-1 transition",
                         done && "bg-brand text-brand-ink ring-brand",
                         current && (status === "rejected" ? "bg-bad/15 text-bad ring-bad" : "bg-brand/15 text-brand ring-brand"),
                         !done && !current && "text-muted ring-line",
@@ -128,13 +128,18 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
                     >
                       {done ? <Check className="size-4" /> : i + 1}
                     </span>
-                    <span className={cx("whitespace-nowrap text-xs font-medium", done || current ? "text-fg" : "text-muted")}>{s.label}</span>
+                    <span className={cx("hidden whitespace-nowrap text-xs font-medium sm:block", done || current ? "text-fg" : "text-muted")}>{s.label}</span>
                   </div>
-                  {i < FLOW_STEPS.length - 1 && <span className={cx("mx-2 mb-6 h-px flex-1", i < stepIdx ? "bg-brand" : "bg-line")} />}
+                  {i < FLOW_STEPS.length - 1 && <span className={cx("mx-1 h-px flex-1 sm:mx-2 sm:mb-6", i < stepIdx ? "bg-brand" : "bg-line")} />}
                 </li>
               );
             })}
           </ol>
+          {/* No celular os rótulos somem da linha; mostra só a etapa atual */}
+          <p className="mt-3 text-xs text-muted sm:hidden">
+            Etapa {Math.min(stepIdx + 2, FLOW_STEPS.length)} de {FLOW_STEPS.length} ·{" "}
+            <span className="font-medium text-fg">{FLOW_STEPS[Math.min(stepIdx + 1, FLOW_STEPS.length - 1)].label}</span>
+          </p>
         </Card>
       )}
 
