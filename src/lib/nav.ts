@@ -20,7 +20,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/usuarios", label: "Pessoas", icon: "users", mobile: true },
     { href: "/estrutura", label: "Estrutura", icon: "building" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
-    { href: "/assinatura", label: "Assinatura", icon: "card" },
+    { href: "/assinatura", label: "Assinatura", icon: "card", mobile: true },
   ],
   caretaker: [
     { href: "/dashboard", label: "Meu dia", icon: "gauge", mobile: true },
