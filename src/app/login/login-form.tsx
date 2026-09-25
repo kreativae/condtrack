@@ -11,6 +11,7 @@ import { login } from "@/app/actions/auth";
 import { passkeyLoginOptions, verifyPasskeyLogin } from "@/app/actions/passkeys";
 import { Alert, Field, Input, buttonClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+import type { LoginAppearance } from "@/lib/login-appearance";
 
 declare global {
   interface Window {
@@ -18,7 +19,7 @@ declare global {
   }
 }
 
-export function LoginForm({ next, passkeys, turnstileSiteKey }: { next?: string; passkeys: boolean; turnstileSiteKey: string | null }) {
+export function LoginForm({ next, passkeys, turnstileSiteKey, a }: { next?: string; passkeys: boolean; turnstileSiteKey: string | null; a: LoginAppearance }) {
   const [state, form, pending] = useFormSubmit(login);
 
   // Token do Turnstile é de uso único: renova após cada tentativa
@@ -28,14 +29,14 @@ export function LoginForm({ next, passkeys, turnstileSiteKey }: { next?: string;
 
   return (
     <div className="space-y-5">
-      {passkeys && <PasskeyLogin next={next} />}
+      {passkeys && <PasskeyLogin next={next} a={a} />}
       <form {...form} className="space-y-5">
         <input type="hidden" name="next" value={next ?? ""} />
-        <Field label="E-mail">
-          <Input name="email" type="email" autoComplete="username webauthn" required placeholder="voce@condominio.com" />
+        <Field label={a.emailLabel}>
+          <Input name="email" type="email" autoComplete="username webauthn" required placeholder={a.emailPlaceholder} />
         </Field>
-        <Field label="Senha">
-          <Input name="password" type="password" autoComplete="current-password" required placeholder="••••••••" />
+        <Field label={a.passwordLabel}>
+          <Input name="password" type="password" autoComplete="current-password" required placeholder={a.passwordPlaceholder} />
         </Field>
         {turnstileSiteKey && (
           <>
@@ -45,15 +46,15 @@ export function LoginForm({ next, passkeys, turnstileSiteKey }: { next?: string;
         )}
         {state?.error && <Alert>{state.error}</Alert>}
         <SubmitButton pending={pending} className="w-full" pendingText="Entrando…">
-          Entrar
+          {a.buttonText}
         </SubmitButton>
-        <p className="text-center text-xs text-muted">Esqueceu a senha? Solicite a redefinição à administração do condomínio.</p>
+        {a.showHelp && <p className="text-center text-xs text-muted" style={a.textColor ? { color: a.textColor } : undefined}>{a.helpText}</p>}
       </form>
     </div>
   );
 }
 
-function PasskeyLogin({ next }: { next?: string }) {
+function PasskeyLogin({ next, a }: { next?: string; a: LoginAppearance }) {
   const router = useRouter();
   const [supported, setSupported] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,11 +89,11 @@ function PasskeyLogin({ next }: { next?: string }) {
     <div>
       <button type="button" onClick={go} disabled={busy || !supported} className={buttonClass("outline") + " h-11 w-full"}>
         <ScanFace className="size-5 text-brand" />
-        {busy ? "Aguardando biometria…" : "Entrar com Face ID / biometria"}
+        {busy ? "Aguardando biometria…" : a.passkeyText}
       </button>
       {error && <p className="mt-2 text-xs text-bad">{error}</p>}
       <div className="mt-5 flex items-center gap-3 text-xs text-muted">
-        <span className="h-px flex-1 bg-line" /> ou com e-mail e senha <span className="h-px flex-1 bg-line" />
+        <span className="h-px flex-1 bg-line" /> {a.dividerText} <span className="h-px flex-1 bg-line" />
       </div>
     </div>
   );

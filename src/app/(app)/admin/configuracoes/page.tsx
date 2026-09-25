@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CreditCard, Database, Mail, ScanFace, ShieldCheck, Triangle } from "lucide-react";
+import { CreditCard, Database, LogIn, Mail, ScanFace, ShieldCheck, Triangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings, maskSecret, settingsSource } from "@/lib/settings";
@@ -15,10 +15,12 @@ import { VercelPanel } from "@/components/integrations/vercel-panel";
 import { NeonPanel } from "@/components/integrations/neon-panel";
 import { Badge, Card, CardHeader, PageHeader, cx } from "@/components/ui";
 import { CopyField, SettingsForm, type ClientField } from "./settings-form";
+import { LoginAppearanceForm } from "./login-appearance-form";
+import { getLoginAppearance } from "@/lib/login-appearance-server";
 
 export const metadata: Metadata = { title: "Configurações" };
 
-const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace } as const;
+const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace, login: LogIn } as const;
 const STRIPE_EVENTS = [
   "checkout.session.completed",
   "customer.subscription.created",
@@ -35,6 +37,15 @@ const STRIPE_EVENTS = [
 export default async function SettingsPage({ searchParams }: PageProps<"/admin/configuracoes">) {
   const me = await requireUser("superadmin");
   const { aba } = await searchParams;
+  // "login" é uma aba própria (editor visual), fora dos grupos de integração
+  if (aba === "login") {
+    const [a, pk] = await Promise.all([getLoginAppearance(), passkeyConfig()]);
+    return (
+      <SettingsShell current="login">
+        <LoginAppearanceForm initial={a} passkeys={pk.enabled} />
+      </SettingsShell>
+    );
+  }
   const current = (SETTINGS.find((g) => g.key === aba)?.key ?? "stripe") as SettingsGroup;
   const def = SETTINGS.find((g) => g.key === current)!;
 
@@ -68,28 +79,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
   ]);
 
   return (
-    <div className="animate-in">
-      <PageHeader eyebrow="Superadministração" title="Configurações" description="Integrações e APIs da plataforma. Chaves secretas são guardadas criptografadas e nunca exibidas por completo." />
-
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-        <nav className="flex gap-1 overflow-x-auto lg:flex-col">
-          {SETTINGS.map((g) => {
-            const Icon = ICON[g.key];
-            return (
-              <Link
-                key={g.key}
-                href={`/admin/configuracoes?aba=${g.key}`}
-                className={cx("flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition", current === g.key ? "bg-brand-soft text-brand" : "text-fg-2 hover:bg-bg-2")}
-              >
-                <Icon className="size-4" />
-                <span className="flex-1">{g.title}</span>
-                <span className={cx("size-2 rounded-full", configured[g.key] ? "bg-ok" : "bg-muted/40")} title={configured[g.key] ? "Configurado" : "Não configurado"} />
-              </Link>
-            );
-          })}
-          <p className="hidden px-3 pt-4 text-xs text-muted lg:block">Novas integrações (SMS, WhatsApp, armazenamento) entrarão aqui.</p>
-        </nav>
-
+    <SettingsShell current={current} configured={configured}>
         <div className="space-y-6">
           <Card>
             <CardHeader title={def.title} subtitle={def.description} action={configured[current] ? <Badge tone="ok" dot>Ativo</Badge> : <Badge tone="muted" dot>Não configurado</Badge>} />
@@ -146,6 +136,37 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
             </Card>
           )}
         </div>
+    </SettingsShell>
+  );
+}
+
+/** Cabeçalho + menu lateral das abas de Configurações. */
+function SettingsShell({ current, configured, children }: { current: SettingsGroup | "login"; configured?: Partial<Record<SettingsGroup, boolean>>; children: React.ReactNode }) {
+  const tabs = [...SETTINGS.map((g) => ({ key: g.key as SettingsGroup | "login", title: g.title })), { key: "login" as const, title: "Página de login" }];
+  return (
+    <div className="animate-in">
+      <PageHeader eyebrow="Superadministração" title="Configurações" description="Integrações, APIs e aparência da plataforma. Chaves secretas são guardadas criptografadas e nunca exibidas por completo." />
+
+      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+        <nav className="flex gap-1 self-start overflow-x-auto lg:sticky lg:top-[calc(4rem+var(--chrome,0rem)+0.75rem)] lg:flex-col">
+          {tabs.map((g) => {
+            const Icon = ICON[g.key];
+            const ok = g.key === "login" ? undefined : configured?.[g.key];
+            return (
+              <Link
+                key={g.key}
+                href={`/admin/configuracoes?aba=${g.key}`}
+                className={cx("flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition", current === g.key ? "bg-brand-soft text-brand" : "text-fg-2 hover:bg-bg-2")}
+              >
+                <Icon className="size-4" />
+                <span className="flex-1">{g.title}</span>
+                {ok !== undefined && <span className={cx("size-2 rounded-full", ok ? "bg-ok" : "bg-muted/40")} title={ok ? "Configurado" : "Não configurado"} />}
+              </Link>
+            );
+          })}
+          <p className="hidden px-3 pt-4 text-xs text-muted lg:block">Novas integrações (SMS, WhatsApp, armazenamento) entrarão aqui.</p>
+        </nav>
+        {children}
       </div>
     </div>
   );

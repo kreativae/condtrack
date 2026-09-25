@@ -26,5 +26,6 @@ export const config = {
   // /api/upload e /api/stripe/webhook ficam fora: fazem a própria autenticação
   // (upload por sessão, webhook pela assinatura do Stripe) e precisam do corpo
   // original — o proxy bufferiza o corpo da requisição em memória.
-  matcher: ["/((?!_next/static|_next/image|api/upload|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico).*)"],
+  // /api/branding: imagens públicas da tela de login (e upload, que confere o superadmin).
+  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico).*)"],
 };
