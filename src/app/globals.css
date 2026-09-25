@@ -86,6 +86,9 @@ html,
 body {
   background: var(--bg);
   color: var(--fg);
+  /* Rede de segurança: nada arrasta a página para o lado no celular
+     (clip, e não hidden, para não quebrar os elementos sticky). */
+  overflow-x: clip;
 }
 
 body {
@@ -127,6 +130,16 @@ body {
 @layer base {
   .grid > * {
     min-width: 0;
+  }
+}
+
+/* iOS dá zoom ao focar campos com fonte < 16px e não desfaz ao sair.
+   Em telas de toque os campos usam 16px (fora de @layer para vencer o text-sm). */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 
