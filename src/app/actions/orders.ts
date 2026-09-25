@@ -314,6 +314,7 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
   if (d.locationType === "unit" && (!d.unitId || !(await db.unit.findFirst({ where: { id: d.unitId, building: { condominiumId: cid } } })))) return fail("Selecione a unidade.");
   const provider = d.assignedToId ? await db.user.findFirst({ where: { id: d.assignedToId, role: "provider", condominiumId: cid } }) : null;
   if (d.assignedToId && !provider) return fail("Prestador inválido.");
+  if (provider && provider.id !== o.assignedToId && provider.status !== "active") return fail("Este prestador está inativo. Escolha um prestador ativo.");
 
   const now = new Date();
   const data = {

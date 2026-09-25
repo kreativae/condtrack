@@ -19,7 +19,8 @@ export default async function EditOrderPage({ params }: PageProps<"/os/[id]/edit
     db.serviceCategory.findMany({ where: { condominiumId: cid }, orderBy: { name: "asc" } }),
     db.commonArea.findMany({ where: { condominiumId: cid }, orderBy: { name: "asc" } }),
     db.unit.findMany({ where: { building: { condominiumId: cid } }, include: { building: true }, orderBy: [{ building: { name: "asc" } }, { number: "asc" }] }),
-    db.user.findMany({ where: { condominiumId: cid, role: "provider" }, orderBy: { name: "asc" } }),
+    // Só prestadores ativos — mais o atual da OS, para a seleção não perder o valor
+    db.user.findMany({ where: { condominiumId: cid, role: "provider", OR: [{ status: "active" }, { id: o.assignedToId ?? "__none__" }] }, orderBy: { name: "asc" } }),
   ]);
 
   return (
