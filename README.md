@@ -101,7 +101,7 @@ src/components/             design system (ui.tsx), slider antes/depois, uploade
 
 - **Autenticação**: e-mail + senha (bcrypt), sessão JWT httpOnly de 12h, bloqueio após 5 tentativas (15 min), RBAC em todas as páginas/ações.
 - **OS (core)**: protocolo automático, categorias, prioridade com SLA, área comum ou unidade, fotos da ocorrência, atribuição com prazo, timeline, comentários, materiais, tempo de execução, validação, aprovação/rejeição com motivo, cancelamento, avaliação do solicitante.
-- **Registro visual**: até 10 arquivos por etapa, vídeos até 2 min, compressão client-side (máx. 1920px, JPEG 82%), **marca d'água automática** com data/hora/protocolo/local/geolocalização, slider antes/depois, lightbox.
+- **Registro visual**: até 10 arquivos por etapa, vídeos até 2 min, compressão client-side (máx. 1920px, JPEG 82%), dados de captura (data/hora, GPS, aparelho) guardados nos metadados da OS, sem marca d'água na foto, slider antes/depois, lightbox.
 - **Dashboards** por perfil: superadmin (global, ranking de eficiência, atrasos), síndico (status, categorias, áreas, prestadores, pendências), zelador (validações, urgências, checklist diário), prestador (fila de trabalho), morador (feed, solicitações, comunicados).
 - **Feed transparente** de serviços aprovados (quem executou, quem validou, quem aprovou).
 - **Usuários**: cadastro por perfil com senha provisória, vínculo a unidade, ativar/desativar, reset de senha.
@@ -132,6 +132,9 @@ Em dev, para receber webhooks: `stripe listen --forward-to localhost:3000/api/st
 - **Vercel** — access token, time e projeto. Painel com projeto, domínios, produção atual, indicadores (deploys em 7 dias, taxa de sucesso, tempo médio de build) e histórico de deploys com commit, autor e links de logs.
 - **Neon** — API key e projeto. Painel com computes (ativo/suspenso, CU, último uso), branches, bancos, roles, uso do período, operações recentes e **conexões reais**: o sistema obtém a connection string pela API e consulta `pg_stat_activity` (por estado, por aplicação, sessões mais longas, uso vs. `max_connections`).
 - **Segurança** — tentativas de login antes do bloqueio, tempo de bloqueio, duração da sessão, Cloudflare Turnstile (anti-robô) no login.
+- **Aparência** — cores de todas as páginas (temas claro e escuro), atalhos de cor principal, logo na cor principal, prévia ao vivo e aviso de contraste.
+- **Página de login** — textos, cores e imagens da tela de login, com prévia.
+- **Mensagens** — modelos editáveis das notificações (app/e-mail), teste e histórico de envios.
 - **Face ID e biometria** — passkeys/WebAuthn (`@simplewebauthn`): ativar/desativar, nome exibido, domínio (RP ID) e origens. Cada usuário cadastra aparelhos em *Meu perfil*; o login mostra "Entrar com Face ID / biometria". Exige HTTPS em produção.
 
 ## Próximos passos (roadmap do escopo)
