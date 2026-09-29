@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CreditCard, Database, LogIn, Mail, MessagesSquare, ScanFace, ShieldCheck, Triangle } from "lucide-react";
+import { cookies } from "next/headers";
+import { CreditCard, Database, LogIn, Mail, MessagesSquare, Palette, ScanFace, ShieldCheck, Triangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings, maskSecret, settingsSource } from "@/lib/settings";
@@ -16,6 +17,8 @@ import { NeonPanel } from "@/components/integrations/neon-panel";
 import { Badge, Card, CardHeader, PageHeader, cx } from "@/components/ui";
 import { CopyField, SettingsForm, type ClientField } from "./settings-form";
 import { LoginAppearanceForm } from "./login-appearance-form";
+import { ThemeAppearanceForm } from "./theme-appearance-form";
+import { getThemeAppearance } from "@/lib/theme-appearance-server";
 import { getLoginAppearance } from "@/lib/login-appearance-server";
 import { MessagesEditor } from "./messages-editor";
 import { MessagesHistory } from "./messages-history";
@@ -23,7 +26,7 @@ import { getAllTemplates, getTemplateOverrides } from "@/lib/messages-server";
 
 export const metadata: Metadata = { title: "Configurações" };
 
-const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace, login: LogIn, mensagens: MessagesSquare } as const;
+const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace, aparencia: Palette, login: LogIn, mensagens: MessagesSquare } as const;
 const STRIPE_EVENTS = [
   "checkout.session.completed",
   "customer.subscription.created",
@@ -41,6 +44,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
   const me = await requireUser("superadmin");
   const sp = await searchParams;
   const { aba } = sp;
+  // "aparencia": cores de todas as páginas (claro e escuro), com prévia
+  if (aba === "aparencia") {
+    const [t, jar] = await Promise.all([getThemeAppearance(), cookies()]);
+    return (
+      <SettingsShell current="aparencia">
+        <ThemeAppearanceForm initial={t} current={jar.get("theme")?.value === "dark" ? "dark" : "light"} />
+      </SettingsShell>
+    );
+  }
   // "login" é uma aba própria (editor visual), fora dos grupos de integração
   if (aba === "login") {
     const [a, pk] = await Promise.all([getLoginAppearance(), passkeyConfig()]);
@@ -174,10 +186,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
   );
 }
 
+type Tab = SettingsGroup | "aparencia" | "login" | "mensagens";
+
 /** Cabeçalho + menu lateral das abas de Configurações. */
-function SettingsShell({ current, configured, children }: { current: SettingsGroup | "login" | "mensagens"; configured?: Partial<Record<SettingsGroup, boolean>>; children: React.ReactNode }) {
+function SettingsShell({ current, configured, children }: { current: Tab; configured?: Partial<Record<SettingsGroup, boolean>>; children: React.ReactNode }) {
   const tabs = [
-    ...SETTINGS.map((g) => ({ key: g.key as SettingsGroup | "login" | "mensagens", title: g.title })),
+    ...SETTINGS.map((g) => ({ key: g.key as Tab, title: g.title })),
+    { key: "aparencia" as const, title: "Aparência" },
     { key: "login" as const, title: "Página de login" },
     { key: "mensagens" as const, title: "Mensagens" },
   ];
@@ -189,7 +204,7 @@ function SettingsShell({ current, configured, children }: { current: SettingsGro
         <nav className="flex gap-1 self-start overflow-x-auto lg:sticky lg:top-[calc(4rem+var(--chrome,0rem)+0.75rem)] lg:flex-col">
           {tabs.map((g) => {
             const Icon = ICON[g.key];
-            const ok = g.key === "login" || g.key === "mensagens" ? undefined : configured?.[g.key];
+            const ok = g.key === "aparencia" || g.key === "login" || g.key === "mensagens" ? undefined : configured?.[g.key];
             return (
               <Link
                 key={g.key}

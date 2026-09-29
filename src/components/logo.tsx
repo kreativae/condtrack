@@ -7,7 +7,7 @@ import { cx } from "./ui";
 export function LogoMark({ size = 36, className }: { size?: number; className?: string }) {
   return (
     <span
-      className={cx("logo-mark inline-flex shrink-0 items-center justify-center shadow-[0_4px_12px_-4px_rgb(91_91_214/0.6)]", className)}
+      className={cx("logo-mark inline-flex shrink-0 items-center justify-center", className)}
       style={{ width: size, height: size, borderRadius: size * 0.3 }}
       aria-hidden
     >

@@ -70,7 +70,7 @@ export function LoginScreen({ a, form, children, preview }: { a: LoginAppearance
 /** Cartão ilustrativo de uma OS aprovada (textos e fotos editáveis). */
 function PreviewCard({ a }: { a: LoginAppearance }) {
   const steps = loginSteps(a);
-  const accent = a.accentColor || "#5b5bd6";
+  const accent = a.accentColor || "var(--brand)";
   return (
     <div className="relative mx-auto w-full max-w-md">
       <div className="rounded-2xl bg-white p-5 text-[#0f172a] shadow-[0_30px_60px_-20px_rgb(15_23_42/0.45)]">
