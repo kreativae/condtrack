@@ -10,6 +10,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/feed", label: "Feed de serviços", icon: "sparkles" },
     { href: "/admin/usuarios", label: "Usuários", icon: "users", mobile: true },
     { href: "/admin/assinaturas", label: "Assinaturas", icon: "card", mobile: true },
+    { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/admin/auditoria", label: "Auditoria", icon: "shield" },
     { href: "/admin/configuracoes", label: "Configurações", icon: "settings" },
   ],
@@ -21,6 +22,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/checklist", label: "Checklist", icon: "checklist" },
     { href: "/estrutura", label: "Estrutura", icon: "building" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
+    { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/assinatura", label: "Assinatura", icon: "card", mobile: true },
   ],
   caretaker: [
@@ -41,6 +43,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/os", label: "Minhas solicitações", short: "Solicitações", icon: "clipboard", mobile: true },
     { href: "/os/nova", label: "Nova solicitação", short: "Nova", icon: "plus", mobile: true },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
+    { href: "/relatorios", label: "Relatórios", icon: "report" },
   ],
   // Morador: somente visualização
   resident: [

@@ -35,6 +35,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `THEME_DEFAULTS` deve bater com `:root` em `globals.css`.
 - **Configurações → Página de login**: `src/lib/login-appearance*.ts`. A cor própria do login tem prioridade sobre a Aparência.
 - **Configurações → Mensagens**: modelos de notificação e e-mail em `src/lib/messages*.ts`, com histórico de envios.
+- **Relatórios** (`/relatorios` → `/relatorio`): prestação de contas do período. `src/lib/report.ts` busca os dados;
+  `src/app/relatorio` fica fora do layout do app e é impresso pelo navegador (“Salvar como PDF”), sem biblioteca de PDF.
+  Superadmin, síndico e conselho.
 - **Checklist do zelador**: `src/lib/checklist*.ts`, `src/app/actions/checklist.ts`, `src/app/api/cron/checklist`.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
@@ -43,3 +46,4 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - 2026-09-23 a 25: MVP, Neon + Vercel + Blob, condomínios horizontais, feed com vídeo, configurações de login e mensagens,
   troca de e-mail, visualizador de fotos e metadados, checklist do zelador.
 - 2026-09-28: aba Aparência (cores de todas as páginas).
+- 2026-09-29: relatórios de serviços em PDF.
