@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useEffect, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, Bell, CheckCircle2, ChevronDown, ClipboardList, LayoutDashboard, Moon, RotateCcw, Sun, Users } from "lucide-react";
+import { AlertTriangle, Bell, CheckCircle2, ChevronDown, ClipboardList, Eye, EyeOff, LayoutDashboard, Moon, RotateCcw, Sun, Users } from "lucide-react";
 import { saveThemeAppearance } from "@/app/actions/theme-appearance";
 import {
   BRAND_PRESETS,
@@ -28,6 +28,7 @@ export function ThemeAppearanceForm({ initial, current }: { initial: ThemeAppear
   const [t, setT] = useState(initial);
   const [saved, setSaved] = useState(initial);
   const [mode, setMode] = useState<ThemeMode>(current);
+  const [showPreview, setShowPreview] = useState(true);
   const [state, save, saving] = useActionState(saveThemeAppearance, undefined);
   const dirty = JSON.stringify(t) !== JSON.stringify(saved);
   const set = (k: ThemeKey, v: string) => setT((x) => ({ ...x, [mode]: { ...x[mode], [k]: v } }));
@@ -71,8 +72,11 @@ export function ThemeAppearanceForm({ initial, current }: { initial: ThemeAppear
               );
             })}
           </div>
+          <button type="button" onClick={() => setShowPreview((v) => !v)} className={buttonClass("ghost", "sm")}>
+            {showPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showPreview ? "Ocultar" : "Mostrar"}
+          </button>
         </div>
-        <Preview t={t} mode={mode} />
+        {showPreview && <Preview t={t} mode={mode} />}
       </Card>
 
       <Card>
