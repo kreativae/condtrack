@@ -42,33 +42,35 @@ export function LoginAppearanceForm({ initial, passkeys }: { initial: LoginAppea
     >
       <input type="hidden" name="data" value={JSON.stringify(a)} />
 
-      {/* Prévia: acompanha a rolagem em telas largas */}
-      <Card className="z-10 overflow-hidden lg:sticky lg:top-[calc(4rem+var(--chrome,0rem)+0.75rem)]">
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
-          <p className="mr-auto text-sm font-semibold">Prévia</p>
-          <div className="inline-flex rounded-lg bg-bg-2 p-0.5">
-            {(Object.keys(DEVICES) as (keyof typeof DEVICES)[]).map((k) => {
-              const Icon = DEVICES[k].icon;
-              return (
-                <button key={k} type="button" onClick={() => setDevice(k)} className={cx("inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition", device === k ? "bg-surface text-fg shadow-card" : "text-muted hover:text-fg")}>
-                  <Icon className="size-3.5" />{DEVICES[k].label}
-                </button>
-              );
-            })}
+      {/* Prévia fixa sob o cabeçalho; a faixa com o fundo da página cobre o vão acima dela */}
+      <div className="z-10 lg:sticky lg:top-16 lg:-mt-3 lg:bg-bg lg:pt-3">
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+            <p className="mr-auto text-sm font-semibold">Prévia</p>
+            <div className="inline-flex rounded-lg bg-bg-2 p-0.5">
+              {(Object.keys(DEVICES) as (keyof typeof DEVICES)[]).map((k) => {
+                const Icon = DEVICES[k].icon;
+                return (
+                  <button key={k} type="button" onClick={() => setDevice(k)} className={cx("inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition", device === k ? "bg-surface text-fg shadow-card" : "text-muted hover:text-fg")}>
+                    <Icon className="size-3.5" />{DEVICES[k].label}
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" onClick={() => setShowPreview((v) => !v)} className={buttonClass("ghost", "sm")}>
+              {showPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showPreview ? "Ocultar" : "Mostrar"}
+            </button>
+            <a href="/login" target="_blank" rel="noopener" className={buttonClass("ghost", "sm")} title="Abre a página salva (faça logout ou use uma janela anônima)">
+              <ExternalLink className="size-3.5" />Abrir
+            </a>
           </div>
-          <button type="button" onClick={() => setShowPreview((v) => !v)} className={buttonClass("ghost", "sm")}>
-            {showPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showPreview ? "Ocultar" : "Mostrar"}
-          </button>
-          <a href="/login" target="_blank" rel="noopener" className={buttonClass("ghost", "sm")} title="Abre a página salva (faça logout ou use uma janela anônima)">
-            <ExternalLink className="size-3.5" />Abrir
-          </a>
-        </div>
-        <div className={cx("bg-bg-2 p-3", !showPreview && "hidden")}>
-          <Scaled w={D.w} h={D.h} maxH={device === "desktop" ? 380 : 420}>
-            <LoginScreen a={a} preview form={<MockForm a={a} passkeys={passkeys} />} />
-          </Scaled>
-        </div>
-      </Card>
+          <div className={cx("bg-bg-2 p-3", !showPreview && "hidden")}>
+            <Scaled w={D.w} h={D.h} maxH={device === "desktop" ? 380 : 420}>
+              <LoginScreen a={a} preview form={<MockForm a={a} passkeys={passkeys} />} />
+            </Scaled>
+          </div>
+        </Card>
+      </div>
 
       {LOGIN_SECTIONS.map((s, i) => {
         const fields = s.fields.filter((f) => fieldVisible(f, a));

@@ -58,26 +58,28 @@ export function ThemeAppearanceForm({ initial, current }: { initial: ThemeAppear
         Cores de todas as páginas do sistema, inclusive a tela de login (quando ela não tem cor própria em “Página de login”). Os temas claro e escuro têm cores separadas; campos vazios usam a cor padrão.
       </p>
 
-      {/* Tema em edição + prévia */}
-      <Card className="z-10 overflow-hidden lg:sticky lg:top-[calc(4rem+var(--chrome,0rem)+0.75rem)]">
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
-          <p className="mr-auto text-sm font-semibold">Prévia</p>
-          <div className="inline-flex rounded-lg bg-bg-2 p-0.5">
-            {(Object.keys(MODES) as ThemeMode[]).map((k) => {
-              const Icon = MODES[k].icon;
-              return (
-                <button key={k} type="button" onClick={() => setMode(k)} className={cx("inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition", mode === k ? "bg-surface text-fg shadow-card" : "text-muted hover:text-fg")}>
-                  <Icon className="size-3.5" />{MODES[k].label}
-                </button>
-              );
-            })}
+      {/* Prévia fixa sob o cabeçalho; a faixa com o fundo da página cobre o vão acima dela */}
+      <div className="z-10 lg:sticky lg:top-16 lg:-mt-3 lg:bg-bg lg:pt-3">
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+            <p className="mr-auto text-sm font-semibold">Prévia</p>
+            <div className="inline-flex rounded-lg bg-bg-2 p-0.5">
+              {(Object.keys(MODES) as ThemeMode[]).map((k) => {
+                const Icon = MODES[k].icon;
+                return (
+                  <button key={k} type="button" onClick={() => setMode(k)} className={cx("inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition", mode === k ? "bg-surface text-fg shadow-card" : "text-muted hover:text-fg")}>
+                    <Icon className="size-3.5" />{MODES[k].label}
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" onClick={() => setShowPreview((v) => !v)} className={buttonClass("ghost", "sm")}>
+              {showPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showPreview ? "Ocultar" : "Mostrar"}
+            </button>
           </div>
-          <button type="button" onClick={() => setShowPreview((v) => !v)} className={buttonClass("ghost", "sm")}>
-            {showPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showPreview ? "Ocultar" : "Mostrar"}
-          </button>
-        </div>
-        {showPreview && <Preview t={t} mode={mode} />}
-      </Card>
+          {showPreview && <Preview t={t} mode={mode} />}
+        </Card>
+      </div>
 
       <Card>
         <div className="space-y-3 p-5">
