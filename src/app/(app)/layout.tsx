@@ -10,7 +10,7 @@ import { NAV } from "@/lib/nav";
 import { showFinanceNav } from "@/lib/finance-server";
 import { ROLE_LABEL } from "@/lib/roles";
 import { logout, stopImpersonating } from "@/app/actions/auth";
-import { SideNav, BottomNav } from "@/components/nav-links";
+import { SideNav, MobileNav, MenuButton, NAV_PINS_COOKIE } from "@/components/nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui";
@@ -27,7 +27,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // Financeiro do conselho só aparece quando o síndico/superadmin libera
   const items = NAV[user.role].filter((i) => i.href !== "/financeiro" || showFinanceNav(user));
   const unit = user.units[0]?.unit;
-  const theme = (await cookies()).get("theme")?.value === "dark" ? "dark" : "light";
+  const jar = await cookies();
+  const theme = jar.get("theme")?.value === "dark" ? "dark" : "light";
+  // Atalhos fixados no celular (cookie); só valem páginas que este perfil enxerga
+  const pinCookie = jar.get(NAV_PINS_COOKIE)?.value;
+  const pins = pinCookie === undefined ? null : safeDecode(pinCookie).split(",").filter((h) => items.some((i) => i.href === h));
   const place = user.condominium?.name ?? "Todos os condomínios";
 
   // Aviso de cobrança para o síndico (pagamento falhou ou teste acabando)
@@ -104,7 +108,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
         )}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-8">
-          <div className="lg:hidden">
+          <div className="flex items-center gap-1 lg:hidden">
+            <MenuButton />
             <Logo tagline={false} size={30} />
           </div>
           <p className="hidden text-sm text-muted lg:block">
@@ -129,7 +134,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-8 lg:pb-16">{children}</main>
       </div>
-      <BottomNav items={items} />
+      <MobileNav items={items} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
     </div>
   );
+}
+
+function safeDecode(v: string) {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
 }
