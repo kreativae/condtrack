@@ -115,15 +115,15 @@ export function Field({ label, hint, children, className }: { label: string; hin
 }
 
 export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
-  const long = typeof value === "string" && value.length > 7;
   return (
     <Card className="@container p-4 sm:p-5">
       <p className="text-xs font-medium leading-snug text-muted [overflow-wrap:anywhere] sm:text-[13px]">{label}</p>
       <p
         className={cx(
           "mt-2 font-num font-bold tracking-tight tabular-nums",
-          // Valores longos (ex.: R$ 54.222,40) diminuem conforme a largura do cartão, para nunca estourar
-          long ? "text-base @[10rem]:text-lg @[12rem]:text-xl @[14.5rem]:text-2xl @[18rem]:text-[28px]" : "text-2xl sm:text-[28px]",
+          // O tamanho depende só da largura do cartão: cartões lado a lado têm números do mesmo
+          // tamanho, e valores longos (R$ 54.222,40) cabem sem estourar
+          "text-lg @[13rem]:text-xl @[15rem]:text-2xl @[18rem]:text-[28px]",
           tone ? toneText[tone] : "text-fg",
         )}
       >
