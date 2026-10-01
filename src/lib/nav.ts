@@ -10,6 +10,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/feed", label: "Feed de serviços", icon: "sparkles" },
     { href: "/admin/usuarios", label: "Usuários", icon: "users", mobile: true },
     { href: "/admin/assinaturas", label: "Assinaturas", icon: "card", mobile: true },
+    { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/admin/auditoria", label: "Auditoria", icon: "shield" },
     { href: "/admin/configuracoes", label: "Configurações", icon: "settings" },
@@ -20,6 +21,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
     { href: "/usuarios", label: "Pessoas", icon: "users", mobile: true },
     { href: "/checklist", label: "Checklist", icon: "checklist" },
+    { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/estrutura", label: "Estrutura", icon: "building" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
@@ -43,6 +45,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/os", label: "Minhas solicitações", short: "Solicitações", icon: "clipboard", mobile: true },
     { href: "/os/nova", label: "Nova solicitação", short: "Nova", icon: "plus", mobile: true },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
+    { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
   ],
   // Morador: somente visualização

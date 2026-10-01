@@ -28,5 +28,6 @@ export const config = {
   // original — o proxy bufferiza o corpo da requisição em memória.
   // /api/branding: imagens públicas da tela de login (e upload, que confere o superadmin).
   // /api/checklist (upload de foto, confere a sessão) e /api/cron (CRON_SECRET) também se autenticam sozinhos.
-  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/cron|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico).*)"],
+  // /api/financeiro (anexos e exportação) confere a sessão e o acesso ao Financeiro em cada rota.
+  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/financeiro|api/cron|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico).*)"],
 };

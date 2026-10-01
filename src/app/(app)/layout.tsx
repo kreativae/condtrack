@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { nowMs } from "@/lib/format";
 import { NAV } from "@/lib/nav";
+import { showFinanceNav } from "@/lib/finance-server";
 import { ROLE_LABEL } from "@/lib/roles";
 import { logout, stopImpersonating } from "@/app/actions/auth";
 import { SideNav, BottomNav } from "@/components/nav-links";
@@ -23,7 +24,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     after(() => maybeAlertLate(cid, nowMs()).catch((e) => console.error("[checklist] alerta", e)));
   }
   const unread = user.role === "resident" ? 0 : await db.notification.count({ where: { userId: user.id, read: false } });
-  const items = NAV[user.role];
+  // Financeiro do conselho só aparece quando o síndico/superadmin libera
+  const items = NAV[user.role].filter((i) => i.href !== "/financeiro" || showFinanceNav(user));
   const unit = user.units[0]?.unit;
   const theme = (await cookies()).get("theme")?.value === "dark" ? "dark" : "light";
   const place = user.condominium?.name ?? "Todos os condomínios";

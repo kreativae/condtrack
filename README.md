@@ -107,6 +107,7 @@ src/components/             design system (ui.tsx), slider antes/depois, uploade
 - **Usuários**: cadastro por perfil com senha provisória, vínculo a unidade, ativar/desativar, reset de senha.
 - **Multi-condomínio**: criar/editar condomínio com estrutura (torres × andares × unidades), categorias e áreas padrão, cor de destaque.
 - **Comunicados** com categorias, notificação e confirmação de leitura.
+- **Financeiro**: receitas e despesas por condomínio com notas fiscais, boletos e comprovantes anexados, filtros, resumo do período, despesas por categoria e planilha CSV. Histórico completo de quem lançou, editou (antes → depois), visualizou e abriu cada anexo. Síndico e superadmin liberam ou bloqueiam o acesso do conselho (somente leitura).
 - **Notificações in-app** conforme a matriz do escopo.
 - **Auditoria**: todas as ações críticas, inclusive ações feitas em modo "visualizar como".
 - **Design**: light mode padrão + dark mode, Plus Jakarta Sans + Inter, paleta neutra com acento indigo, responsivo com navegação inferior no mobile, PWA manifest.

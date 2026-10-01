@@ -36,13 +36,31 @@ export function blobEnabled() {
 }
 
 const safe = (s: string) => s.replace(/[^a-zA-Z0-9_.-]/g, "");
-const mimeOf = (name: string) => Object.entries(EXT).find(([, e]) => e === path.extname(name).slice(1))?.[0] ?? "application/octet-stream";
+// Documentos do Financeiro (notas fiscais, boletos, comprovantes)
+const DOC_EXT: Record<string, string> = { pdf: "application/pdf", xml: "application/xml" };
+const mimeOf = (name: string) => {
+  const ext = path.extname(name).slice(1);
+  return DOC_EXT[ext] ?? Object.entries(EXT).find(([, e]) => e === ext)?.[0] ?? "application/octet-stream";
+};
 
 export async function saveFile(file: File, folder: string) {
   const ext = EXT[file.type];
   if (!ext || !ALLOWED_MIME.includes(file.type)) throw new Error(`Tipo de arquivo não suportado: ${file.type}`);
   const dir = safe(folder);
   const name = `${randomUUID()}.${ext}`;
+  if (blobEnabled()) {
+    await put(`${BLOB_PREFIX}/${dir}/${name}`, file, { access: "private", contentType: file.type, addRandomSuffix: false });
+  } else {
+    await mkdir(path.join(/*turbopackIgnore: true*/ ROOT, dir), { recursive: true });
+    await writeFile(path.join(/*turbopackIgnore: true*/ ROOT, dir, name), Buffer.from(await file.arrayBuffer()));
+  }
+  return `/api/media/${dir}/${name}`;
+}
+
+/** Grava um documento já validado por quem chama (tipo e extensão). Mesmo formato de URL de saveFile. */
+export async function saveDocument(file: File, folder: string, ext: string) {
+  const dir = safe(folder);
+  const name = `${randomUUID()}.${safe(ext)}`;
   if (blobEnabled()) {
     await put(`${BLOB_PREFIX}/${dir}/${name}`, file, { access: "private", contentType: file.type, addRandomSuffix: false });
   } else {

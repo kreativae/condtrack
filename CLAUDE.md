@@ -24,6 +24,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Morador (`resident`) é somente leitura.**
 - **Auditoria**: ações críticas chamam `audit()` (`src/lib/audit.ts`), inclusive no modo "visualizar como".
 - **Mídias**: fotos sem marca d'água; os dados de captura (data, GPS, aparelho) ficam só nos metadados da OS.
+- **Financeiro**: nunca apagar lançamentos, anexos ou logs de verdade; o histórico é a prestação de contas.
 - **Segredos** em `Setting` são cifrados (AES-256-GCM). Conteúdo público (login, aparência) é JSON puro.
 
 ## Onde mora cada coisa (além do README)
@@ -38,6 +39,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Relatórios** (`/relatorios` → `/relatorio`): prestação de contas do período. `src/lib/report.ts` busca os dados;
   `src/app/relatorio` fica fora do layout do app e é impresso pelo navegador (“Salvar como PDF”), sem biblioteca de PDF.
   Superadmin, síndico e conselho.
+- **Financeiro** (`/financeiro`): receitas, despesas e anexos (NF, boleto, comprovante) por condomínio. Regras de acesso em
+  `src/lib/finance-server.ts` (`financeAccess()`): superadmin e síndico editam; o conselho só visualiza e só quando
+  `Condominium.councilFinanceAccess` está ligado (síndico/superadmin liberam na própria página). Tudo vai para `FinanceLog`
+  (criou, editou com antes/depois, visualizou, abriu anexo, excluiu, mudou o acesso), com nome e perfil gravados no log.
+  Exclusão é lógica (`deletedAt`), anexos removidos ficam guardados. Arquivos em `/api/financeiro/*` (fora do proxy).
 - **Checklist do zelador**: `src/lib/checklist*.ts`, `src/app/actions/checklist.ts`, `src/app/api/cron/checklist`.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
@@ -47,3 +53,4 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   troca de e-mail, visualizador de fotos e metadados, checklist do zelador.
 - 2026-09-28: aba Aparência (cores de todas as páginas).
 - 2026-09-29: relatórios de serviços em PDF.
+- 2026-10-01: Financeiro (lançamentos, notas fiscais, histórico de edição e visualização, acesso do conselho).
