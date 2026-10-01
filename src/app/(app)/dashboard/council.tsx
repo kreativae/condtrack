@@ -8,6 +8,7 @@ import { FeedCard, feedInclude } from "@/components/feed-card";
 import { OrderList } from "@/components/order-list";
 import { Card, CardHeader, LinkButton, PageHeader } from "@/components/ui";
 import { unitLabel } from "@/lib/units";
+import { FinanceSummary } from "@/components/finance-summary";
 
 export async function CouncilDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
@@ -25,6 +26,8 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
         title={`Olá, ${user.name.split(" ")[0]}`}
         actions={<LinkButton href="/os/nova"><Plus className="size-4" />Nova solicitação</LinkButton>}
       />
+      {/* Só quando o síndico liberou o Financeiro para o conselho */}
+      {user.condominium?.councilFinanceAccess && <FinanceSummary condominiumId={cid} />}
       <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <section className="space-y-6">
           <div className="flex items-center justify-between">

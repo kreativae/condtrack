@@ -8,6 +8,7 @@ import { PairBars } from "@/components/charts";
 import { PAYING, brl, monthlyEquivalent } from "@/lib/billing-shared";
 import { OrderList } from "@/components/order-list";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { FinanceSummary } from "@/components/finance-summary";
 
 export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
   const [condos, m, users, late, subs] = await Promise.all([
@@ -52,6 +53,8 @@ export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
         <Stat label="Concluídas (30d)" value={m.approved30} tone="ok" />
         <Stat label="Atrasadas" value={m.overdue} tone={m.overdue ? "bad" : undefined} />
       </div>
+
+      <FinanceSummary />
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Card>

@@ -9,6 +9,7 @@ import { OrderList } from "@/components/order-list";
 import { StatusBreakdown } from "@/components/status-breakdown";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { ChecklistSummary } from "@/components/checklist/summary";
+import { FinanceSummary } from "@/components/finance-summary";
 
 export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
@@ -44,6 +45,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
       </div>
 
       <ChecklistSummary condominiumId={cid} />
+      <FinanceSummary condominiumId={cid} />
 
       {pending.length > 0 && (
         <section className="mb-8">
