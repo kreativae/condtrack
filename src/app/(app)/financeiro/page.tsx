@@ -150,24 +150,24 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-4">
           {/* Filtros */}
-          <form className="flex flex-wrap gap-2">
+          <form className="grid gap-2 sm:grid-cols-2 2xl:flex 2xl:flex-wrap">
             {user.role === "superadmin" && <input type="hidden" name="condo" value={condo.id} />}
             <input type="hidden" name={p.kind === "year" ? "ano" : "mes"} value={p.key} />
-            <Input name="q" defaultValue={q} placeholder="Buscar descrição, fornecedor ou nº da nota" className="min-w-56 flex-1" />
-            <Select name="tipo" defaultValue={tipo} className="w-auto">
+            <Input name="q" defaultValue={q} placeholder="Buscar descrição, fornecedor ou nº da nota" className="sm:col-span-2 2xl:min-w-56 2xl:flex-1" />
+            <Select name="tipo" defaultValue={tipo} className="2xl:w-auto">
               <option value="">Receitas e despesas</option>
               {Object.entries(FIN_TYPES).map(([k, l]) => <option key={k} value={k}>{l}s</option>)}
             </Select>
-            <Select name="status" defaultValue={status} className="w-auto">
+            <Select name="status" defaultValue={status} className="2xl:w-auto">
               <option value="">Todas as situações</option>
               {Object.entries(FIN_STATUS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
             </Select>
-            <Select name="categoria" defaultValue={categoria} className="w-auto">
+            <Select name="categoria" defaultValue={categoria} className="2xl:w-auto">
               <option value="">Todas as categorias</option>
               {categories.map((c) => <option key={c.category} value={c.category}>{c.category}</option>)}
             </Select>
             {access.edit && (
-              <label className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-3 text-sm text-fg-2">
+              <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-strong bg-surface px-3 text-sm text-fg-2">
                 <input type="checkbox" name="excluidos" value="1" defaultChecked={excluidos} className="size-4 accent-[var(--brand)]" />Excluídos
               </label>
             )}
