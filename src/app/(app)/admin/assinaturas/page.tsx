@@ -81,7 +81,7 @@ export default async function BillingAdminPage({ searchParams }: PageProps<"/adm
         <Stat label="Ticket médio" value={brl(count(PAYING) ? Math.round(mrr / count(PAYING)) : 0)} />
       </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {([
           ["pagantes", "Pagantes", count(["active"]), "text-ok"],
           ["teste", "Em teste", count(["trialing"]), "text-info"],

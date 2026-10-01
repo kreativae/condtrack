@@ -49,11 +49,14 @@ export async function FinanceSummary({ condominiumId, className }: { condominium
         <Link href="/financeiro" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">Abrir <ArrowRight className="size-3.5" /></Link>
       </div>
 
-      <div className="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
+      <div className="grid grid-cols-2 divide-line md:grid-cols-4 md:divide-x">
         <Mini label="Receitas recebidas" value={fmtBRL(income)} tone="text-ok" />
         <Mini label="Despesas pagas" value={fmtBRL(expense)} tone="text-bad" />
         <Mini label="Saldo do mês" value={fmtBRL(income - expense)} tone={income - expense < 0 ? "text-bad" : "text-fg"} />
-        <Mini label="A receber · a pagar" value={`${fmtBRL(toReceive)} · ${fmtBRL(toPay)}`} small />
+        <div className="@container px-5 py-4">
+          <p className="flex justify-between gap-2 text-[11px] font-medium text-muted"><span>A receber</span><span className="font-num font-semibold text-info tabular-nums">{fmtBRL(toReceive)}</span></p>
+          <p className="mt-1.5 flex justify-between gap-2 text-[11px] font-medium text-muted"><span>A pagar</span><span className="font-num font-semibold text-warn tabular-nums">{fmtBRL(toPay)}</span></p>
+        </div>
       </div>
 
       <div className="border-t border-line">
@@ -87,11 +90,11 @@ export async function FinanceSummary({ condominiumId, className }: { condominium
   );
 }
 
-function Mini({ label, value, tone, small }: { label: string; value: string; tone?: string; small?: boolean }) {
+function Mini({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <div className="px-5 py-4">
+    <div className="@container px-4 py-4 sm:px-5">
       <p className="text-[11px] font-medium text-muted">{label}</p>
-      <p className={cx("mt-1 font-num font-bold tabular-nums", small ? "text-sm" : "text-lg", tone)}>{value}</p>
+      <p className={cx("mt-1 font-num text-sm font-bold tabular-nums @[8.5rem]:text-base @[10rem]:text-lg", tone)}>{value}</p>
     </div>
   );
 }

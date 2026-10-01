@@ -67,7 +67,8 @@ export const FIELD_LABEL: Record<string, string> = {
 };
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const fmtBRL = (cents: number) => brl.format(cents / 100);
+// "−" (sinal de menos) em vez de hífen: a linha nunca quebra entre o sinal e o valor
+export const fmtBRL = (cents: number) => brl.format(cents / 100).replace("-", "\u2212");
 
 /** "1.234,56", "1234.56" ou "1234" → centavos. null se inválido. */
 export function parseBRL(input: string): number | null {

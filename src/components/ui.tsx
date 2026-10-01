@@ -57,12 +57,12 @@ export function CardHeader({ title, action, subtitle }: { title: ReactNode; subt
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
     <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+      <div className="min-w-0">
         {eyebrow && <p className="mb-1.5 text-sm font-medium first-letter:uppercase text-brand">{eyebrow}</p>}
         <h1 className="font-display text-2xl font-bold leading-tight sm:text-[32px]">{title}</h1>
         {description && <p className="mt-2 max-w-2xl text-sm text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">{actions}</div>}
     </header>
   );
 }
@@ -115,10 +115,20 @@ export function Field({ label, hint, children, className }: { label: string; hin
 }
 
 export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
+  const long = typeof value === "string" && value.length > 7;
   return (
-    <Card className="p-4 sm:p-5">
+    <Card className="@container p-4 sm:p-5">
       <p className="text-xs font-medium leading-snug text-muted [overflow-wrap:anywhere] sm:text-[13px]">{label}</p>
-      <p className={cx("mt-2 font-num text-2xl font-bold tracking-tight tabular-nums sm:text-[28px]", tone ? toneText[tone] : "text-fg")}>{value}</p>
+      <p
+        className={cx(
+          "mt-2 font-num font-bold tracking-tight tabular-nums",
+          // Valores longos (ex.: R$ 54.222,40) diminuem conforme a largura do cartão, para nunca estourar
+          long ? "text-base @[10rem]:text-lg @[12rem]:text-xl @[14.5rem]:text-2xl @[18rem]:text-[28px]" : "text-2xl sm:text-[28px]",
+          tone ? toneText[tone] : "text-fg",
+        )}
+      >
+        {value}
+      </p>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </Card>
   );

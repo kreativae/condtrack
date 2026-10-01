@@ -45,7 +45,7 @@ export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
           </ol>
         </div>
       )}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
         <Stat label="MRR" value={brl(mrr)} tone="brand" hint={`${subs.length} pagante(s)`} />
         <Stat label="Condomínios ativos" value={condos.length} />
         <Stat label="Usuários ativos" value={users} />

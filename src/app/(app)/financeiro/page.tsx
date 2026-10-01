@@ -140,7 +140,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
       </div>
 
       {/* Resumo */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Stat label="Receitas recebidas" value={fmtBRL(incomePaid)} tone="ok" />
         <Stat label="Despesas pagas" value={fmtBRL(expensePaid)} tone="bad" />
         <Stat label="Saldo do período" value={fmtBRL(incomePaid - expensePaid)} tone={incomePaid - expensePaid < 0 ? "bad" : undefined} hint="Recebido menos pago" />
@@ -151,34 +151,64 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-4">
           {/* Filtros */}
-          <form className="grid gap-2 sm:grid-cols-2 2xl:flex 2xl:flex-wrap">
+          <form className="space-y-2">
             {user.role === "superadmin" && <input type="hidden" name="condo" value={condo.id} />}
             <input type="hidden" name={p.kind === "year" ? "ano" : "mes"} value={p.key} />
-            <Input name="q" defaultValue={q} placeholder="Buscar descrição, fornecedor ou nº da nota" className="sm:col-span-2 2xl:min-w-56 2xl:flex-1" />
-            <Select name="tipo" defaultValue={tipo} className="2xl:w-auto">
-              <option value="">Receitas e despesas</option>
-              {Object.entries(FIN_TYPES).map(([k, l]) => <option key={k} value={k}>{l}s</option>)}
-            </Select>
-            <Select name="status" defaultValue={status} className="2xl:w-auto">
-              <option value="">Todas as situações</option>
-              {Object.entries(FIN_STATUS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
-            </Select>
-            <Select name="categoria" defaultValue={categoria} className="2xl:w-auto">
-              <option value="">Todas as categorias</option>
-              {categories.map((c) => <option key={c.category} value={c.category}>{c.category}</option>)}
-            </Select>
-            {access.edit && (
-              <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-strong bg-surface px-3 text-sm text-fg-2">
-                <input type="checkbox" name="excluidos" value="1" defaultChecked={excluidos} className="size-4 accent-[var(--brand)]" />Excluídos
-              </label>
-            )}
-            <button className={buttonClass("outline")}>Filtrar</button>
+            <Input name="q" defaultValue={q} placeholder="Buscar descrição, fornecedor ou nº da nota" />
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Select name="tipo" defaultValue={tipo}>
+                <option value="">Receitas e despesas</option>
+                {Object.entries(FIN_TYPES).map(([k, l]) => <option key={k} value={k}>{l}s</option>)}
+              </Select>
+              <Select name="status" defaultValue={status}>
+                <option value="">Todas as situações</option>
+                {Object.entries(FIN_STATUS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+              </Select>
+              <Select name="categoria" defaultValue={categoria}>
+                <option value="">Todas as categorias</option>
+                {categories.map((c) => <option key={c.category} value={c.category}>{c.category}</option>)}
+              </Select>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              {access.edit && (
+                <label className="mr-auto inline-flex h-10 items-center gap-2 text-sm text-fg-2">
+                  <input type="checkbox" name="excluidos" value="1" defaultChecked={excluidos} className="size-4 accent-[var(--brand)]" />Mostrar excluídos
+                </label>
+              )}
+              <button className={buttonClass("outline")}>Filtrar</button>
+            </div>
           </form>
 
           {/* Lançamentos */}
           <Card className="overflow-hidden">
             {entries.length ? (
-              <div className="overflow-x-auto">
+              <>
+              {/* Celular: um cartão por lançamento */}
+              <ul className="divide-y divide-line md:hidden">
+                {entries.map((e) => {
+                  const st = FIN_STATUS[e.status as FinStatus];
+                  const late = e.status === "pending" && e.dueDate && e.dueDate.getTime() < now;
+                  return (
+                    <li key={e.id}>
+                      <Link href={`/financeiro/${e.id}`} className="block px-4 py-3 active:bg-bg-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="min-w-0 font-medium leading-snug">{e.description}</p>
+                          <p className={cx("shrink-0 font-num font-semibold tabular-nums", e.type === "income" ? "text-ok" : "text-fg")}>{e.type === "income" ? "+" : "−"} {fmtBRL(e.amountCents)}</p>
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                          <span>{fmtDayBR(e.date)}</span>
+                          <span>· {e.category}</span>
+                          {e._count.attachments > 0 && <span className="inline-flex items-center gap-0.5">· <Paperclip className="size-3" />{e._count.attachments}</span>}
+                          <span className="ml-auto">
+                            {e.deletedAt ? <Badge tone="muted">Excluído</Badge> : late ? <Badge tone="bad" dot>Vencido</Badge> : <Badge tone={st?.tone ?? "muted"} dot>{st?.label ?? e.status}</Badge>}
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="border-b border-line bg-surface-2 text-xs text-muted">
                     <tr>
@@ -217,6 +247,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
                   </tbody>
                 </table>
               </div>
+              </>
             ) : (
               <Empty icon={<Wallet />} title={excluidos ? "Nenhum lançamento excluído neste período" : "Nenhum lançamento neste período"}>
                 {access.edit && !excluidos ? "Registre receitas e despesas com as notas fiscais em “Novo lançamento”." : null}
