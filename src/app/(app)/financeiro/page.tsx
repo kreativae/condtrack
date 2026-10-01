@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { ChevronLeft, ChevronRight, Download, Lock, LockOpen, Paperclip, Plus, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, LockOpen, Paperclip, Plus, Wallet } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDateTime, nowMs } from "@/lib/format";
@@ -10,6 +10,7 @@ import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { financeAccess, financeCondo, financePeriod, shiftMonth } from "@/lib/finance-server";
 import { FIN_STATUS, FIN_TYPES, LOG_LABEL, fmtBRL, fmtDayBR, type FinStatus } from "@/lib/finance";
 import { setCouncilFinanceAccess } from "@/app/actions/finance";
+import { ExportButton } from "./export-button";
 import { Badge, Card, CardHeader, Empty, Input, LinkButton, PageHeader, Select, Stat, buttonClass, cx } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Financeiro" };
@@ -113,7 +114,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
         description={access.edit ? "Receitas, despesas e notas fiscais do condomínio, com histórico de quem lançou, editou e visualizou." : "Receitas, despesas e notas fiscais do condomínio (somente leitura)."}
         actions={
           <>
-            <a href={`/api/financeiro/exportar?${exportQS}`} className={buttonClass("outline")}><Download className="size-4" />Planilha</a>
+            <ExportButton query={exportQS} />
             {access.edit && <LinkButton href={`/financeiro/novo${condoQS}`}><Plus className="size-4" />Novo lançamento</LinkButton>}
           </>
         }
