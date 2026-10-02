@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, SlidersHorizontal } from "lucide-react";
+import { Check, Loader2, Settings } from "lucide-react";
 import { saveDashboardHidden } from "@/app/actions/nav";
 import type { DashSection } from "@/lib/dashboard";
 import { buttonClass, cx } from "./ui";
@@ -45,9 +45,14 @@ export function DashboardSettings({ sections, hidden: initial }: { sections: Das
         aria-expanded={open}
         aria-label="Personalizar painel"
         title="Personalizar painel"
-        className={cx(buttonClass("outline"), "w-10 px-0", open && "bg-bg-2")}
+        className={cx(buttonClass("outline"), "size-10 px-0 text-fg-2 hover:text-fg", open && "bg-bg-2 text-fg")}
       >
-        {pending ? <Loader2 className="size-4 animate-spin" /> : <SlidersHorizontal className="size-4" />}
+        {pending ? (
+          <Loader2 className="size-5 animate-spin" />
+        ) : (
+          // Engrenagem; gira um pouco ao abrir o painel de ajustes
+          <Settings className={cx("size-5 transition-transform duration-300", open && "rotate-90")} strokeWidth={1.75} />
+        )}
       </button>
       {open && (
         <div className="absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl border border-line bg-surface shadow-pop animate-in">
