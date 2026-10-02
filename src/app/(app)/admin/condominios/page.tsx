@@ -6,20 +6,23 @@ import { requireUser } from "@/lib/auth";
 import { orderMetrics, fmtHours } from "@/lib/metrics";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { SubscriptionBadge } from "@/components/billing/shared";
+import { DemoCondoButton } from "@/components/admin/demo-condo-button";
 
 export const metadata: Metadata = { title: "Condomínios" };
+// A geração do condomínio de demonstração leva alguns segundos
+export const maxDuration = 60;
 
 export default async function CondosPage() {
   await requireUser("superadmin");
   const condos = await db.condominium.findMany({
-    include: { _count: { select: { users: true, buildings: true } }, users: { where: { role: "syndic" }, select: { name: true } }, subscription: { include: { plan: true } } },
+    include: { _count: { select: { users: true, buildings: true } }, memberships: { where: { role: "syndic" }, select: { user: { select: { name: true } } } }, subscription: { include: { plan: true } } },
     orderBy: { name: "asc" },
   });
   const metrics = await Promise.all(condos.map((c) => orderMetrics({ condominiumId: c.id })));
 
   return (
     <div className="animate-in">
-      <PageHeader eyebrow="Multi-condomínio" title="Condomínios" actions={<LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton>} />
+      <PageHeader eyebrow="Multi-condomínio" title="Condomínios" actions={<><DemoCondoButton /><LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton></>} />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {condos.map((c, i) => {
           const m = metrics[i];
@@ -34,7 +37,7 @@ export default async function CondosPage() {
                   </div>
                   <h2 className="font-display font-semibold text-xl group-hover:text-brand">{c.name}</h2>
                   <p className="mt-1 line-clamp-1 text-xs text-muted">{c.address ?? "Endereço não informado"}</p>
-                  <p className="mt-1 text-xs text-muted">Síndico: {c.users[0]?.name ?? "—"}</p>
+                  <p className="mt-1 text-xs text-muted">Síndico: {c.memberships[0]?.user.name ?? "—"}</p>
                   <div className="mt-3 flex items-center gap-2 text-xs text-muted">
                     <SubscriptionBadge status={c.subscription?.stripeSubscriptionId ? c.subscription.status : "none"} />
                     {c.subscription?.plan && <span>{c.subscription.plan.name}</span>}

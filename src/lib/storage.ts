@@ -70,6 +70,19 @@ export async function saveDocument(file: File, folder: string, ext: string) {
   return `/api/media/${dir}/${name}`;
 }
 
+/** Grava um arquivo gerado pelo sistema (ex.: imagens do condomínio de demonstração). */
+export async function saveGenerated(folder: string, name: string, content: string | Buffer, contentType: string) {
+  const dir = safe(folder);
+  const file = safe(name);
+  if (blobEnabled()) {
+    await put(`${BLOB_PREFIX}/${dir}/${file}`, content, { access: "private", contentType, addRandomSuffix: false, allowOverwrite: true });
+  } else {
+    await mkdir(path.join(/*turbopackIgnore: true*/ ROOT, dir), { recursive: true });
+    await writeFile(path.join(/*turbopackIgnore: true*/ ROOT, dir, file), content);
+  }
+  return `/api/media/${dir}/${file}`;
+}
+
 export type StoredFile = { body: ReadableStream<Uint8Array> | Uint8Array; mime: string; size: number };
 
 export async function readStored(parts: string[]): Promise<StoredFile | null> {

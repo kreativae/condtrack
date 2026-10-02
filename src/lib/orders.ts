@@ -37,7 +37,12 @@ export function locationLabel(o: { locationType: string; commonArea?: { name: st
   return o.locationNote ? `${base} — ${o.locationNote}` : base;
 }
 
+/** Próximo protocolo do condomínio. O contador é por condomínio, mas o protocolo é único no banco
+ *  inteiro: números já usados por outro condomínio são pulados. */
 export async function nextProtocol(condominiumId: string, tx: Prisma.TransactionClient = db) {
-  const c = await tx.condominium.update({ where: { id: condominiumId }, data: { osCounter: { increment: 1 } } });
-  return `OS-${new Date().getFullYear()}-${String(c.osCounter).padStart(5, "0")}`;
+  for (;;) {
+    const c = await tx.condominium.update({ where: { id: condominiumId }, data: { osCounter: { increment: 1 } } });
+    const protocol = `OS-${new Date().getFullYear()}-${String(c.osCounter).padStart(5, "0")}`;
+    if (!(await tx.serviceOrder.findUnique({ where: { protocol }, select: { id: true } }))) return protocol;
+  }
 }
