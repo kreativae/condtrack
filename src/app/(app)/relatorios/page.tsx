@@ -30,8 +30,10 @@ export default async function ReportsPage() {
   const scope = admin ? await adminScope(user) : null;
 
   return (
-    <div className="mx-auto max-w-2xl animate-in space-y-6">
+    <div className="animate-in">
       <PageHeader eyebrow="Prestação de contas" title="Relatórios" description="Relatórios do período para apresentar em assembleia ou enviar aos moradores." />
+      {/* Serviços e financeiro lado a lado em telas largas */}
+      <div className="grid items-start gap-6 xl:grid-cols-2">
       <Card>
         <CardHeader title="Relatório de serviços" subtitle="Resumo em números, serviços entregues com antes e depois, por categoria e por prestador." />
         <ReportForm presets={PERIOD_PRESETS} condos={condos} today={today} defaultCondo={scope?.id} />
@@ -51,6 +53,7 @@ export default async function ReportsPage() {
           )}
         </Card>
       )}
+      </div>
     </div>
   );
 }
