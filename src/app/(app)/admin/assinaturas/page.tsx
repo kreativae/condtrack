@@ -46,7 +46,7 @@ export default async function BillingAdminPage({ searchParams }: PageProps<"/adm
   });
   const byPlan = Object.values(
     subs.filter((s) => ENTITLED.includes(s.status)).reduce<Record<string, { name: string; value: number }>>((acc, s) => {
-      const n = s.plan?.name ?? "Sem plano";
+      const n = s.plan?.name ?? (s.stripeSubscriptionId ? "Negociação especial" : "Sem plano");
       acc[n] = { name: n, value: (acc[n]?.value ?? 0) + 1 };
       return acc;
     }, {}),
@@ -133,7 +133,7 @@ export default async function BillingAdminPage({ searchParams }: PageProps<"/adm
                       <Link href={`/admin/assinaturas/${c.id}`} className="font-medium hover:text-brand">{c.name}</Link>
                       {!c.active && <p className="text-xs text-muted">Condomínio inativo</p>}
                     </td>
-                    <td className="px-5 py-3">{s?.plan ? `${s.plan.name} · ${s.interval === "year" ? "anual" : "mensal"}` : "—"}</td>
+                    <td className="px-5 py-3">{s?.plan ? `${s.plan.name} · ${s.interval === "year" ? "anual" : "mensal"}` : s?.stripeSubscriptionId ? `Negociação · ${s.quantity} unid. · ${s.interval === "year" ? "anual" : "mensal"}` : "—"}</td>
                     <td className="px-5 py-3">
                       <SubscriptionBadge status={st} />
                       {s?.cancelAtPeriodEnd && st !== "canceled" && <p className="mt-1 text-[11px] text-warn">Cancela em {fmtDate(s.currentPeriodEnd)}</p>}
