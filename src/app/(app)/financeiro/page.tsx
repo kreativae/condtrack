@@ -8,9 +8,10 @@ import { requireUser } from "@/lib/auth";
 import { fmtDateTime, nowMs } from "@/lib/format";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { financeAccess, financeCondo, financePeriod, shiftMonth } from "@/lib/finance-server";
-import { FIN_STATUS, FIN_TYPES, LOG_LABEL, fmtBRL, fmtDayBR, type FinStatus } from "@/lib/finance";
+import { FIN_STATUS, FIN_TYPES, LOG_LABEL, dateToDay, fmtBRL, fmtDayBR, type FinStatus } from "@/lib/finance";
 import { setCouncilFinanceAccess } from "@/app/actions/finance";
 import { ExportButton } from "./export-button";
+import { ReportDialog } from "./report-dialog";
 import { Badge, Card, CardHeader, Empty, Input, LinkButton, PageHeader, Select, Stat, buttonClass, cx } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Financeiro" };
@@ -47,7 +48,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
   const access = financeAccess(user, condo);
   if (!access.view) redirect("/dashboard");
 
-  const p = financePeriod(sp);
+  const p = financePeriod({ ...sp, de: undefined, ate: undefined }) as Exclude<ReturnType<typeof financePeriod>, { kind: "range" }>;
   const now = nowMs();
   const tipo = str(sp.tipo);
   const status = str(sp.status);
@@ -114,6 +115,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
         description={access.edit ? "Receitas, despesas e notas fiscais do condomínio, com histórico de quem lançou, editou e visualizou." : "Receitas, despesas e notas fiscais do condomínio (somente leitura)."}
         actions={
           <>
+            <ReportDialog categories={categories.map((c) => c.category)} condoId={user.role === "superadmin" ? condo.id : undefined} today={dateToDay(new Date(now))} />
             <ExportButton query={exportQS} />
             {access.edit && <LinkButton href={`/financeiro/novo${condoQS}`}><Plus className="size-4" />Novo lançamento</LinkButton>}
           </>

@@ -1,7 +1,9 @@
 import "server-only";
 import { headers } from "next/headers";
 import { db } from "./db";
+import type { Prisma } from "@prisma/client";
 import type { CurrentUser } from "./auth";
+import { FIN_TYPES, fmtDayBR } from "./finance";
 
 // Regras de acesso e histórico do Financeiro.
 // - Superadmin: todos os condomínios, tudo.
@@ -76,17 +78,51 @@ export async function logView(user: CurrentUser, data: { condominiumId: string; 
   if (!recent) await financeLog(user, data);
 }
 
-/** Intervalo de um mês (YYYY-MM) ou de um ano (YYYY) no fuso de Brasília. */
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const validDay = (v: unknown): v is string => typeof v === "string" && DAY.test(v) && !Number.isNaN(new Date(`${v}T12:00:00-03:00`).getTime());
+
+/** Intervalo livre (de/até YYYY-MM-DD), de um mês (YYYY-MM) ou de um ano (YYYY), no fuso de Brasília. */
 export function financePeriod(sp: Record<string, string | string[] | undefined>) {
+  if (validDay(sp.de) && validDay(sp.ate)) {
+    const [a, b] = sp.de <= sp.ate ? [sp.de, sp.ate] : [sp.ate, sp.de];
+    const end = new Date(`${b}T00:00:00-03:00`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    return { kind: "range" as const, key: `${a}_${b}`, label: `${fmtDayBR(`${a}T12:00:00-03:00`)} a ${fmtDayBR(`${b}T12:00:00-03:00`)}`, from: new Date(`${a}T00:00:00-03:00`), to: end };
+  }
   const now = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
   const ano = typeof sp.ano === "string" && /^\d{4}$/.test(sp.ano) ? sp.ano : null;
   if (ano) {
-    return { kind: "year" as const, key: ano, from: new Date(`${ano}-01-01T00:00:00-03:00`), to: new Date(`${Number(ano) + 1}-01-01T00:00:00-03:00`) };
+    return { kind: "year" as const, key: ano, label: `Ano de ${ano}`, from: new Date(`${ano}-01-01T00:00:00-03:00`), to: new Date(`${Number(ano) + 1}-01-01T00:00:00-03:00`) };
   }
   const mes = typeof sp.mes === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.mes) ? sp.mes : now;
   const [y, m] = mes.split("-").map(Number);
   const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
-  return { kind: "month" as const, key: mes, from: new Date(`${mes}-01T00:00:00-03:00`), to: new Date(`${next}-01T00:00:00-03:00`) };
+  return { kind: "month" as const, key: mes, label: `${MONTHS[m - 1]} de ${y}`, from: new Date(`${mes}-01T00:00:00-03:00`), to: new Date(`${next}-01T00:00:00-03:00`) };
+}
+
+const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+export const REPORT_STATUS = { paid: "Pagos", pending: "Pendentes", overdue: "Vencidos", cancelled: "Cancelados" } as const;
+
+/**
+ * Filtros do relatório (tipo, situação, categorias) a partir da URL.
+ * Categorias vêm separadas por "|" (nomes podem ter vírgula).
+ */
+export function financeReportFilter(sp: Record<string, string | string[] | undefined>, now: Date) {
+  const tipo = typeof sp.tipo === "string" && sp.tipo in FIN_TYPES ? (sp.tipo as keyof typeof FIN_TYPES) : null;
+  const situacao = typeof sp.situacao === "string" && sp.situacao in REPORT_STATUS ? (sp.situacao as keyof typeof REPORT_STATUS) : null;
+  const cats = typeof sp.cats === "string" && sp.cats ? sp.cats.split("|").map((c) => c.trim()).filter(Boolean).slice(0, 60) : [];
+  const where: Prisma.FinanceEntryWhereInput = {
+    ...(tipo && { type: tipo }),
+    ...(situacao === "overdue" ? { status: "pending", dueDate: { lt: now } } : situacao ? { status: situacao } : {}),
+    ...(cats.length && { category: { in: cats } }),
+  };
+  const labels = [
+    tipo ? `Somente ${FIN_TYPES[tipo].toLowerCase()}s` : null,
+    situacao ? REPORT_STATUS[situacao] : null,
+    cats.length ? `Categorias: ${cats.join(", ")}` : null,
+  ].filter((x): x is string => !!x);
+  return { where, labels, filtered: labels.length > 0 };
 }
 
 export function shiftMonth(mes: string, delta: number) {

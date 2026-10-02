@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { financeAccess, financeCondo, financeLog, financePeriod } from "@/lib/finance-server";
+import { financeAccess, financeCondo, financeLog, financePeriod, financeReportFilter } from "@/lib/finance-server";
 import { FIN_STATUS, FIN_TYPES, fmtBRL, fmtDayBR, type FinStatus } from "@/lib/finance";
 import { nowMs } from "@/lib/format";
 import { themeVars } from "@/lib/theme-appearance";
@@ -17,14 +17,12 @@ import { AutoPrint, PrintButton } from "../print-button";
 // Demonstrativo financeiro do período em A4, salvo pelo navegador ("Salvar como PDF").
 // Fora do layout do app, como o relatório de serviços.
 
-const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const periodLabel = (p: ReturnType<typeof financePeriod>) => (p.kind === "year" ? `Ano de ${p.key}` : `${MONTHS[Number(p.key.slice(5)) - 1]} de ${p.key.slice(0, 4)}`);
 
 export async function generateMetadata({ searchParams }: PageProps<"/relatorio/financeiro">): Promise<Metadata> {
   const user = await requireUser("superadmin", "syndic", "council");
   const sp = await searchParams;
   const condo = await financeCondo(user, sp.condo);
-  return { title: { absolute: `Financeiro - ${condo?.name ?? "Condtrack"} - ${financePeriod(sp).key}` } };
+  return { title: { absolute: `Financeiro - ${condo?.name ?? "Condtrack"} - ${financePeriod(sp).key.replace("_", " a ")}` } };
 }
 
 const PRINT_CSS = `
@@ -46,17 +44,20 @@ export default async function FinancePrintPage({ searchParams }: PageProps<"/rel
   if (!condo || !financeAccess(user, condo).view) redirect("/financeiro");
   const p = financePeriod(sp);
   const now = nowMs();
+  const f = financeReportFilter(sp, new Date(now));
+  // "Visualizar" só mostra; "Baixar PDF" já abre a janela de salvar
+  const autoPrint = sp.imprimir === "1";
 
   const [info, entries, theme] = await Promise.all([
     db.condominium.findUnique({ where: { id: condo.id }, select: { address: true, cnpj: true, logoUrl: true } }),
     db.financeEntry.findMany({
-      where: { condominiumId: condo.id, deletedAt: null, date: { gte: p.from, lt: p.to } },
+      where: { condominiumId: condo.id, deletedAt: null, date: { gte: p.from, lt: p.to }, ...f.where },
       include: { _count: { select: { attachments: { where: { deletedAt: null } } } } },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
     }),
     getThemeAppearance(),
   ]);
-  await financeLog(user, { condominiumId: condo.id, action: "exported", changes: { periodo: p.key, formato: "PDF", linhas: entries.length } });
+  await financeLog(user, { condominiumId: condo.id, action: "exported", changes: { periodo: p.label, formato: autoPrint ? "PDF" : "visualização", linhas: entries.length, ...(f.filtered && { filtros: f.labels.join(" · ") }) } });
 
   const active = entries.filter((e) => e.status !== "cancelled");
   const total = (type: string, st?: FinStatus) => active.filter((e) => e.type === type && (!st || e.status === st)).reduce((a, e) => a + e.amountCents, 0);
@@ -72,7 +73,7 @@ export default async function FinancePrintPage({ searchParams }: PageProps<"/rel
   return (
     <div style={style} className="min-h-dvh bg-bg-2 text-fg print:bg-white">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
-      <AutoPrint />
+      {autoPrint && <AutoPrint />}
 
       <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur print:hidden">
         <Link href={back} className={buttonClass("ghost")}><ArrowLeft className="size-4" />Voltar</Link>
@@ -94,7 +95,8 @@ export default async function FinancePrintPage({ searchParams }: PageProps<"/rel
           </div>
           <div className="text-right">
             <p className="text-xs font-semibold uppercase tracking-wide text-brand">Demonstrativo financeiro</p>
-            <p className="mt-1 font-display text-lg font-bold first-letter:uppercase">{periodLabel(p)}</p>
+            <p className="mt-1 font-display text-lg font-bold first-letter:uppercase">{p.label}</p>
+            {f.filtered && <p className="mt-1 max-w-xs text-[11px] text-fg-2">{f.labels.join(" · ")}</p>}
             <p className="mt-1 text-[11px] text-muted">Gerado em {fmtDayBR(new Date(now))} por {user.name}</p>
           </div>
         </header>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { financeAccess, financeCondo, financeLog, financePeriod } from "@/lib/finance-server";
+import { financeAccess, financeCondo, financeLog, financePeriod, financeReportFilter } from "@/lib/finance-server";
 import { ATTACHMENT_KINDS, FIN_STATUS, FIN_TYPES, fmtDayBR } from "@/lib/finance";
 
 // Planilha (CSV, separador ;) dos lançamentos do período, para contador ou conselho.
@@ -12,9 +12,10 @@ export async function GET(req: Request) {
   const condo = await financeCondo(user, sp.condo);
   if (!condo || !financeAccess(user, condo).view) return new NextResponse("Not found", { status: 404 });
   const p = financePeriod(sp);
+  const f = financeReportFilter(sp, new Date());
 
   const rows = await db.financeEntry.findMany({
-    where: { condominiumId: condo.id, deletedAt: null, date: { gte: p.from, lt: p.to } },
+    where: { condominiumId: condo.id, deletedAt: null, date: { gte: p.from, lt: p.to }, ...f.where },
     include: { attachments: { where: { deletedAt: null }, select: { kind: true } }, createdBy: { select: { name: true } } },
     orderBy: { date: "asc" },
   });
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
     FIN_STATUS[e.status as keyof typeof FIN_STATUS]?.label ?? e.status, e.paymentMethod,
     e.attachments.map((a) => ATTACHMENT_KINDS[a.kind as keyof typeof ATTACHMENT_KINDS] ?? a.kind).join(", "), e.createdBy?.name ?? "",
   ].map(cell).join(";"));
-  await financeLog(user, { condominiumId: condo.id, action: "exported", changes: { periodo: p.key, linhas: rows.length } });
+  await financeLog(user, { condominiumId: condo.id, action: "exported", changes: { periodo: p.label, formato: "CSV", linhas: rows.length, ...(f.filtered && { filtros: f.labels.join(" · ") }) } });
 
   // BOM para o Excel reconhecer os acentos
   const csv = "﻿" + [head.map(cell).join(";"), ...lines].join("\r\n");
