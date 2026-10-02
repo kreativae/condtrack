@@ -36,7 +36,7 @@ export function DemoCondoButton() {
                 últimas semanas e comunicados.
               </p>
               <Field label="Vincular como síndico" hint="A pessoa precisa já ter cadastro. A senha e o condomínio atual dela não mudam.">
-                <Input name="email" type="email" required autoFocus defaultValue="sindico@condtrack.app" placeholder="email@exemplo.com" />
+                <Input name="email" type="email" required autoFocus placeholder="Digite o e-mail do síndico" />
               </Field>
               {state?.error && <Alert>{state.error}</Alert>}
             </div>
