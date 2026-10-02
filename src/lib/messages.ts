@@ -122,6 +122,24 @@ export const TEMPLATES: TemplateDef[] = [
     ],
   },
   {
+    key: "password_forgot",
+    group: "Acesso",
+    label: "Esqueci minha senha",
+    audience: "Quem pediu para redefinir a senha na tela de login",
+    channels: [],
+    vars: [
+      { name: "nome", desc: "Primeiro nome", sample: "Ana" },
+      { name: "validade", desc: "Por quanto tempo o link vale", sample: "1 hora" },
+    ],
+    fields: [
+      { key: "subject", label: "Assunto", kind: "text", default: "Redefinir sua senha — Condtrack" },
+      { key: "title", label: "Título", kind: "text", default: "Redefinir sua senha" },
+      { key: "message", label: "Mensagem", kind: "textarea", default: "Olá, {nome}!\nRecebemos um pedido para redefinir a senha da sua conta no Condtrack.\nO link abaixo vale por {validade} e pode ser usado uma única vez." },
+      { key: "cta", label: "Botão", kind: "text", default: "Criar nova senha" },
+      { key: "footnote", label: "Nota de rodapé", kind: "textarea", default: "Se você não pediu a troca, ignore este e-mail: sua senha continua a mesma." },
+    ],
+  },
+  {
     key: "email_changed",
     group: "Acesso",
     label: "E-mail de acesso alterado",

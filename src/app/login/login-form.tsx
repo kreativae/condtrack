@@ -3,6 +3,7 @@
 import { useFormSubmit } from "@/components/use-form-submit";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Script from "next/script";
 import { ScanFace } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication, WebAuthnError } from "@simplewebauthn/browser";
@@ -38,6 +39,9 @@ export function LoginForm({ next, passkeys, turnstileSiteKey, a }: { next?: stri
         <Field label={a.passwordLabel}>
           <Input name="password" type="password" autoComplete="current-password" required placeholder={a.passwordPlaceholder} />
         </Field>
+        <div className="-mt-3 text-right">
+          <Link href="/esqueci-senha" className="text-xs font-medium text-brand hover:underline">Esqueci minha senha</Link>
+        </div>
         {turnstileSiteKey && (
           <>
             <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />

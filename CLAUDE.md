@@ -69,6 +69,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   cobradas; `Subscription.unitAmount` guarda o total (preço × quantidade). Mudou unidade na Estrutura → `syncDealUnits`
   ajusta a quantidade (só de quem já está na negociação). Com negociação ativa, o síndico só vê a proposta.
 
+- **Esqueci minha senha**: `/esqueci-senha` → e-mail com link de uso único (1 h, `PasswordReset` guarda só o hash;
+  `lib/password-reset.ts`) → `/redefinir-senha`. Resposta igual exista ou não a conta; até 3 pedidos/hora por conta.
+  Precisa do e-mail ativo; texto no modelo `password_forgot` em Mensagens.
+
 ## Histórico recente
 
 - 2026-09-23 a 25: MVP, Neon + Vercel + Blob, condomínios horizontais, feed com vídeo, configurações de login e mensagens,

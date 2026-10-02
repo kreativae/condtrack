@@ -220,6 +220,7 @@ function MockForm({ a, passkeys }: { a: LoginAppearance; passkeys: boolean }) {
       )}
       <Field label={a.emailLabel}><Input readOnly tabIndex={-1} placeholder={a.emailPlaceholder} /></Field>
       <Field label={a.passwordLabel}><Input readOnly tabIndex={-1} placeholder={a.passwordPlaceholder} /></Field>
+      <p className="-mt-3 text-right text-xs font-medium text-brand">Esqueci minha senha</p>
       <span className={cx(buttonClass("brand"), "w-full")}>{a.buttonText}</span>
       {a.showHelp && <p className="text-center text-xs text-muted" style={a.textColor ? { color: a.textColor } : undefined}>{a.helpText}</p>}
     </div>

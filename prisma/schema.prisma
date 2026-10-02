@@ -123,6 +123,7 @@ model User {
   financeAttachments FinanceAttachment[]
   financeLogs        FinanceLog[]
   checklistNotes     ChecklistNote[]
+  passwordResets     PasswordReset[]
 }
 
 /// role: owner | tenant | dependent
@@ -572,4 +573,18 @@ model BillingDeal {
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
   condominium          Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+}
+
+/// Pedido de "esqueci minha senha": guarda só o hash do token do link (vale 1 hora, uso único).
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

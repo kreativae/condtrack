@@ -23,7 +23,7 @@ export const LOGIN_DEFAULTS = {
   passkeyText: "Entrar com Face ID / biometria",
   dividerText: "ou com e-mail e senha",
   showHelp: true,
-  helpText: "Esqueceu a senha? Solicite a redefinição à administração do condomínio.",
+  helpText: "Não recebeu o e-mail? Fale com a administração do condomínio.",
   // Painel lateral
   showHero: true,
   heroStyle: "gradient",
