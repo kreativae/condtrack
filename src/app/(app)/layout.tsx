@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { nowMs } from "@/lib/format";
 import { NAV } from "@/lib/nav";
 import { showFinanceNav } from "@/lib/finance-server";
+import { hasPermission } from "@/lib/permissions";
 import { adminScope } from "@/lib/admin-scope-server";
 import { CondoSwitcher } from "@/components/condo-switcher";
 import { ROLE_LABEL } from "@/lib/roles";
@@ -27,7 +28,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   }
   const unread = user.role === "resident" ? 0 : await db.notification.count({ where: { userId: user.id, read: false } });
   // Financeiro do conselho só aparece quando o síndico/superadmin libera
-  const base = NAV[user.role].filter((i) => i.href !== "/financeiro" || showFinanceNav(user));
+  const base = NAV[user.role].filter((i) => (i.href !== "/financeiro" || showFinanceNav(user)) && (i.href !== "/auditoria" || hasPermission(user, "audit")));
   // Ordem escolhida pelo usuário (segurar e arrastar no menu); páginas novas entram no lugar padrão, no fim
   const saved = user.navOrder ? user.navOrder.split(",") : [];
   const rank = (href: string, i: number) => (saved.includes(href) ? saved.indexOf(href) : 1000 + i);

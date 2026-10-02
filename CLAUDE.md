@@ -73,6 +73,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `lib/password-reset.ts`) → `/redefinir-senha`. Resposta igual exista ou não a conta; até 3 pedidos/hora por conta.
   Precisa do e-mail ativo; texto no modelo `password_forgot` em Mensagens.
 
+- **Permissões do síndico** (`src/lib/permissions.ts`, `User.permissions`): o superadmin liga em Editar usuário.
+  `checklist_edit` = corrigir autor/horário, conferir dias anteriores e editar anotações (`adminSaveCheck`,
+  `updateChecklistNote`); `audit` = página `/auditoria` só do condomínio. Use `hasPermission(user, ...)`.
+
 ## Histórico recente
 
 - 2026-09-23 a 25: MVP, Neon + Vercel + Blob, condomínios horizontais, feed com vídeo, configurações de login e mensagens,

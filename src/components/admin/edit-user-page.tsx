@@ -53,7 +53,9 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
           user={{
             id: u.id, name: u.name, email: u.email, role: u.role as Role, phone: u.phone, cpf: u.cpf, company: u.company, specialty: u.specialty,
             condominiumId: u.condominiumId, status: u.status, unitId: u.units[0]?.unitId ?? null, unitRole: u.units[0]?.role ?? null,
+            permissions: u.permissions,
           }}
+          canGrant={me.role === "superadmin"}
           roles={roles}
           self={self}
           condos={admin ? condos : undefined}

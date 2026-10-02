@@ -16,6 +16,7 @@ import { renderTemplate } from "@/lib/messages-server";
 import { sendEmailChangedNotice } from "@/lib/account-email";
 import { HOUSE_NOUNS, aptNumber, houseNumbers, isHouseNoun, isLayout, type HouseNoun, type Layout } from "@/lib/units";
 import { DEFAULT_CHECKLIST } from "@/lib/checklist";
+import { PERMISSION_KEYS, type Permission } from "@/lib/permissions";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
 async function emailAccess(user: { name: string; email: string; role: string }, secret: string, kind: "invite" | "reset") {
@@ -293,6 +294,11 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
     condominiumId,
     status: d.status,
     ...(d.status === "active" && u.status !== "active" ? { failedLogins: 0, lockedUntil: null } : {}),
+    // Permissões extras: só o superadmin concede, e só valem para síndico
+    permissions:
+      d.role !== "syndic" ? "" : me.role === "superadmin" && form.get("permsForm") === "1"
+        ? form.getAll("perm").map(String).filter((p): p is Permission => PERMISSION_KEYS.includes(p as Permission)).join(",")
+        : u.permissions,
   };
   const currentUnit = u.units[0];
   const unitChanged = (livesInUnit ? d.unitId ?? null : null) !== (currentUnit?.unitId ?? null) || (livesInUnit && d.unitId && (d.unitRole ?? "owner") !== currentUnit?.role);
@@ -308,7 +314,7 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
       : []),
   ]);
 
-  const before = { name: u.name, email: u.email, role: u.role, phone: u.phone, cpf: u.cpf, company: u.company, specialty: u.specialty, condominiumId: u.condominiumId, status: u.status, unitId: currentUnit?.unitId ?? null };
+  const before = { name: u.name, email: u.email, role: u.role, phone: u.phone, cpf: u.cpf, company: u.company, specialty: u.specialty, condominiumId: u.condominiumId, status: u.status, permissions: u.permissions, unitId: currentUnit?.unitId ?? null };
   const after = { ...data, unitId: livesInUnit ? d.unitId ?? null : null };
   const changed = (Object.keys(before) as (keyof typeof before)[]).filter((k) => String(before[k] ?? "") !== String(after[k as keyof typeof after] ?? ""));
   if (data.email !== u.email) await sendEmailChangedNotice(u, u.email, data.email, me.name);

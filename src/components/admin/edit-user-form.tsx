@@ -6,6 +6,7 @@ import { useFormSubmit } from "@/components/use-form-submit";
 import { Alert, Field, Input, Select, cx } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
+import { PERMISSION_KEYS, SYNDIC_PERMISSIONS } from "@/lib/permissions";
 
 export type EditableUser = {
   id: string;
@@ -20,6 +21,7 @@ export type EditableUser = {
   status: string;
   unitId: string | null;
   unitRole: string | null;
+  permissions: string;
 };
 
 type Props = {
@@ -30,9 +32,11 @@ type Props = {
   /** Só o superadmin escolhe o condomínio. */
   condos?: { id: string; name: string }[];
   units: { id: string; label: string; condominiumId: string }[];
+  /** Superadmin editando: pode conceder permissões extras ao síndico. */
+  canGrant?: boolean;
 };
 
-export function EditUserForm({ user, roles, condos, units, self }: Props) {
+export function EditUserForm({ user, roles, condos, units, self, canGrant }: Props) {
   const [state, form, pending] = useFormSubmit(updateUser.bind(null, user.id));
   const [role, setRole] = useState<Role>(user.role);
   const [condo, setCondo] = useState(user.condominiumId ?? condos?.[0]?.id ?? "");
@@ -116,6 +120,25 @@ export function EditUserForm({ user, roles, condos, units, self }: Props) {
               </Select>
             </Field>
           </div>
+        </section>
+      )}
+
+      {canGrant && role === "syndic" && (
+        <section className="space-y-3 border-t border-line pt-6">
+          <input type="hidden" name="permsForm" value="1" />
+          <div>
+            <h2 className="font-display text-base font-semibold">Permissões do síndico</h2>
+            <p className="text-xs text-muted">Recursos extras que só o superadmin libera.</p>
+          </div>
+          {PERMISSION_KEYS.map((k) => (
+            <label key={k} className="flex items-start gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3">
+              <input type="checkbox" name="perm" value={k} defaultChecked={user.permissions.split(",").includes(k)} className="mt-0.5 size-4 accent-[var(--brand)]" />
+              <span>
+                <span className="block text-sm font-medium">{SYNDIC_PERMISSIONS[k].label}</span>
+                <span className="block text-xs text-muted">{SYNDIC_PERMISSIONS[k].hint}</span>
+              </span>
+            </label>
+          ))}
         </section>
       )}
 

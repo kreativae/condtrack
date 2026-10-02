@@ -10,6 +10,7 @@ import { nextProtocol } from "@/lib/orders";
 import { deleteFile, readStored, saveFile } from "@/lib/storage";
 import { PRIORITY_META, type Priority } from "@/lib/workflow";
 import { FREQUENCIES, isDue, parseDays, spNow } from "@/lib/checklist";
+import { hasPermission } from "@/lib/permissions";
 
 export type ChecklistState = { error?: string; ok?: boolean; message?: string } | undefined;
 
@@ -255,6 +256,7 @@ export async function addChecklistNote(condominiumId: string, date: string, _pre
     const user = await noter(condominiumId);
     const today = spNow(Date.now()).date;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) return { error: "Data inválida." };
+    if (date < today && !hasPermission(user, "checklist_edit")) return { error: "Anotar em dias anteriores é só para quem pode editar o checklist." };
     const text = String(form.get("text") ?? "").trim().slice(0, 2000);
     let photos: string[] = [];
     try {
@@ -291,4 +293,108 @@ export async function deleteChecklistNote(id: string) {
   }
   await audit(user, "delete", "checklist_note", id, { old: { date: note.date, text: note.text.slice(0, 200) }, condominiumId: note.condominiumId });
   revalidatePath("/checklist");
+}
+
+// ───────────────────────────── Edição do checklist (superadmin e síndico com permissão) ─────────────────────────────
+
+/** Superadmin, ou síndico do condomínio com a permissão "Editar o checklist". */
+async function checklistEditor(condominiumId: string) {
+  const user = await requireUser("superadmin", "syndic");
+  if (user.role === "syndic" && user.condominiumId !== condominiumId) throw new Error("Sem permissão para este condomínio.");
+  if (!hasPermission(user, "checklist_edit")) throw new Error("Você não tem permissão para editar o checklist.");
+  return user;
+}
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Autor escolhido: alguém do condomínio (ou um superadmin). */
+async function authorFor(condominiumId: string, userId: string) {
+  const u = await db.user.findFirst({ where: { id: userId, OR: [{ condominiumId }, { role: "superadmin" }] }, select: { id: true, name: true } });
+  if (!u) throw new Error("Escolha quem fez.");
+  return u;
+}
+
+/** Cria ou corrige a conferência de um item num dia (retroativa, autor e horário). */
+export async function adminSaveCheck(condominiumId: string, itemId: string, date: string, _prev: ChecklistState, form: FormData): Promise<ChecklistState> {
+  try {
+    const user = await checklistEditor(condominiumId);
+    const today = spNow(Date.now()).date;
+    if (!DAY_RE.test(date) || date > today) return { error: "Data inválida." };
+    const item = await db.checklistItem.findFirst({ where: { id: itemId, condominiumId } });
+    if (!item) return { error: "Item não encontrado." };
+    const status = form.get("status") === "issue" ? "issue" : "ok";
+    const time = String(form.get("time") ?? "");
+    if (!TIME_RE.test(time)) return { error: "Informe o horário (HH:MM)." };
+    const author = await authorFor(condominiumId, String(form.get("userId") ?? ""));
+    const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+    if (status === "issue" && !note) return { error: "Descreva o problema." };
+    const checkedAt = new Date(`${date}T${time}:00-03:00`);
+    const old = await db.checklistCheck.findUnique({ where: { itemId_date: { itemId, date } } });
+    await db.checklistCheck.upsert({
+      where: { itemId_date: { itemId, date } },
+      create: { itemId, condominiumId, date, status, note, userId: author.id, checkedAt },
+      update: { status, note, userId: author.id, checkedAt },
+    });
+    await audit(user, old ? "checklist_check_edited" : "checklist_check_backfilled", "checklist_item", itemId, {
+      old: old && { status: old.status, userId: old.userId, checkedAt: old.checkedAt, note: old.note },
+      new: { date, status, userId: author.id, by: author.name, checkedAt, note },
+      condominiumId,
+    });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/checklist");
+  revalidatePath("/dashboard");
+  return { ok: true, message: "Conferência salva." };
+}
+
+/** Remove a conferência de um item num dia (volta a ficar pendente). */
+export async function adminDeleteCheck(condominiumId: string, itemId: string, date: string) {
+  const user = await checklistEditor(condominiumId);
+  const old = await db.checklistCheck.findFirst({ where: { itemId, date, condominiumId } });
+  if (!old) return;
+  await db.checklistCheck.delete({ where: { id: old.id } });
+  await audit(user, "checklist_check_removed", "checklist_item", itemId, { old: { date, status: old.status, userId: old.userId, checkedAt: old.checkedAt }, condominiumId });
+  revalidatePath("/checklist");
+  revalidatePath("/dashboard");
+}
+
+/** Edita uma anotação: texto, fotos, autor e horário. */
+export async function updateChecklistNote(id: string, _prev: ChecklistState, form: FormData): Promise<ChecklistState> {
+  try {
+    const note = await db.checklistNote.findUnique({ where: { id } });
+    if (!note) return { error: "Anotação não encontrada." };
+    const user = await checklistEditor(note.condominiumId);
+    const text = String(form.get("text") ?? "").trim().slice(0, 2000);
+    let photos: string[] = [];
+    try {
+      photos = JSON.parse(String(form.get("photos") ?? "[]"));
+    } catch {
+      return { error: "Fotos inválidas." };
+    }
+    const prefix = `/api/media/checklist-${note.condominiumId}/`;
+    if (!Array.isArray(photos) || photos.length > MAX_NOTE_PHOTOS || photos.some((p) => typeof p !== "string" || !p.startsWith(prefix))) return { error: "Fotos inválidas." };
+    if (!text && !photos.length) return { error: "Escreva algo ou mantenha uma foto." };
+    const time = String(form.get("time") ?? "");
+    if (!TIME_RE.test(time)) return { error: "Informe o horário (HH:MM)." };
+    const author = await authorFor(note.condominiumId, String(form.get("userId") ?? ""));
+    const createdAt = new Date(`${note.date}T${time}:00-03:00`);
+    await db.checklistNote.update({ where: { id }, data: { text, photos: JSON.stringify(photos), userId: author.id, userName: author.name, createdAt } });
+    // Fotos tiradas da anotação saem do armazenamento
+    try {
+      for (const url of JSON.parse(note.photos) as string[]) if (!photos.includes(url)) await deleteFile(url);
+    } catch {
+      // JSON antigo/inválido: nada a apagar
+    }
+    await audit(user, "checklist_note_edited", "checklist_note", id, {
+      old: { text: note.text.slice(0, 200), userName: note.userName, createdAt: note.createdAt },
+      new: { text: text.slice(0, 200), userName: author.name, createdAt },
+      condominiumId: note.condominiumId,
+    });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/checklist");
+  return { ok: true, message: "Anotação atualizada." };
 }

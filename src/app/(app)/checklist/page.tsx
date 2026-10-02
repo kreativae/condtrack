@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Rows3, Settings2 } from "lucid
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
 import { requireUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { RememberCondo } from "@/components/remember-condo";
 import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 import { nowMs } from "@/lib/format";
@@ -61,6 +62,7 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
     text: n.text,
     photos: notePhotos(n.photos),
     by: n.userName,
+    userId: n.userId,
     at: n.createdAt.toISOString(),
     // Quem escreveu, o síndico ou o superadmin
     deletable: n.userId === user.id || user.role !== "caretaker",
@@ -85,6 +87,19 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
     ? `/checklist?${new URLSearchParams({ ...(admin ? { condo: condominiumId } : {}), ...(date !== today ? { data: date } : {}) })}`
     : q(date, { cal: "1", mes: date.slice(0, 7) });
   const manage = user.role === "caretaker" ? null : admin ? `/admin/condominios/${condominiumId}/estrutura?tab=checklist` : "/estrutura?tab=checklist";
+
+  // Superadmin e síndico com permissão: corrigem conferências (autor, horário, retroativas) e anotações
+  const canEdit = hasPermission(user, "checklist_edit");
+  const editor = canEdit
+    ? {
+        date,
+        meId: user.id,
+        users: [
+          ...(await db.user.findMany({ where: { condominiumId, status: "active", role: { in: ["caretaker", "syndic"] } }, select: { id: true, name: true }, orderBy: { name: "asc" } })),
+          ...(admin ? [{ id: user.id, name: user.name }] : []),
+        ],
+      }
+    : undefined;
 
   const calendar = cal && <MonthCalendar mes={mes} today={today} selected={date} stat={stat} notes={noteDays} href={(d) => q(d)} monthHref={(m) => q(date, { mes: m })} />;
 
@@ -139,11 +154,12 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
           items={day}
           canCheck={date === today}
           condominiumId={condominiumId}
+          editor={editor}
           title={date === today ? "Checklist de hoje" : `Checklist de ${fmtDay(date)}`}
         />
         <div className="space-y-6">
           {cal && <div className="hidden lg:block">{calendar}</div>}
-          <DayNotes notes={dayNotes} condominiumId={condominiumId} date={date} canWrite />
+          <DayNotes notes={dayNotes} condominiumId={condominiumId} date={date} canWrite={date === today || canEdit} editor={editor} />
           <DayGallery photos={gallery} />
         </div>
       </div>

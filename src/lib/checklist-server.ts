@@ -59,6 +59,7 @@ export async function dayItemsForUi(condominiumId: string, date: string) {
       note: i.check.note,
       photoUrl: i.check.photoUrl,
       by: i.check.user?.name ?? "Usuário excluído",
+      userId: i.check.userId,
       at: i.check.checkedAt.toISOString(),
       order: orders.find((o) => o.id === i.check!.serviceOrderId) ?? null,
     },
