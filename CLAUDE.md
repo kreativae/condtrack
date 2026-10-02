@@ -64,6 +64,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Anotações do dia (texto + fotos) em `ChecklistNote`, com a galeria do dia (`components/checklist/day-notes.tsx`).
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
+- **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,
+  com mínimo de unidades e dias de teste. No Stripe, um preço por negociação e a assinatura com quantidade = unidades
+  cobradas; `Subscription.unitAmount` guarda o total (preço × quantidade). Mudou unidade na Estrutura → `syncDealUnits`
+  ajusta a quantidade (só de quem já está na negociação). Com negociação ativa, o síndico só vê a proposta.
+
 ## Histórico recente
 
 - 2026-09-23 a 25: MVP, Neon + Vercel + Blob, condomínios horizontais, feed com vídeo, configurações de login e mensagens,

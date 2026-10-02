@@ -196,7 +196,9 @@ export async function upsertFromStripeSubscription(s: Stripe.Subscription) {
     status: s.status,
     stripeCustomerId: typeof s.customer === "string" ? s.customer : s.customer.id,
     stripeSubscriptionId: s.id,
-    unitAmount: item?.price.unit_amount ?? null,
+    // Total por período: preço × quantidade (negociação por unidade); nos planos a quantidade é 1
+    unitAmount: item?.price.unit_amount != null ? item.price.unit_amount * (item.quantity ?? 1) : null,
+    quantity: item?.quantity ?? 1,
     currentPeriodStart: ts(item?.current_period_start),
     currentPeriodEnd: ts(item?.current_period_end),
     trialEnd: ts(s.trial_end),

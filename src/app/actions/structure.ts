@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { syncDealUnits } from "@/lib/billing-deal";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -19,6 +21,8 @@ async function manager(condominiumId: string) {
 }
 
 function done(condominiumId: string, message: string): StructState {
+  // Negociação por unidade: unidades novas/excluídas ajustam a quantidade cobrada (depois da resposta)
+  after(() => syncDealUnits(condominiumId));
   revalidatePath("/estrutura");
   revalidatePath(`/admin/condominios/${condominiumId}`);
   revalidatePath(`/admin/condominios/${condominiumId}/estrutura`);

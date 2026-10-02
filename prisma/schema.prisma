@@ -51,6 +51,7 @@ model Condominium {
   checklistItems ChecklistItem[]
   financeEntries FinanceEntry[]
   checklistNotes ChecklistNote[]
+  billingDeal    BillingDeal?
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -321,7 +322,10 @@ model Subscription {
   status               String    @default("incomplete")
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?   @unique
+  /// Valor total cobrado por período (preço × quantidade), em centavos
   unitAmount           Int?
+  /// Quantidade cobrada (unidades na negociação especial; 1 nos planos)
+  quantity             Int       @default(1)
   currentPeriodStart   DateTime?
   currentPeriodEnd     DateTime?
   trialEnd             DateTime?
@@ -548,4 +552,24 @@ model ChecklistNote {
   user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([condominiumId, date])
+}
+
+/// Negociação especial de um condomínio: preço por unidade (mensal e anual), com mínimo de unidades.
+/// Quando ativa, o síndico vê só esta proposta. Valores em centavos por unidade.
+model BillingDeal {
+  id                   String      @id @default(cuid())
+  condominiumId        String      @unique
+  monthlyUnitPrice     Int
+  yearlyUnitPrice      Int
+  minUnits             Int         @default(0)
+  /// Dias de teste grátis na primeira assinatura (0 = sem teste)
+  trialDays            Int         @default(0)
+  notes                String?
+  active               Boolean     @default(true)
+  stripeProductId      String?
+  stripeMonthlyPriceId String?
+  stripeYearlyPriceId  String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  condominium          Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
 }

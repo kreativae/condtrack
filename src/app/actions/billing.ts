@@ -9,6 +9,8 @@ import { audit } from "@/lib/audit";
 import { stripeConfigured } from "@/lib/stripe";
 import { changePlan, createCheckout, createPortal, ensureStripePrices, setCancelAtPeriodEnd, syncCondominium } from "@/lib/billing";
 import type { Interval } from "@/lib/billing-shared";
+import { applyDealToSubscription, createDealCheckout, getDeal } from "@/lib/billing-deal";
+import { parseBRL } from "@/lib/finance";
 
 export type BillingState = { error?: string; ok?: boolean; message?: string } | undefined;
 
@@ -45,6 +47,7 @@ async function syndic() {
 export async function startCheckout(planId: string, interval: Interval) {
   const user = await syndic();
   if (!(await stripeConfigured())) redirect("/assinatura?erro=stripe");
+  if ((await getDeal(user.condominiumId))?.active) redirect(`/assinatura?erro=${encodeURIComponent("Este condomínio tem uma negociação especial: assine por ela.")}`);
   const limit = await checkUnitLimit(user.condominiumId, planId);
   if (limit) redirect(`/assinatura?erro=${encodeURIComponent(limit)}`);
   let url: string;
@@ -200,4 +203,75 @@ export async function adminSyncAll(_prev: BillingState): Promise<BillingState> {
   await audit(me, "billing_synced_all", "subscription");
   revalidateBilling();
   return { ok: true, message: `${subs.length} assinatura(s) sincronizada(s).` };
+}
+
+// ───────────────────────────── Negociação especial (preço por unidade) ─────────────────────────────
+
+/** Síndico assina a negociação especial do condomínio (Checkout do Stripe). */
+export async function startDealCheckout(interval: Interval) {
+  const user = await syndic();
+  if (!(await stripeConfigured())) redirect("/assinatura?erro=stripe");
+  let url: string;
+  try {
+    url = await createDealCheckout(user.condominiumId, intervalSchema.parse(interval));
+  } catch (e) {
+    redirect(`/assinatura?erro=${encodeURIComponent(errMessage(e))}`);
+  }
+  await audit(user, "billing_checkout_started", "subscription", null, { new: { deal: true, interval } });
+  redirect(url);
+}
+
+/** Síndico troca entre mensal e anual na negociação (com proporcional). */
+export async function switchDealInterval(_prev: BillingState, form: FormData): Promise<BillingState> {
+  const user = await syndic();
+  const interval = form.get("interval") === "year" ? "year" : "month";
+  try {
+    await applyDealToSubscription(user.condominiumId, intervalSchema.parse(interval));
+  } catch (e) {
+    return { error: errMessage(e) };
+  }
+  await audit(user, "billing_plan_changed", "subscription", null, { new: { deal: true, interval } });
+  revalidateBilling();
+  return { ok: true, message: interval === "year" ? "Agora a cobrança é anual." : "Agora a cobrança é mensal." };
+}
+
+const dealSchema = z.object({
+  monthly: z.string(),
+  yearly: z.string(),
+  minUnits: z.coerce.number().int().min(0, "Mínimo inválido.").max(100000),
+  trialDays: z.coerce.number().int().min(0, "Dias de teste inválidos.").max(90, "No máximo 90 dias de teste."),
+  notes: z.string().trim().max(1000).optional(),
+  active: z.string().optional(),
+  apply: z.string().optional(),
+});
+
+/** Superadmin cria ou edita a negociação especial de um condomínio. */
+export async function saveDeal(condominiumId: string, _prev: BillingState, form: FormData): Promise<BillingState> {
+  const me = await requireUser("superadmin");
+  const d = dealSchema.safeParse(Object.fromEntries(form));
+  if (!d.success) return { error: d.error.issues[0].message };
+  const monthly = parseBRL(d.data.monthly);
+  const yearly = parseBRL(d.data.yearly);
+  if (monthly == null || monthly <= 0) return { error: "Informe o valor mensal por unidade (ex.: 2,00)." };
+  if (yearly == null || yearly <= 0) return { error: "Informe o valor anual por unidade (ex.: 20,00)." };
+  const data = { monthlyUnitPrice: monthly, yearlyUnitPrice: yearly, minUnits: d.data.minUnits, trialDays: d.data.trialDays, notes: d.data.notes || null, active: d.data.active === "1" };
+  const old = await getDeal(condominiumId);
+  await db.billingDeal.upsert({ where: { condominiumId }, create: { condominiumId, ...data }, update: data });
+  await audit(me, old ? "billing_deal_updated" : "billing_deal_created", "condominium", condominiumId, {
+    old: old && { monthly: old.monthlyUnitPrice, yearly: old.yearlyUnitPrice, minUnits: old.minUnits, trialDays: old.trialDays, active: old.active },
+    new: { monthly, yearly, minUnits: data.minUnits, trialDays: data.trialDays, active: data.active },
+    condominiumId,
+  });
+  // Opcional: já leva a assinatura atual para a negociação (preço novo e unidades), com proporcional
+  if (data.active && d.data.apply === "1" && (await stripeConfigured())) {
+    try {
+      await applyDealToSubscription(condominiumId);
+    } catch (e) {
+      revalidateBilling();
+      return { error: `Negociação salva, mas não foi possível aplicar na assinatura: ${errMessage(e)}` };
+    }
+  }
+  revalidateBilling();
+  revalidatePath(`/admin/assinaturas/${condominiumId}`);
+  return { ok: true, message: d.data.apply === "1" && data.active ? "Negociação salva e aplicada na assinatura." : "Negociação salva." };
 }

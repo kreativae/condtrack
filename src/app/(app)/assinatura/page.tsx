@@ -10,6 +10,7 @@ import { cancelMySubscription, openPortal, resumeMySubscription, syncMySubscript
 import { Alert, Card, CardHeader, PageHeader, buttonClass } from "@/components/ui";
 import { InvoiceTable, SubscriptionBadge } from "@/components/billing/shared";
 import { PlanPicker } from "./plan-picker";
+import { DealOffer } from "./deal-offer";
 
 export const metadata: Metadata = { title: "Assinatura" };
 
@@ -34,12 +35,16 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
     } catch {}
   }
 
-  const [sub, plans, units, invoices] = await Promise.all([
+  const [sub, plans, units, invoices, deal] = await Promise.all([
     db.subscription.findUnique({ where: { condominiumId: cid }, include: { plan: true } }),
     db.plan.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     db.unit.count({ where: { building: { condominiumId: cid } } }),
     db.payment.findMany({ where: { condominiumId: cid, status: { not: "draft" } }, orderBy: { createdAt: "desc" }, take: 24 }),
+    db.billingDeal.findUnique({ where: { condominiumId: cid } }),
   ]);
+  // Negociação especial ativa: o síndico vê só ela (os planos padrão somem)
+  const activeDeal = deal?.active ? deal : null;
+  const billable = activeDeal ? Math.max(units, activeDeal.minUnits, 1) : units;
 
   const live = !!sub?.stripeSubscriptionId && ENTITLED.includes(sub.status);
   const lastPaid = invoices.find((i) => i.status === "paid");
@@ -69,9 +74,10 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-sm text-muted">Plano atual</p>
-                <p className="mt-1 font-display text-2xl font-bold">{sub.plan?.name ?? "—"}</p>
+                <p className="mt-1 font-display text-2xl font-bold">{sub.plan?.name ?? (activeDeal ? "Negociação especial" : "—")}</p>
                 <p className="mt-1 text-sm text-fg-2">
                   {brl(sub.unitAmount)} / {sub.interval === "year" ? "ano" : "mês"}
+                  {!sub.plan && sub.quantity > 1 && <span className="text-muted"> · {sub.quantity} unidades</span>}
                 </p>
               </div>
               <SubscriptionBadge status={sub.status} />
@@ -131,6 +137,25 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
         </div>
       )}
 
+      {activeDeal ? (
+        <section className="mb-10">
+          <h2 className="mb-4 font-display text-xl font-semibold">{live ? "Sua negociação" : "Proposta para o seu condomínio"}</h2>
+          <DealOffer
+            monthlyUnit={activeDeal.monthlyUnitPrice}
+            yearlyUnit={activeDeal.yearlyUnitPrice}
+            units={units}
+            billable={billable}
+            trialDays={sub?.hadTrial ? 0 : activeDeal.trialDays}
+            live={live && !sub?.planId}
+            currentInterval={live && !sub?.planId ? sub!.interval : null}
+            // Ainda num plano padrão: a troca é feita pela administração (evita duas assinaturas)
+            disabled={!configured || (live && !!sub?.planId)}
+          />
+          {live && sub?.planId && (
+            <p className="mt-3 text-xs text-muted">Hoje o condomínio está no plano {sub.plan?.name}. A administração do Condtrack fará a troca para a negociação.</p>
+          )}
+        </section>
+      ) : (
       <section className="mb-10">
         <h2 className="mb-1 font-display text-xl font-semibold">{live ? "Trocar de plano" : "Escolha seu plano"}</h2>
         <p className="mb-6 text-sm text-muted">{live ? "Upgrades e downgrades são cobrados ou creditados proporcionalmente." : "Todos os planos incluem os perfis de síndico, zelador, prestadores, conselho e moradores."}</p>
@@ -143,6 +168,7 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
           disabled={!configured}
         />
       </section>
+      )}
 
       <section>
         <h2 className="mb-4 font-display text-xl font-semibold">Histórico de faturas</h2>

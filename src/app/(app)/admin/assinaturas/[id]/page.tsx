@@ -11,6 +11,7 @@ import { adminSetCancel, adminSync } from "@/app/actions/billing";
 import { InvoiceTable, SubscriptionBadge } from "@/components/billing/shared";
 import { Card, CardHeader, PageHeader, Stat, buttonClass } from "@/components/ui";
 import { AdminPlanForm } from "./admin-plan-form";
+import { DealForm } from "./deal-form";
 
 export const metadata: Metadata = { title: "Assinatura do condomínio" };
 
@@ -22,12 +23,14 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
     include: { subscription: { include: { plan: true } }, users: { where: { role: "syndic" }, select: { name: true, email: true } } },
   });
   if (!condo) notFound();
-  const [invoices, plans, units] = await Promise.all([
+  const [invoices, plans, units, deal] = await Promise.all([
     db.payment.findMany({ where: { condominiumId: id, status: { not: "draft" } }, orderBy: { createdAt: "desc" } }),
     db.plan.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     db.unit.count({ where: { building: { condominiumId: id } } }),
+    db.billingDeal.findUnique({ where: { condominiumId: id } }),
   ]);
   const s = condo.subscription;
+  const onDeal = !!s?.stripeSubscriptionId && !s?.planId && !!deal;
   const stripeCustomerUrl = s?.stripeCustomerId ? await stripeDashboardUrl(`customers/${s.stripeCustomerId}`) : null;
   const live = !!s?.stripeSubscriptionId && ENTITLED.includes(s.status);
   const totalPaid = invoices.filter((i) => i.status === "paid").reduce((a, i) => a + i.amountPaid, 0);
@@ -62,7 +65,11 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
           <div className="mt-3"><SubscriptionBadge status={s?.stripeSubscriptionId ? s.status : "none"} /></div>
           {s?.cancelAtPeriodEnd && <p className="mt-2 text-xs text-warn">Cancela em {fmtDate(s.currentPeriodEnd)}</p>}
         </Card>
-        <Stat label="Plano" value={s?.plan?.name ?? "—"} hint={s?.unitAmount ? `${brl(s.unitAmount)} / ${s.interval === "year" ? "ano" : "mês"}` : undefined} />
+        <Stat
+          label="Plano"
+          value={s?.plan?.name ?? (onDeal ? "Negociação especial" : "—")}
+          hint={s?.unitAmount ? `${brl(s.unitAmount)} / ${s.interval === "year" ? "ano" : "mês"}${onDeal ? ` · ${s.quantity} unid.` : ""}` : undefined}
+        />
         <Stat label="Último pagamento" value={lastPaid ? brl(lastPaid.amountPaid) : "—"} hint={lastPaid ? fmtDate(lastPaid.paidAt) : undefined} />
         <Stat label="Total recebido" value={brl(totalPaid)} tone="ok" />
       </div>
@@ -106,6 +113,22 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
           </div>
         </Card>
       </div>
+
+      <Card className="mb-8">
+        <CardHeader
+          title="Negociação especial"
+          subtitle="Preço por unidade para este condomínio (mensal e anual). A cobrança acompanha as unidades cadastradas, com mínimo."
+          action={deal ? (deal.active ? <span className="rounded-full bg-ok/10 px-2.5 py-0.5 text-xs font-semibold text-ok">Ativa</span> : <span className="rounded-full bg-muted/10 px-2.5 py-0.5 text-xs font-semibold text-muted">Inativa</span>) : null}
+        />
+        <div className="p-5">
+          <DealForm
+            condominiumId={id}
+            units={units}
+            live={live}
+            deal={deal && { monthlyUnitPrice: deal.monthlyUnitPrice, yearlyUnitPrice: deal.yearlyUnitPrice, minUnits: deal.minUnits, trialDays: deal.trialDays, notes: deal.notes, active: deal.active }}
+          />
+        </div>
+      </Card>
 
       <h2 className="mb-4 font-display text-xl font-semibold">Faturas</h2>
       <InvoiceTable invoices={invoices} scroll />
