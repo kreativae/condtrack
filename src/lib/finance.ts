@@ -47,7 +47,7 @@ export const LOG_LABEL: Record<string, string> = {
   attachment_removed: "removeu o anexo",
   attachment_viewed: "abriu o anexo",
   council_access: "alterou o acesso do conselho",
-  exported: "exportou a planilha",
+  exported: "gerou um relatório",
 };
 
 /** Rótulos dos campos no histórico de edição. */

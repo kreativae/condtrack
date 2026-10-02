@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import type { Prisma } from "@prisma/client";
 import { ChevronLeft, ChevronRight, Lock, LockOpen, Paperclip, Plus, Wallet } from "lucide-react";
 import { db } from "@/lib/db";
@@ -12,6 +13,7 @@ import { FIN_STATUS, FIN_TYPES, LOG_LABEL, dateToDay, fmtBRL, fmtDayBR, type Fin
 import { setCouncilFinanceAccess } from "@/app/actions/finance";
 import { ExportButton } from "./export-button";
 import { ReportDialog } from "./report-dialog";
+import { FIN_CONDO_COOKIE, RememberCondo } from "./remember-condo";
 import { Badge, Card, CardHeader, Empty, Input, LinkButton, PageHeader, Select, Stat, buttonClass, cx } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Financeiro" };
@@ -26,6 +28,9 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
 
   // Superadmin escolhe o condomínio
   if (user.role === "superadmin" && !sp.condo) {
+    // Volta direto ao último condomínio aberto (a menos que tenha pedido para trocar)
+    const last = (await cookies()).get(FIN_CONDO_COOKIE)?.value;
+    if (last && sp.trocar !== "1" && (await db.condominium.findUnique({ where: { id: last }, select: { id: true } }))) redirect(`/financeiro?condo=${last}`);
     const condos = await db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
     return (
       <div className="mx-auto max-w-xl animate-in">
@@ -109,9 +114,10 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
 
   return (
     <div className="animate-in space-y-6">
+      {user.role === "superadmin" && <RememberCondo id={condo.id} />}
       <PageHeader
         eyebrow={user.role === "superadmin" ? condo.name : "Gestão"}
-        title="Financeiro"
+        title={user.role === "superadmin" ? <>Financeiro <Link href="/financeiro?trocar=1" className="ml-2 align-middle text-sm font-medium text-brand hover:underline">Trocar condomínio</Link></> : "Financeiro"}
         description={access.edit ? "Receitas, despesas e notas fiscais do condomínio, com histórico de quem lançou, editou e visualizou." : "Receitas, despesas e notas fiscais do condomínio (somente leitura)."}
         actions={
           <>
@@ -308,6 +314,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
                   <p className="text-fg-2">
                     <span className="font-semibold text-fg">{l.userName}</span>
                     <span className="text-muted"> ({ROLE_LABEL[l.userRole as Role] ?? l.userRole})</span> {LOG_LABEL[l.action] ?? l.action}
+                    {l.action === "exported" && <span className="text-muted"> {exportInfo(l.changes)}</span>}
                     {l.entry && <> · <Link href={`/financeiro/${l.entry.id}`} className="font-medium text-brand hover:underline">{l.entry.description}</Link></>}
                   </p>
                   <p className="mt-0.5 text-muted">{fmtDateTime(l.createdAt)}</p>
@@ -319,4 +326,15 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
       </div>
     </div>
   );
+}
+
+/** "(PDF · 01/07/2026 a 30/09/2026)" para a atividade de relatórios gerados. */
+function exportInfo(changes: string) {
+  try {
+    const c = JSON.parse(changes) as { formato?: string; periodo?: string };
+    const parts = [c.formato, c.periodo].filter(Boolean);
+    return parts.length ? `(${parts.join(" · ")})` : "";
+  } catch {
+    return "";
+  }
 }
