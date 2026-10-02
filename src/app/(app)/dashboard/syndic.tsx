@@ -7,12 +7,15 @@ import { orderListInclude } from "@/lib/orders";
 import { RankBars } from "@/components/charts";
 import { OrderList } from "@/components/order-list";
 import { StatusBreakdown } from "@/components/status-breakdown";
-import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { Card, CardHeader, LinkButton, PageHeader, Stat, cx } from "@/components/ui";
 import { ChecklistSummary } from "@/components/checklist/summary";
 import { FinanceSummary } from "@/components/finance-summary";
+import { DashboardSettings } from "@/components/dashboard-settings";
+import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
 
 export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
+  const show = dashboardVisibility(user.dashboardHidden);
   const where = { condominiumId: cid };
   const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers] = await Promise.all([
     orderMetrics(where),
@@ -29,51 +32,66 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const top = <T,>(rows: (T & { _count: number })[], key: (r: T) => string) =>
     rows.map((r) => ({ name: key(r), value: r._count })).sort((a, b) => b.value - a.value).slice(0, 6);
 
+  const charts = ["status", "category", "areas"].filter(show).length;
+
   return (
     <div className="animate-in">
       <PageHeader
         eyebrow={user.condominium?.name}
         title={`Olá, ${user.name.split(" ")[0]}`}
         description="Visão geral do condomínio e decisões pendentes."
-        actions={<LinkButton href="/os/nova"><Plus className="size-4" />Nova OS</LinkButton>}
+        actions={<><DashboardSettings sections={DASHBOARD_SECTIONS.syndic} hidden={user.dashboardHidden.split(",").filter(Boolean)} /><LinkButton href="/os/nova"><Plus className="size-4" />Nova OS</LinkButton></>}
       />
+      {show("stats") && (
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="OS em aberto" value={m.open} />
         <Stat label="Aguardando sua aprovação" value={m.counts.validated} tone={m.counts.validated ? "brand" : undefined} />
         <Stat label="Atrasadas" value={m.overdue} tone={m.overdue ? "bad" : undefined} />
         <Stat label="Tempo médio de resolução" value={fmtHours(m.avgHours)} hint={`${m.approved30} concluídas em 30 dias`} />
       </div>
+      )}
 
-      <ChecklistSummary condominiumId={cid} />
-      <FinanceSummary condominiumId={cid} />
+      {show("checklist") && <ChecklistSummary condominiumId={cid} />}
+      {show("finance") && <FinanceSummary condominiumId={cid} />}
 
-      {pending.length > 0 && (
+      {show("pending") && pending.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-4 flex items-center gap-3 font-display font-semibold text-xl">Aprovações pendentes <span className="font-num text-sm text-brand">{pending.length}</span></h2>
           <OrderList orders={pending} />
         </section>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      {charts > 0 && (
+      <div className={cx("mb-6 grid gap-6", charts === 3 ? "lg:grid-cols-3" : charts === 2 && "lg:grid-cols-2")}>
+        {show("status") && (
         <Card>
           <CardHeader title="OS por status" />
           <StatusBreakdown counts={m.counts} />
         </Card>
+        )}
+        {show("category") && (
         <Card>
           <CardHeader title="OS por categoria" />
           <div className="p-4"><RankBars data={top(byCat, (r) => name(cats, r.categoryId))} /></div>
         </Card>
+        )}
+        {show("areas") && (
         <Card>
           <CardHeader title="Áreas com mais manutenção" />
           <div className="p-4"><RankBars data={top(byArea, (r) => name(areas, r.commonAreaId))} /></div>
         </Card>
+        )}
       </div>
+      )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+      <div className={cx("grid gap-6", show("providers") && show("activity") && "lg:grid-cols-[1fr_1.4fr]")}>
+        {show("providers") && (
         <Card>
           <CardHeader title="Prestadores mais acionados" />
           <div className="p-4"><RankBars data={top(byProvider, (r) => name(providers, r.assignedToId))} /></div>
         </Card>
+        )}
+        {show("activity") && (
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display font-semibold text-xl">Atividade recente</h2>
@@ -81,6 +99,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
           </div>
           <OrderList orders={recent} />
         </section>
+        )}
       </div>
     </div>
   );

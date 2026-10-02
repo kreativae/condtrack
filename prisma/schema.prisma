@@ -99,6 +99,8 @@ model User {
   condominiumId String?
   /// Ordem do menu escolhida pelo usuário (hrefs separados por vírgula; vazio = padrão do perfil)
   navOrder      String    @default("")
+  /// Blocos do painel que o usuário escondeu (chaves separadas por vírgula; vazio = mostra tudo)
+  dashboardHidden String  @default("")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

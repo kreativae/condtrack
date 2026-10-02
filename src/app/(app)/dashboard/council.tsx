@@ -6,12 +6,17 @@ import { orderListInclude } from "@/lib/orders";
 import { fmtRelative } from "@/lib/format";
 import { FeedCard, feedInclude } from "@/components/feed-card";
 import { OrderList } from "@/components/order-list";
-import { Card, CardHeader, LinkButton, PageHeader } from "@/components/ui";
+import { Card, CardHeader, LinkButton, PageHeader, cx } from "@/components/ui";
 import { unitLabel } from "@/lib/units";
 import { FinanceSummary } from "@/components/finance-summary";
+import { DashboardSettings } from "@/components/dashboard-settings";
+import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
 
 export async function CouncilDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
+  const show = dashboardVisibility(user.dashboardHidden);
+  // Resumo financeiro só entra nas opções quando o conselho tem acesso
+  const sections = DASHBOARD_SECTIONS.council.filter((s) => s.key !== "finance" || user.condominium?.councilFinanceAccess);
   const [feed, mine, news] = await Promise.all([
     db.serviceOrder.findMany({ where: { condominiumId: cid, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 3 }),
     db.serviceOrder.findMany({ where: { requestedById: user.id, status: { notIn: ["cancelled"] } }, include: orderListInclude, orderBy: { createdAt: "desc" }, take: 5 }),
@@ -24,11 +29,12 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
       <PageHeader
         eyebrow={unit ? unitLabel(unit) : user.condominium?.name}
         title={`Olá, ${user.name.split(" ")[0]}`}
-        actions={<LinkButton href="/os/nova"><Plus className="size-4" />Nova solicitação</LinkButton>}
+        actions={<><DashboardSettings sections={sections} hidden={user.dashboardHidden.split(",").filter(Boolean)} /><LinkButton href="/os/nova"><Plus className="size-4" />Nova solicitação</LinkButton></>}
       />
       {/* Só quando o síndico liberou o Financeiro para o conselho */}
-      {user.condominium?.councilFinanceAccess && <FinanceSummary condominiumId={cid} />}
-      <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
+      {user.condominium?.councilFinanceAccess && show("finance") && <FinanceSummary condominiumId={cid} />}
+      <div className={cx("grid gap-8", show("feed") && (show("mine") || show("news")) && "lg:grid-cols-[1.5fr_1fr]")}>
+        {show("feed") && (
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display font-semibold text-xl">Serviços recentes no prédio</h2>
@@ -36,11 +42,16 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
           </div>
           {feed.map((o) => <FeedCard key={o.id} o={o} />)}
         </section>
+        )}
+        {(show("mine") || show("news")) && (
         <aside className="space-y-6">
+          {show("mine") && (
           <div>
             <h2 className="mb-4 font-display font-semibold text-xl">Minhas solicitações</h2>
             <OrderList orders={mine} empty="Você ainda não abriu solicitações." />
           </div>
+          )}
+          {show("news") && (
           <Card>
             <CardHeader title="Comunicados" action={<Link href="/comunicados" className="text-xs text-brand">Todos</Link>} />
             <ul className="divide-y divide-line">
@@ -57,7 +68,9 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
               {!news.length && <li className="px-5 py-6 text-sm text-muted">Sem comunicados.</li>}
             </ul>
           </Card>
+          )}
         </aside>
+        )}
       </div>
     </div>
   );

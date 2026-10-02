@@ -7,10 +7,14 @@ import { ACTIVE_STATUSES } from "@/lib/workflow";
 import { PairBars } from "@/components/charts";
 import { PAYING, brl, monthlyEquivalent } from "@/lib/billing-shared";
 import { OrderList } from "@/components/order-list";
-import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { Card, CardHeader, LinkButton, PageHeader, Stat, cx } from "@/components/ui";
 import { FinanceSummary } from "@/components/finance-summary";
+import type { CurrentUser } from "@/lib/auth";
+import { DashboardSettings } from "@/components/dashboard-settings";
+import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
 
-export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
+export async function SuperadminDashboard({ user, welcome }: { user: CurrentUser; welcome?: boolean }) {
+  const show = dashboardVisibility(user.dashboardHidden);
   const [condos, m, users, late, subs] = await Promise.all([
     db.condominium.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     orderMetrics({}),
@@ -33,7 +37,7 @@ export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
       <PageHeader
         eyebrow="Superadministração"
         title="Visão global da plataforma"
-        actions={<LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton>}
+        actions={<><DashboardSettings sections={DASHBOARD_SECTIONS.superadmin} hidden={user.dashboardHidden.split(",").filter(Boolean)} /><LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton></>}
       />
       {welcome && (
         <div className="mb-6 rounded-2xl border border-brand/30 bg-brand-soft p-5 text-sm">
@@ -45,6 +49,7 @@ export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
           </ol>
         </div>
       )}
+      {show("stats") && (
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
         <Stat label="MRR" value={brl(mrr)} tone="brand" hint={`${subs.length} pagante(s)`} />
         <Stat label="Condomínios ativos" value={condos.length} />
@@ -53,16 +58,20 @@ export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
         <Stat label="Concluídas (30d)" value={m.approved30} tone="ok" />
         <Stat label="Atrasadas" value={m.overdue} tone={m.overdue ? "bad" : undefined} />
       </div>
+      )}
 
-      <FinanceSummary />
+      {show("finance") && <FinanceSummary />}
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className={cx("grid gap-6", show("condos") && show("ranking") && "lg:grid-cols-[1.4fr_1fr]")}>
+        {show("condos") && (
         <Card>
           <CardHeader title="OS por condomínio" subtitle="Em aberto × aprovadas (total)" />
           <div className="p-4">
             <PairBars data={per.map((p) => ({ name: p.name, a: p.open, b: p.counts.approved }))} a="Em aberto" b="Aprovadas" />
           </div>
         </Card>
+        )}
+        {show("ranking") && (
         <Card>
           <CardHeader title="Ranking de eficiência" subtitle="Tempo médio da abertura à aprovação" />
           <ol className="divide-y divide-line">
@@ -75,12 +84,15 @@ export async function SuperadminDashboard({ welcome }: { welcome?: boolean }) {
             )) : <li className="px-5 py-8 text-center text-sm text-muted">Sem OS concluídas ainda.</li>}
           </ol>
         </Card>
+        )}
       </div>
 
+      {show("late") && (
       <section className="mt-8">
         <h2 className="mb-4 font-display font-semibold text-xl">Alertas de OS atrasadas</h2>
         <OrderList orders={late} showCondo empty="Nenhuma OS atrasada. 👌" />
       </section>
+      )}
     </div>
   );
 }

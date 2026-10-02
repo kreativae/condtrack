@@ -50,6 +50,8 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Superadmin: o último condomínio aberto (Financeiro e Checklist) fica no cookie `sa_condo` (`?trocar=1` volta à escolha).
 - **Ordem do menu**: cada usuário segura e arrasta os itens (desktop e celular, `useReorder` em `nav-links.tsx`); a ordem fica em
   `User.navOrder` (salva por `app/actions/nav.ts`) e o layout aplica. Páginas novas entram no fim da ordem salva.
+- **Painel personalizável**: ícone de ajustes no cabeçalho do dashboard (todos menos morador). Blocos de cada perfil em
+  `src/lib/dashboard.ts`; escondidos em `User.dashboardHidden`. Bloco novo no painel = nova chave lá + `show("chave")`.
 - **Navegação no celular** (`components/nav-links.tsx`): barra de atalhos (até 4, no cookie `nav_pins`, por aparelho) + botão
   Menu que abre o menu lateral com todas as páginas e o alfinete para fixar. Itens vêm de `src/lib/nav.ts`.
 - **Janelas e sobreposições** (`fixed inset-0`): renderize com `createPortal(..., document.body)`. A animação `animate-in`

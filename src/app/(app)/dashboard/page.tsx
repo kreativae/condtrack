@@ -14,7 +14,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const welcome = (await searchParams)["bem-vindo"] === "1";
   switch (user.role) {
     case "superadmin":
-      return <SuperadminDashboard welcome={welcome} />;
+      return <SuperadminDashboard user={user} welcome={welcome} />;
     case "syndic":
       return <SyndicDashboard user={user} />;
     case "caretaker":
