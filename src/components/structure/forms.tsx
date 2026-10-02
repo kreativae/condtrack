@@ -12,7 +12,8 @@ import { SubmitButton } from "@/components/submit-button";
 type FormAction = (s: StructState, f: FormData) => Promise<StructState>;
 
 /** Form com feedback (erro/sucesso) e reset opcional após salvar. */
-export function ActionForm({ action, children, submit, reset = false, className, inline }: { action: FormAction; children: ReactNode; submit: string; reset?: boolean; className?: string; inline?: boolean }) {
+/** `note`: texto de ajuda abaixo da linha (no modo inline, fora do campo, para o botão alinhar com o campo). */
+export function ActionForm({ action, children, submit, reset = false, className, inline, note }: { action: FormAction; children: ReactNode; submit: string; reset?: boolean; className?: string; inline?: boolean; note?: ReactNode }) {
   const [state, form, pending] = useFormSubmit(action);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -22,6 +23,7 @@ export function ActionForm({ action, children, submit, reset = false, className,
     <form ref={ref} {...form} className={cx(inline ? "flex flex-wrap items-end gap-3" : "space-y-4", className)}>
       {children}
       <SubmitButton pending={pending} variant={inline ? "outline" : "brand"} pendingText="Salvando…">{submit}</SubmitButton>
+      {note && <p className="basis-full text-xs text-muted">{note}</p>}
       {state?.error && <div className="basis-full"><Alert>{state.error}</Alert></div>}
       {state?.message && <p className="basis-full text-xs font-medium text-ok">{state.message}</p>}
     </form>

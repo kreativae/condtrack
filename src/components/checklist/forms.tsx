@@ -89,8 +89,8 @@ export function ChecklistItemActions({ active, first, last, move, toggle, remove
 
 export function ChecklistSettingsForm({ action, deadline }: { action: Action; deadline: string | null }) {
   return (
-    <ActionForm action={action} submit="Salvar" inline>
-      <Field label="Horário limite" hint="Vazio = sem alerta" className="w-40">
+    <ActionForm action={action} submit="Salvar" inline note="Deixe vazio para não receber alerta.">
+      <Field label="Horário limite" className="w-40">
         <Input type="time" name="deadline" defaultValue={deadline ?? ""} />
       </Field>
     </ActionForm>
