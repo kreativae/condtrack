@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, Settings } from "lucide-react";
 import { saveDashboardHidden } from "@/app/actions/nav";
 import type { DashSection } from "@/lib/dashboard";
-import { buttonClass, cx } from "./ui";
+import { cx } from "./ui";
 
 /** Ícone de ajustes do painel: escolher quais blocos aparecem (salvo na conta). */
 export function DashboardSettings({ sections, hidden: initial }: { sections: DashSection[]; hidden: string[] }) {
@@ -45,13 +45,17 @@ export function DashboardSettings({ sections, hidden: initial }: { sections: Das
         aria-expanded={open}
         aria-label="Personalizar painel"
         title="Personalizar painel"
-        className={cx(buttonClass("outline"), "size-10 px-0 text-fg-2 hover:text-fg", open && "bg-bg-2 text-fg")}
+        // Botão quadrado com a mesma altura do botão ao lado (sem o px-4 do buttonClass, que espremia o ícone)
+        className={cx(
+          "inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-surface text-fg-2 shadow-card transition hover:bg-bg-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          open && "bg-bg-2 text-fg",
+        )}
       >
         {pending ? (
-          <Loader2 className="size-5 animate-spin" />
+          <Loader2 className="size-5 shrink-0 animate-spin" />
         ) : (
           // Engrenagem; gira um pouco ao abrir o painel de ajustes
-          <Settings className={cx("size-5 transition-transform duration-300", open && "rotate-90")} strokeWidth={1.75} />
+          <Settings className={cx("size-5 shrink-0 transition-transform duration-300", open && "rotate-90")} strokeWidth={1.75} />
         )}
       </button>
       {open && (
