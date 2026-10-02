@@ -1,6 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { db } from "./db";
+import { inCondo } from "./memberships";
 import type { Role } from "./roles";
 import { emailConfig, renderEmail, sendEmail } from "./email";
 import { appUrl } from "./url";
@@ -28,7 +29,7 @@ export async function notify(target: Target, n: Payload) {
   const ids = new Set<string>(target.userIds?.filter((x): x is string => !!x));
   if (target.roles?.length) {
     const users = await db.user.findMany({
-      where: { condominiumId: target.condominiumId, role: { in: target.roles }, status: "active" },
+      where: { ...inCondo(target.condominiumId, target.roles), status: "active" },
       select: { id: true },
     });
     users.forEach((u) => ids.add(u.id));
@@ -42,7 +43,7 @@ export async function notify(target: Target, n: Payload) {
   const cfg = await emailConfig();
   if (!cfg.active || !cfg.notifyByEmail) return;
   const base = await appUrl(); // precisa do request — calcular antes do after()
-  const recipients = await db.user.findMany({ where: { id: { in: [...ids] }, status: "active" }, select: { email: true, name: true } });
+  const recipients = await db.user.findMany({ where: { id: { in: [...ids] }, status: "active" }, select: { email: true, name: true, _count: { select: { memberships: true } } } });
   const layout = await renderTemplate("email_layout", {});
   const link = linkFor(n, layout.get);
 
@@ -51,15 +52,17 @@ export async function notify(target: Target, n: Payload) {
     const results = await Promise.allSettled(
       recipients.map(async (r) => {
         const greet = await renderTemplate("email_layout", { nome: r.name.split(" ")[0] });
+        // Quem tem vários condomínios recebe o nome do prédio no assunto e no título
+        const title = r._count.memberships > 1 && condo?.name ? `${condo.name} · ${msg.title}` : msg.title;
         const { html, text } = renderEmail({
-          title: msg.title,
+          title,
           intro: greet.get("greeting"),
           lines: msg.message.split("\n"),
           cta: { label: link.label, url: `${base}${link.path}` },
           footnote: layout.get("footnote"),
           footer: layout.get("footer"),
         });
-        return sendEmail({ to: r.email, subject: msg.title, html, text }, cfg, n.type);
+        return sendEmail({ to: r.email, subject: title, html, text }, cfg, n.type);
       }),
     );
     const failed = results.filter((x) => x.status === "rejected" || (x.status === "fulfilled" && !x.value.ok));

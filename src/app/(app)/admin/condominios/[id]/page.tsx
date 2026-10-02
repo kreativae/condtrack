@@ -23,7 +23,7 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
   if (!c) notFound();
   const [m, staff] = await Promise.all([
     orderMetrics({ condominiumId: id }),
-    db.user.groupBy({ by: ["role"], where: { condominiumId: id, status: "active" }, _count: true }),
+    db.membership.groupBy({ by: ["role"], where: { condominiumId: id, user: { status: "active" } }, _count: true }),
   ]);
 
   return (

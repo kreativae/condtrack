@@ -3,13 +3,17 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Check, ChevronsUpDown, Globe, Loader2, Search } from "lucide-react";
-import { setAdminScope } from "@/app/actions/admin-scope";
+import { setAdminScope, switchCondo } from "@/app/actions/admin-scope";
 import { cx } from "./ui";
 
-type Condo = { id: string; name: string };
+type Condo = { id: string; name: string; hint?: string };
 
-/** Cartão do menu do superadmin: escolhe o condomínio em foco (ou todos) para o sistema inteiro. */
-export function CondoSwitcher({ condos, current, onPicked }: { condos: Condo[]; current: Condo | null; onPicked?: () => void }) {
+/**
+ * Cartão do menu com troca de condomínio.
+ * - admin: superadmin escolhe o condomínio em foco (ou todos).
+ * - member: quem tem vínculo com vários condomínios troca o condomínio ativo (sem "todos").
+ */
+export function CondoSwitcher({ condos, current, onPicked, mode = "admin", subtitle }: { condos: Condo[]; current: Condo | null; onPicked?: () => void; mode?: "admin" | "member"; subtitle?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -36,7 +40,8 @@ export function CondoSwitcher({ condos, current, onPicked }: { condos: Condo[]; 
     setOpen(false);
     setQ("");
     start(async () => {
-      await setAdminScope(id);
+      if (mode === "member") await switchCondo(id);
+      else await setAdminScope(id);
       router.refresh();
       onPicked?.();
     });
@@ -55,7 +60,7 @@ export function CondoSwitcher({ condos, current, onPicked }: { condos: Condo[]; 
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-semibold">{current?.name ?? "Todos os condomínios"}</span>
-          <span className="block truncate text-[11px] text-muted">{current ? "Condomínio em foco" : "Plataforma"} · trocar</span>
+          <span className="block truncate text-[11px] text-muted">{subtitle ?? (current ? "Condomínio em foco" : "Plataforma")} · trocar</span>
         </span>
         <ChevronsUpDown className="size-4 shrink-0 text-muted" />
       </button>
@@ -69,11 +74,11 @@ export function CondoSwitcher({ condos, current, onPicked }: { condos: Condo[]; 
             </div>
           )}
           <ul className="max-h-72 overflow-y-auto py-1">
-            {!q && (
+            {!q && mode === "admin" && (
               <Option label="Todos os condomínios" icon={<Globe className="size-4" />} active={!current} onClick={() => pick("")} />
             )}
             {list.map((c) => (
-              <Option key={c.id} label={c.name} icon={<Building2 className="size-4" />} active={current?.id === c.id} onClick={() => pick(c.id)} />
+              <Option key={c.id} label={c.name} hint={c.hint} icon={<Building2 className="size-4" />} active={current?.id === c.id} onClick={() => pick(c.id)} />
             ))}
             {!list.length && <li className="px-3 py-2 text-xs text-muted">Nenhum condomínio encontrado.</li>}
           </ul>
@@ -83,12 +88,12 @@ export function CondoSwitcher({ condos, current, onPicked }: { condos: Condo[]; 
   );
 }
 
-function Option({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+function Option({ label, hint, icon, active, onClick }: { label: string; hint?: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
     <li>
       <button type="button" onClick={onClick} className={cx("flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-bg-2", active ? "font-semibold text-brand" : "text-fg-2")}>
         <span className="shrink-0 text-muted">{icon}</span>
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <span className="min-w-0 flex-1 truncate">{label}{hint && <span className="block text-[11px] font-normal text-muted">{hint}</span>}</span>
         {active && <Check className="size-4 shrink-0" />}
       </button>
     </li>

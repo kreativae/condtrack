@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CheckCheck, Megaphone, Plus } from "lucide-react";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { requireUser } from "@/lib/auth";
 import { DELETED_USER, fmtDateTime } from "@/lib/format";
 import { confirmRead } from "@/app/actions/misc";
@@ -24,7 +25,7 @@ export default async function AnnouncementsPage({ searchParams }: PageProps<"/co
   const page = pageParam(sp.page, total, PAGE);
   const [items, audience] = await Promise.all([
     db.announcement.findMany({ where, include: { author: { select: { name: true } } }, orderBy: { publishedAt: "desc" }, skip: (page - 1) * PAGE, take: PAGE }),
-    user.role === "syndic" ? db.user.count({ where: { condominiumId: user.condominiumId, role: { in: ["council", "caretaker"] }, status: "active" } }) : 0,
+    user.role === "syndic" ? db.user.count({ where: { ...inCondo(user.condominiumId!, ["council", "caretaker"]), status: "active" } }) : 0,
   ]);
   const syndic = user.role === "syndic";
 

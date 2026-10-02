@@ -11,7 +11,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - Trabalho direto na `main`; a Vercel publica cada push em produção. **Pergunte antes de dar push.**
 - Um commit por ajuste, com push logo em seguida, para nada ficar preso numa máquina só.
 - Se um build falhar na Vercel, o site continua na versão anterior; corrija na `main`.
-- Pontos de restauração: tags `v1-estavel` (2026-09-28, aba Aparência) e `v2-estavel` (2026-10-01, Financeiro completo). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.
+- Pontos de restauração: tags `v1-estavel` (2026-09-28, aba Aparência) e `v2-estavel` (2026-10-04, antes dos vínculos com vários condomínios). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.
 - O Mac principal pode não ter Node/npm: sem `npm run build` local, o build da Vercel é a verificação. Escreva com cuidado
   e revise o diff antes de commitar.
 
@@ -77,6 +77,12 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `checklist_edit` = corrigir autor/horário, conferir dias anteriores e editar anotações (`adminSaveCheck`,
   `updateChecklistNote`); `audit` = página `/auditoria` só do condomínio. Use `hasPermission(user, ...)`.
 
+- **Vários condomínios por pessoa** (`Membership`, `src/lib/memberships.ts`): cada vínculo tem condomínio, perfil e
+  permissões. `User.condominiumId/role/permissions` = vínculo ATIVO (trocado pelo cartão do menu, `switchCondo`, ou ao abrir
+  uma OS de outro vínculo). Para "pessoas do condomínio X" use `inCondo(X, roles)`, nunca `user.condominiumId`.
+  Superadmin define os vínculos em Editar usuário ("Outros condomínios"); síndico só gerencia quem tem vínculo apenas
+  com o condomínio dele. Página `/meus-condominios` (só com 2+ vínculos).
+
 ## Histórico recente
 
 - 2026-09-23 a 25: MVP, Neon + Vercel + Blob, condomínios horizontais, feed com vídeo, configurações de login e mensagens,
@@ -86,3 +92,4 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - 2026-10-01: Financeiro (lançamentos, notas fiscais, histórico de edição e visualização, acesso do conselho), resumo no
   dashboard, relatório financeiro (CSV/PDF com filtros), menu do celular com atalhos fixáveis e ajustes de responsivo.
   Dados fictícios de demonstração no condomínio Odyssey (jul–out/2026), criados pelo síndico.
+- 2026-10-04: vínculos com vários condomínios (síndico profissional, prestadores) e Meus condomínios.

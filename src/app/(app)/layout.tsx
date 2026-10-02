@@ -10,6 +10,7 @@ import { NAV } from "@/lib/nav";
 import { showFinanceNav } from "@/lib/finance-server";
 import { hasPermission } from "@/lib/permissions";
 import { adminScope } from "@/lib/admin-scope-server";
+import { userMemberships } from "@/lib/memberships";
 import { CondoSwitcher } from "@/components/condo-switcher";
 import { ROLE_LABEL } from "@/lib/roles";
 import { logout, stopImpersonating } from "@/app/actions/auth";
@@ -28,7 +29,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   }
   const unread = user.role === "resident" ? 0 : await db.notification.count({ where: { userId: user.id, read: false } });
   // Financeiro do conselho só aparece quando o síndico/superadmin libera
-  const base = NAV[user.role].filter((i) => (i.href !== "/financeiro" || showFinanceNav(user)) && (i.href !== "/auditoria" || hasPermission(user, "audit")));
+  // Vínculos com condomínios (síndico profissional, prestador de vários prédios…)
+  const ms = user.role !== "superadmin" ? await userMemberships(user.id) : [];
+  const base = NAV[user.role].filter((i) => i.href !== "/meus-condominios" || ms.length > 1).filter((i) => (i.href !== "/financeiro" || showFinanceNav(user)) && (i.href !== "/auditoria" || hasPermission(user, "audit")));
   // Ordem escolhida pelo usuário (segurar e arrastar no menu); páginas novas entram no lugar padrão, no fim
   const saved = user.navOrder ? user.navOrder.split(",") : [];
   const rank = (href: string, i: number) => (saved.includes(href) ? saved.indexOf(href) : 1000 + i);
@@ -45,6 +48,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const [scope, scopeList] = user.role === "superadmin" && !user.impersonator
     ? await Promise.all([adminScope(user), db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })])
     : [null, null];
+  // Vários condomínios (síndico profissional, prestador…): troca o condomínio ativo pelo cartão
+  const multi = ms.length > 1
+    ? { list: ms.filter((m) => m.condominium.active || m.condominiumId === user.condominiumId).map((m) => ({ id: m.condominiumId, name: m.condominium.name, hint: ROLE_LABEL[m.role as keyof typeof ROLE_LABEL] })), current: user.condominium ? { id: user.condominium.id, name: user.condominium.name } : null }
+    : null;
 
   // Aviso de cobrança para o síndico (pagamento falhou ou teste acabando)
   // full: notebook/desktop · short: celular (a faixa tem altura fixa de uma linha)
@@ -73,6 +80,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
         {scopeList ? (
           <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={scopeList} current={scope} /></div>
+        ) : multi ? (
+          <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={multi.list} current={multi.current} mode="member" subtitle={ROLE_LABEL[user.role]} /></div>
         ) : (
         <div className="mx-1 mb-4 mt-6 flex items-center gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
@@ -150,7 +159,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-8 lg:pb-16">{children}</main>
       </div>
-      <MobileNav items={items} customized={customized} condos={scopeList ? { list: scopeList, current: scope } : undefined} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
+      <MobileNav items={items} customized={customized} condos={scopeList ? { list: scopeList, current: scope } : multi ? { ...multi, mode: "member" as const, subtitle: ROLE_LABEL[user.role] } : undefined} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
     </div>
   );
 }

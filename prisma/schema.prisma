@@ -52,6 +52,7 @@ model Condominium {
   financeEntries FinanceEntry[]
   checklistNotes ChecklistNote[]
   billingDeal    BillingDeal?
+  memberships    Membership[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -102,7 +103,7 @@ model User {
   navOrder      String    @default("")
   /// Blocos do painel que o usuário escondeu (chaves separadas por vírgula; vazio = mostra tudo)
   dashboardHidden String  @default("")
-  /// Permissões extras concedidas pelo superadmin (síndico): checklist_edit, audit
+  /// Permissões extras no condomínio ATIVO (copiadas do vínculo): checklist_edit, audit
   permissions   String    @default("")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -126,6 +127,7 @@ model User {
   financeLogs        FinanceLog[]
   checklistNotes     ChecklistNote[]
   passwordResets     PasswordReset[]
+  memberships        Membership[]
 }
 
 /// role: owner | tenant | dependent
@@ -589,4 +591,20 @@ model PasswordReset {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+/// Vínculo de um usuário com um condomínio (síndico profissional, prestador que atende vários prédios…).
+/// User.condominiumId/role/permissions guardam o vínculo ATIVO; trocar de condomínio copia os dados daqui.
+model Membership {
+  id            String      @id @default(cuid())
+  userId        String
+  condominiumId String
+  role          String
+  permissions   String      @default("")
+  createdAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, condominiumId])
+  @@index([condominiumId, role])
 }

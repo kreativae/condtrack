@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, Rows3, Settings2 } from "lucide-react";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { cookies } from "next/headers";
 import { requireUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
@@ -95,7 +96,7 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
         date,
         meId: user.id,
         users: [
-          ...(await db.user.findMany({ where: { condominiumId, status: "active", role: { in: ["caretaker", "syndic"] } }, select: { id: true, name: true }, orderBy: { name: "asc" } })),
+          ...(await db.user.findMany({ where: { ...inCondo(condominiumId, ["caretaker", "syndic"]), status: "active" }, select: { id: true, name: true }, orderBy: { name: "asc" } })),
           ...(admin ? [{ id: user.id, name: user.name }] : []),
         ],
       }

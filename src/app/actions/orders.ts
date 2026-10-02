@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
@@ -108,7 +109,7 @@ export async function assignOrder(id: string, _: ActionState, form: FormData): P
   if (!o || !can("assign", o, user)) return fail("Ação não permitida.");
 
   const providerId = String(form.get("providerId") ?? "");
-  const provider = await db.user.findFirst({ where: { id: providerId, role: "provider", status: "active", condominiumId: o.condominiumId } });
+  const provider = await db.user.findFirst({ where: { id: providerId, status: "active", ...inCondo(o.condominiumId, ["provider"]) } });
   if (!provider) return fail("Selecione um prestador.");
   const dueRaw = String(form.get("dueDate") ?? "");
   const dueDate = dueRaw ? new Date(`${dueRaw}T18:00:00`) : o.dueDate;
@@ -312,7 +313,7 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
   if (d.categoryId && !(await db.serviceCategory.findFirst({ where: { id: d.categoryId, condominiumId: cid } }))) return fail("Categoria inválida.");
   if (d.locationType === "common_area" && (!d.commonAreaId || !(await db.commonArea.findFirst({ where: { id: d.commonAreaId, condominiumId: cid } })))) return fail("Selecione a área comum.");
   if (d.locationType === "unit" && (!d.unitId || !(await db.unit.findFirst({ where: { id: d.unitId, building: { condominiumId: cid } } })))) return fail("Selecione a unidade.");
-  const provider = d.assignedToId ? await db.user.findFirst({ where: { id: d.assignedToId, role: "provider", condominiumId: cid } }) : null;
+  const provider = d.assignedToId ? await db.user.findFirst({ where: { id: d.assignedToId, ...inCondo(cid, ["provider"]) } }) : null;
   if (d.assignedToId && !provider) return fail("Prestador inválido.");
   if (provider && provider.id !== o.assignedToId && provider.status !== "active") return fail("Este prestador está inativo. Escolha um prestador ativo.");
 
@@ -409,13 +410,13 @@ export async function adminUpdateResponsibles(id: string, _prev: ActionState, fo
   for (const k of PEOPLE) people[k] = String(form.get(k) ?? "") || null;
   if (!people.requestedById) return fail("Informe quem abriu a OS.");
   const ids = Object.values(people).filter((x): x is string => !!x);
-  const users = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, role: true, condominiumId: true } });
+  const users = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, role: true, memberships: { where: { condominiumId: o.condominiumId }, select: { role: true } } } });
   const find = (uid: string | null) => users.find((u) => u.id === uid);
   for (const k of PEOPLE) {
     const u = find(people[k]);
-    if (people[k] && (!u || (u.role !== "superadmin" && u.condominiumId !== o.condominiumId))) return fail("Pessoa inválida para este condomínio.");
+    if (people[k] && (!u || (u.role !== "superadmin" && !u.memberships.length))) return fail("Pessoa inválida para este condomínio.");
   }
-  if (people.assignedToId && find(people.assignedToId)?.role !== "provider") return fail("“Executado por” precisa ser um prestador.");
+  if (people.assignedToId && find(people.assignedToId)?.memberships[0]?.role !== "provider") return fail("“Executado por” precisa ser um prestador.");
 
   const dates: Record<string, Date | null> = {};
   const limit = Date.now() + 5 * 60_000;

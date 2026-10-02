@@ -5,6 +5,7 @@ import { MANAGEABLE_ROLES } from "@/lib/roles";
 import { UsersTable } from "@/components/admin/users-table";
 import { DeleteInactiveUsers } from "@/components/admin/delete-inactive";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { FrozenPage, FrozenTop } from "@/components/frozen";
 import { LinkButton, PageHeader } from "@/components/ui";
 
@@ -15,7 +16,7 @@ export default async function PeoplePage({ searchParams }: PageProps<"/usuarios"
   const params = await searchParams;
   const { role } = params;
   const roles = MANAGEABLE_ROLES.syndic;
-  const inactive = await db.user.count({ where: { status: "inactive", condominiumId: me.condominiumId, role: { in: roles } } });
+  const inactive = await db.user.count({ where: { status: "inactive", ...inCondo(me.condominiumId!, roles) } });
   return (
     <FrozenPage>
       <FrozenTop>
@@ -25,7 +26,7 @@ export default async function PeoplePage({ searchParams }: PageProps<"/usuarios"
           actions={<><DeleteInactiveUsers count={inactive} /><LinkButton href={`/usuarios/novo${typeof role === "string" ? `?role=${role}` : ""}`}><UserPlus className="size-4" />Cadastrar</LinkButton></>}
         />
       </FrozenTop>
-      <UsersTable params={params} meId={me.id} where={{ condominiumId: me.condominiumId, role: { in: [...roles, "syndic"] } }} base="/usuarios" role={typeof role === "string" ? role : undefined} roles={roles} />
+      <UsersTable params={params} meId={me.id} where={inCondo(me.condominiumId!, [...roles, "syndic"])} base="/usuarios" role={typeof role === "string" ? role : undefined} roles={roles} />
     </FrozenPage>
   );
 }

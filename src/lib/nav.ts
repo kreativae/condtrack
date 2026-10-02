@@ -17,6 +17,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/admin/configuracoes", label: "Configurações", icon: "settings" },
   ],
   syndic: [
+    { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
     { href: "/dashboard", label: "Dashboard", icon: "gauge", mobile: true },
     { href: "/os", label: "Ordens de serviço", short: "OS", icon: "clipboard", mobile: true },
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
@@ -30,6 +31,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/assinatura", label: "Assinatura", icon: "card", mobile: true },
   ],
   caretaker: [
+    { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
     { href: "/dashboard", label: "Meu dia", icon: "gauge", mobile: true },
     { href: "/os", label: "Ordens de serviço", short: "OS", icon: "clipboard", mobile: true },
     { href: "/os/nova", label: "Nova ocorrência", short: "Nova", icon: "plus", mobile: true },
@@ -38,10 +40,12 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
   ],
   provider: [
+    { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
     { href: "/dashboard", label: "Minhas OS", icon: "clipboard", mobile: true },
     { href: "/os?h=1", label: "Meu histórico", short: "Histórico", icon: "history", mobile: true },
   ],
   council: [
+    { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
     { href: "/dashboard", label: "Início", icon: "home", mobile: true },
     { href: "/feed", label: "Serviços do prédio", short: "Serviços", icon: "sparkles", mobile: true },
     { href: "/os", label: "Minhas solicitações", short: "Solicitações", icon: "clipboard", mobile: true },
@@ -52,6 +56,7 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   // Morador: somente visualização
   resident: [
+    { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
     { href: "/dashboard", label: "Início", icon: "home", mobile: true },
     { href: "/feed", label: "Serviços entregues", short: "Serviços", icon: "sparkles", mobile: true },
   ],

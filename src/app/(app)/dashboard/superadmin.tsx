@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { orderMetrics, fmtHours } from "@/lib/metrics";
 import { orderListInclude } from "@/lib/orders";
 import { ACTIVE_STATUSES } from "@/lib/workflow";
@@ -20,7 +21,7 @@ export async function SuperadminDashboard({ user, welcome, scope }: { user: Curr
   const [condos, m, users, late, subs] = await Promise.all([
     db.condominium.findMany({ where: { active: true, ...(scope && { id: scope.id }) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     orderMetrics(only),
-    db.user.count({ where: { status: "active", ...only } }),
+    db.user.count({ where: { status: "active", ...(scope ? inCondo(scope.id) : {}) } }),
     db.serviceOrder.findMany({ where: { status: { in: ACTIVE_STATUSES }, dueDate: { lt: new Date() }, ...only }, include: orderListInclude, orderBy: { dueDate: "asc" }, take: 6 }),
     db.subscription.findMany({ where: { status: { in: PAYING }, cancelAtPeriodEnd: false, ...only } }),
   ]);

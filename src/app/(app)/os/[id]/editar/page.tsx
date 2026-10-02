@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { requireUser } from "@/lib/auth";
 import { Card, PageHeader } from "@/components/ui";
 import { EditOrderForm } from "./edit-order-form";
@@ -21,7 +22,7 @@ export default async function EditOrderPage({ params }: PageProps<"/os/[id]/edit
     db.commonArea.findMany({ where: { condominiumId: cid }, orderBy: { name: "asc" } }),
     db.unit.findMany({ where: { building: { condominiumId: cid } }, include: { building: true }, orderBy: [{ building: { name: "asc" } }, { number: "asc" }] }),
     // Só prestadores ativos — mais o atual da OS, para a seleção não perder o valor
-    db.user.findMany({ where: { condominiumId: cid, role: "provider", OR: [{ status: "active" }, { id: o.assignedToId ?? "__none__" }] }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { ...inCondo(cid, ["provider"]), OR: [{ status: "active" }, { id: o.assignedToId ?? "__none__" }] }, orderBy: { name: "asc" } }),
   ]);
 
   return (

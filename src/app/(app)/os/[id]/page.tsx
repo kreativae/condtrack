@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { activateMembership } from "@/lib/memberships";
 import Link from "next/link";
 import { ArrowLeft, CalendarClock, Pencil, Check, Clock, MapPin, Package, Star, Tag, User as UserIcon } from "lucide-react";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { requireUser } from "@/lib/auth";
 import { locationLabel } from "@/lib/orders";
 import { can, canDeleteMedia, canView, FLOW_STEPS, isOverdue, MAX_MEDIA_PER_PHASE, PHASE_LABEL, STATUS_META, type Phase, type Status } from "@/lib/workflow";
@@ -52,7 +54,11 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
   const { id } = await params;
   const user = await requireUser();
   const o = await load(id);
-  if (!o || !canView(o, user)) notFound();
+  if (!o) notFound();
+  // OS de outro condomínio em que a pessoa também tem vínculo (ex.: aviso por e-mail):
+  // troca o condomínio ativo e abre a OS
+  if (user.role !== "superadmin" && !user.impersonator && o.condominiumId !== user.condominiumId && (await activateMembership(user.id, o.condominiumId))) redirect(`/os/${id}`);
+  if (!canView(o, user)) notFound();
 
   const status = o.status as Status;
   const byPhase = (p: Phase) => o.media.filter((m) => m.phase === p);
@@ -74,13 +80,13 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
   // Superadmin: pessoas do condomínio (e superadmins) para corrigir os responsáveis
   const people = user.role === "superadmin"
     ? await db.user.findMany({
-        where: { OR: [{ condominiumId: o.condominiumId }, { role: "superadmin" }] },
+        where: { OR: [inCondo(o.condominiumId), { role: "superadmin" }] },
         select: { id: true, name: true, role: true },
         orderBy: { name: "asc" },
       })
     : [];
   const providers = can("assign", o, user)
-    ? await db.user.findMany({ where: { role: "provider", status: "active", condominiumId: o.condominiumId }, select: { id: true, name: true, company: true, specialty: true }, orderBy: { name: "asc" } })
+    ? await db.user.findMany({ where: { ...inCondo(o.condominiumId, ["provider"]), status: "active" }, select: { id: true, name: true, company: true, specialty: true }, orderBy: { name: "asc" } })
     : [];
 
   // Índice da última etapa alcançada; a seguinte é a etapa corrente.

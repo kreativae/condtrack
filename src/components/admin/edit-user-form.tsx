@@ -34,9 +34,11 @@ type Props = {
   units: { id: string; label: string; condominiumId: string }[];
   /** Superadmin editando: pode conceder permissões extras ao síndico. */
   canGrant?: boolean;
+  /** Superadmin: outros condomínios do usuário (além do principal). */
+  memberships?: { condominiumId: string; role: string; permissions: string }[];
 };
 
-export function EditUserForm({ user, roles, condos, units, self, canGrant }: Props) {
+export function EditUserForm({ user, roles, condos, units, self, canGrant, memberships }: Props) {
   const [state, form, pending] = useFormSubmit(updateUser.bind(null, user.id));
   const [role, setRole] = useState<Role>(user.role);
   const [condo, setCondo] = useState(user.condominiumId ?? condos?.[0]?.id ?? "");
@@ -142,6 +144,10 @@ export function EditUserForm({ user, roles, condos, units, self, canGrant }: Pro
         </section>
       )}
 
+      {canGrant && !self && role !== "superadmin" && condos && (
+        <ExtraMemberships initial={memberships ?? []} condos={condos.filter((c) => c.id !== condo)} />
+      )}
+
       {state?.error && <Alert>{state.error}</Alert>}
       {state?.message && <Alert tone="ok">{state.message}</Alert>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
@@ -149,5 +155,57 @@ export function EditUserForm({ user, roles, condos, units, self, canGrant }: Pro
         <SubmitButton pending={pending} pendingText="Salvando…">Salvar alterações</SubmitButton>
       </div>
     </form>
+  );
+}
+
+const MEMBER_ROLES: Role[] = ["syndic", "caretaker", "provider", "council", "resident"];
+
+/** Outros condomínios do usuário (síndico profissional, prestador de vários prédios…). */
+function ExtraMemberships({ initial, condos }: { initial: { condominiumId: string; role: string; permissions: string }[]; condos: { id: string; name: string }[] }) {
+  const [rows, setRows] = useState(initial.filter((r) => condos.some((c) => c.id === r.condominiumId)));
+  const free = condos.filter((c) => !rows.some((r) => r.condominiumId === c.id));
+  const set = (i: number, patch: Partial<(typeof rows)[number]>) => setRows((x) => x.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  const togglePerm = (i: number, p: string) => {
+    const cur = rows[i].permissions.split(",").filter(Boolean);
+    set(i, { permissions: (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]).join(",") });
+  };
+
+  return (
+    <section className="space-y-3 border-t border-line pt-6">
+      <input type="hidden" name="membershipsForm" value="1" />
+      <input type="hidden" name="memberships" value={JSON.stringify(rows)} />
+      <div>
+        <h2 className="font-display text-base font-semibold">Outros condomínios</h2>
+        <p className="text-xs text-muted">Para síndico profissional ou prestador que atende vários prédios. A pessoa troca de condomínio pelo cartão no menu.</p>
+      </div>
+      {rows.map((r, i) => (
+        <div key={r.condominiumId} className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+          <div className="grid gap-2 sm:grid-cols-[1fr_11rem_auto]">
+            <Select value={r.condominiumId} onChange={(e) => set(i, { condominiumId: e.target.value })} aria-label="Condomínio">
+              {[...condos.filter((c) => c.id === r.condominiumId), ...free].map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+            <Select value={r.role} onChange={(e) => set(i, { role: e.target.value, permissions: e.target.value === "syndic" ? r.permissions : "" })} aria-label="Perfil neste condomínio">
+              {MEMBER_ROLES.map((k) => <option key={k} value={k}>{ROLE_LABEL[k]}</option>)}
+            </Select>
+            <button type="button" onClick={() => setRows((x) => x.filter((_, k) => k !== i))} className="h-10 rounded-xl px-3 text-sm text-bad hover:bg-bad/10">Remover</button>
+          </div>
+          {r.role === "syndic" && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 px-1">
+              {PERMISSION_KEYS.map((p) => (
+                <label key={p} className="flex items-center gap-2 text-xs text-fg-2">
+                  <input type="checkbox" checked={r.permissions.split(",").includes(p)} onChange={() => togglePerm(i, p)} className="size-3.5 accent-[var(--brand)]" />
+                  {SYNDIC_PERMISSIONS[p].label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {free.length > 0 && (
+        <button type="button" onClick={() => setRows((x) => [...x, { condominiumId: free[0].id, role: "syndic", permissions: "" }])} className="text-sm font-medium text-brand hover:underline">
+          + Adicionar condomínio
+        </button>
+      )}
+    </section>
   );
 }

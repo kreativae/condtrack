@@ -17,6 +17,7 @@ import { sendEmailChangedNotice } from "@/lib/account-email";
 import { HOUSE_NOUNS, aptNumber, houseNumbers, isHouseNoun, isLayout, type HouseNoun, type Layout } from "@/lib/units";
 import { DEFAULT_CHECKLIST } from "@/lib/checklist";
 import { PERMISSION_KEYS, type Permission } from "@/lib/permissions";
+import { inCondo, setMemberships } from "@/lib/memberships";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
 async function emailAccess(user: { name: string; email: string; role: string }, secret: string, kind: "invite" | "reset") {
@@ -43,10 +44,16 @@ function tempPassword() {
 }
 
 /** Verifica se `me` pode gerenciar o usuário alvo. */
-function canManage(me: CurrentUser, target: { role: string; condominiumId: string | null; id: string }) {
+/**
+ * Superadmin gerencia todos. O síndico só quem tem vínculo APENAS com o condomínio dele
+ * (quem atende vários prédios — síndico profissional, prestador — é gerenciado pelo superadmin).
+ */
+async function canManage(me: CurrentUser, target: { id: string }) {
   if (target.id === me.id) return false;
   if (me.role === "superadmin") return true;
-  return me.role === "syndic" && target.condominiumId === me.condominiumId && MANAGEABLE_ROLES.syndic.includes(target.role as Role);
+  if (me.role !== "syndic" || !me.condominiumId) return false;
+  const ms = await db.membership.findMany({ where: { userId: target.id }, select: { condominiumId: true, role: true } });
+  return ms.length === 1 && ms[0].condominiumId === me.condominiumId && MANAGEABLE_ROLES.syndic.includes(ms[0].role as Role);
 }
 
 // ───────────────────────────── Usuários ─────────────────────────────
@@ -84,6 +91,7 @@ export async function createUser(_: AdminState, form: FormData): Promise<AdminSt
       units: (d.role === "council" || d.role === "resident") && d.unitId ? { create: { unitId: d.unitId, role: d.unitRole ?? "owner" } } : undefined,
     },
   });
+  if (condominiumId) await db.membership.create({ data: { userId: user.id, condominiumId, role: d.role } });
   await audit(me, "create", "user", user.id, { new: { name: d.name, email: d.email, role: d.role }, condominiumId });
   revalidatePath("/usuarios");
   revalidatePath("/admin/usuarios");
@@ -99,7 +107,7 @@ export async function createUser(_: AdminState, form: FormData): Promise<AdminSt
 export async function toggleUserStatus(id: string) {
   const me = await requireUser("superadmin", "syndic");
   const u = await db.user.findUnique({ where: { id } });
-  if (!u || !canManage(me, u)) return;
+  if (!u || !(await canManage(me, u))) return;
   const status = u.status === "active" ? "inactive" : "active";
   await db.user.update({ where: { id }, data: { status } });
   await audit(me, status === "active" ? "activate" : "deactivate", "user", id, { old: { status: u.status }, new: { status }, condominiumId: u.condominiumId });
@@ -110,7 +118,7 @@ export async function toggleUserStatus(id: string) {
 export async function resetPassword(id: string, _prev: AdminState): Promise<AdminState> {
   const me = await requireUser("superadmin", "syndic");
   const u = await db.user.findUnique({ where: { id } });
-  if (!u || !canManage(me, u)) return { error: "Ação não permitida." };
+  if (!u || !(await canManage(me, u))) return { error: "Ação não permitida." };
   const secret = tempPassword();
   await db.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(secret, 10), failedLogins: 0, lockedUntil: null } });
   await audit(me, "reset_password", "user", id, { condominiumId: u.condominiumId });
@@ -212,7 +220,7 @@ async function removeUser(me: CurrentUser, u: { id: string; name: string; role: 
 }
 
 async function checkRemovable(me: CurrentUser, u: { id: string; role: string; status: string; condominiumId: string | null; email: string }) {
-  if (!canManage(me, u)) return "Você não pode excluir este usuário.";
+  if (!(await canManage(me, u))) return "Você não pode excluir este usuário.";
   if (u.status !== "inactive") return "Desative o acesso antes de excluir.";
   if (u.role === "superadmin" && (await db.user.count({ where: { role: "superadmin", status: "active" } })) < 1) return "O sistema precisa de ao menos um superadmin ativo.";
   return null;
@@ -238,7 +246,7 @@ export async function deleteInactiveUsers(_prev: AdminState, form: FormData): Pr
     where: {
       status: "inactive",
       NOT: { id: me.id },
-      ...(me.role === "syndic" ? { condominiumId: me.condominiumId, role: { in: MANAGEABLE_ROLES.syndic } } : {}),
+      ...(me.role === "syndic" ? inCondo(me.condominiumId!, MANAGEABLE_ROLES.syndic) : {}),
     },
   });
   let deleted = 0;
@@ -262,7 +270,7 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
   if (!u) return { error: "Usuário não encontrado." };
   // O superadmin pode editar os próprios dados; perfil, status e condomínio ficam como estão
   const self = u.id === me.id && me.role === "superadmin";
-  if (!self && !canManage(me, u)) return { error: "Você não pode editar este usuário." };
+  if (!self && !(await canManage(me, u))) return { error: "Você não pode editar este usuário." };
 
   const parsed = editUserSchema.safeParse(Object.fromEntries([...form.entries()].filter(([, v]) => v !== "")));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -303,6 +311,24 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
   const currentUnit = u.units[0];
   const unitChanged = (livesInUnit ? d.unitId ?? null : null) !== (currentUnit?.unitId ?? null) || (livesInUnit && d.unitId && (d.unitRole ?? "owner") !== currentUnit?.role);
 
+  // Outros condomínios (vínculos extras): só o superadmin define
+  let extras: { condominiumId: string; role: string; permissions: string }[] | null = null;
+  if (me.role === "superadmin" && !self && form.get("membershipsForm") === "1") {
+    try {
+      const raw = JSON.parse(String(form.get("memberships") ?? "[]")) as { condominiumId?: unknown; role?: unknown; permissions?: unknown }[];
+      const condoIds = new Set((await db.condominium.findMany({ select: { id: true } })).map((c) => c.id));
+      extras = raw
+        .filter((m) => typeof m.condominiumId === "string" && condoIds.has(m.condominiumId) && m.condominiumId !== condominiumId && typeof m.role === "string" && (ROLES as readonly string[]).includes(m.role) && m.role !== "superadmin")
+        .map((m) => ({
+          condominiumId: m.condominiumId as string,
+          role: m.role as string,
+          permissions: m.role === "syndic" && typeof m.permissions === "string" ? m.permissions.split(",").filter((p) => PERMISSION_KEYS.includes(p as Permission)).join(",") : "",
+        }));
+    } catch {
+      return { error: "Vínculos inválidos." };
+    }
+  }
+
   await db.$transaction([
     db.user.update({ where: { id }, data }),
     // Vínculo com unidade: só conselho/morador; troca de condomínio ou perfil limpa
@@ -313,6 +339,13 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
         ]
       : []),
   ]);
+
+  // Vínculos: o condomínio/perfil do formulário é o vínculo principal (ativo); superadmin não tem vínculos
+  if (data.role === "superadmin") await db.membership.deleteMany({ where: { userId: id } });
+  else if (condominiumId) {
+    const others = extras ?? (await db.membership.findMany({ where: { userId: id, condominiumId: { not: condominiumId } }, select: { condominiumId: true, role: true, permissions: true } }));
+    await setMemberships(id, [{ condominiumId, role: data.role, permissions: data.permissions }, ...others], condominiumId);
+  }
 
   const before = { name: u.name, email: u.email, role: u.role, phone: u.phone, cpf: u.cpf, company: u.company, specialty: u.specialty, condominiumId: u.condominiumId, status: u.status, permissions: u.permissions, unitId: currentUnit?.unitId ?? null };
   const after = { ...data, unitId: livesInUnit ? d.unitId ?? null : null };

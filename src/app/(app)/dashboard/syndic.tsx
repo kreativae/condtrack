@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import type { CurrentUser } from "@/lib/auth";
 import { fmtHours, orderMetrics } from "@/lib/metrics";
 import { orderListInclude } from "@/lib/orders";
@@ -26,7 +27,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
     db.serviceOrder.groupBy({ by: ["assignedToId"], where: { ...where, assignedToId: { not: null } }, _count: true }),
     db.serviceCategory.findMany({ where }),
     db.commonArea.findMany({ where }),
-    db.user.findMany({ where: { condominiumId: cid, role: "provider" }, select: { id: true, name: true } }),
+    db.user.findMany({ where: inCondo(cid, ["provider"]), select: { id: true, name: true } }),
   ]);
   const name = (list: { id: string; name: string }[], id: string | null) => list.find((x) => x.id === id)?.name ?? "Sem categoria";
   const top = <T,>(rows: (T & { _count: number })[], key: (r: T) => string) =>

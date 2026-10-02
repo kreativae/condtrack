@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { inCondo } from "@/lib/memberships";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
@@ -310,7 +311,7 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /** Autor escolhido: alguém do condomínio (ou um superadmin). */
 async function authorFor(condominiumId: string, userId: string) {
-  const u = await db.user.findFirst({ where: { id: userId, OR: [{ condominiumId }, { role: "superadmin" }] }, select: { id: true, name: true } });
+  const u = await db.user.findFirst({ where: { id: userId, OR: [inCondo(condominiumId), { role: "superadmin" }] }, select: { id: true, name: true } });
   if (!u) throw new Error("Escolha quem fez.");
   return u;
 }

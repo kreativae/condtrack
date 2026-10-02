@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { inCondo } from "./memberships";
 import { appUrl } from "./url";
 
 export { appUrl };
@@ -78,7 +79,7 @@ export async function ensureCustomer(condominiumId: string) {
   const condo = await db.condominium.findUniqueOrThrow({ where: { id: condominiumId }, include: { subscription: true } });
   if (condo.subscription?.stripeCustomerId) return condo.subscription.stripeCustomerId;
 
-  const syndic = await db.user.findFirst({ where: { condominiumId, role: "syndic", status: "active" } });
+  const syndic = await db.user.findFirst({ where: { ...inCondo(condominiumId, ["syndic"]), status: "active" } });
   const customer = await (await stripe()).customers.create({
     name: condo.name,
     email: condo.email ?? syndic?.email ?? undefined,
