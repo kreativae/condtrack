@@ -9,6 +9,7 @@ import { nowMs } from "@/lib/format";
 import { addDays, fmtDay, isDue, spNow } from "@/lib/checklist";
 import { dayItemsForUi } from "@/lib/checklist-server";
 import { ChecklistToday } from "@/components/checklist/today";
+import { DayGallery, DayNotes, type DayPhoto } from "@/components/checklist/day-notes";
 import { LinkButton, PageHeader, Select, buttonClass, cx } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Checklist" };
@@ -31,11 +32,34 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
   const from = addDays(today, -(DAYS - 1));
 
   // Resumo dos últimos dias: itens devidos (ou conferidos) em cada data
-  const [items, checks, day] = await Promise.all([
+  const [items, checks, day, notes] = await Promise.all([
     db.checklistItem.findMany({ where: { condominiumId }, select: { id: true, active: true, frequency: true, weekdays: true, createdAt: true } }),
     db.checklistCheck.findMany({ where: { condominiumId, date: { gte: from, lte: today } }, select: { itemId: true, date: true, status: true } }),
     dayItemsForUi(condominiumId, date),
+    db.checklistNote.findMany({ where: { condominiumId, date }, orderBy: { createdAt: "desc" } }),
   ]);
+  const notePhotos = (json: string) => {
+    try {
+      const v = JSON.parse(json);
+      return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  };
+  const dayNotes = notes.map((n) => ({
+    id: n.id,
+    text: n.text,
+    photos: notePhotos(n.photos),
+    by: n.userName,
+    at: n.createdAt.toISOString(),
+    // Quem escreveu, o síndico ou o superadmin
+    deletable: n.userId === user.id || user.role !== "caretaker",
+  }));
+  // Galeria: fotos das conferências + das anotações, em ordem de horário
+  const gallery: DayPhoto[] = [
+    ...day.filter((i) => i.check?.photoUrl).map((i) => ({ id: `c-${i.id}`, url: i.check!.photoUrl!, caption: i.title, by: i.check!.by, at: i.check!.at })),
+    ...dayNotes.flatMap((n) => n.photos.map((url, k) => ({ id: `n-${n.id}-${k}`, url, caption: "Anotação do dia", by: n.by, at: n.at }))),
+  ].sort((a, b) => a.at.localeCompare(b.at));
   const summary = Array.from({ length: DAYS }, (_, i) => {
     const d = addDays(today, -i);
     const dayChecks = checks.filter((c) => c.date === d);
@@ -83,13 +107,17 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
         })}
       </div>
 
-      <div className="max-w-2xl">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
         <ChecklistToday
           items={day}
           canCheck={date === today}
           condominiumId={condominiumId}
           title={date === today ? "Checklist de hoje" : `Checklist de ${fmtDay(date)}`}
         />
+        <div className="space-y-6">
+          <DayNotes notes={dayNotes} condominiumId={condominiumId} date={date} canWrite />
+          <DayGallery photos={gallery} />
+        </div>
       </div>
     </div>
   );

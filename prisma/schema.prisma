@@ -50,6 +50,7 @@ model Condominium {
   payments       Payment[]
   checklistItems ChecklistItem[]
   financeEntries FinanceEntry[]
+  checklistNotes ChecklistNote[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -118,6 +119,7 @@ model User {
   financeUpdated     FinanceEntry[]      @relation("financeUpdatedBy")
   financeAttachments FinanceAttachment[]
   financeLogs        FinanceLog[]
+  checklistNotes     ChecklistNote[]
 }
 
 /// role: owner | tenant | dependent
@@ -527,4 +529,21 @@ model FinanceLog {
 
   @@index([entryId, createdAt])
   @@index([condominiumId, createdAt])
+}
+
+/// Anotação do dia no checklist (texto e fotos), por condomínio. date = YYYY-MM-DD (Brasília).
+/// photos = JSON com as URLs (/api/media/checklist-<condomínio>/…). userName guarda o autor mesmo após exclusão.
+model ChecklistNote {
+  id            String      @id @default(cuid())
+  condominiumId String
+  date          String
+  text          String      @default("")
+  photos        String      @default("[]")
+  userId        String?
+  userName      String
+  createdAt     DateTime    @default(now())
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([condominiumId, date])
 }

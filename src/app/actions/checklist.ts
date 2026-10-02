@@ -7,7 +7,7 @@ import { requireUser, type CurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { nextProtocol } from "@/lib/orders";
-import { readStored, saveFile } from "@/lib/storage";
+import { deleteFile, readStored, saveFile } from "@/lib/storage";
 import { PRIORITY_META, type Priority } from "@/lib/workflow";
 import { FREQUENCIES, isDue, parseDays, spNow } from "@/lib/checklist";
 
@@ -236,4 +236,59 @@ export async function uncheckItem(itemId: string, _prev: ChecklistState): Promis
   } catch (e) {
     return fail(e);
   }
+}
+
+// ───────────────────────────── Anotações do dia (zelador, síndico, superadmin) ─────────────────────────────
+
+const MAX_NOTE_PHOTOS = 8;
+
+/** Quem pode anotar no checklist deste condomínio. */
+async function noter(condominiumId: string) {
+  const user = await requireUser("caretaker", "syndic", "superadmin");
+  if (user.role !== "superadmin" && user.condominiumId !== condominiumId) throw new Error("Sem permissão para este condomínio.");
+  return user;
+}
+
+/** Nova anotação (texto e/ou fotos) num dia do checklist — hoje ou um dia anterior. */
+export async function addChecklistNote(condominiumId: string, date: string, _prev: ChecklistState, form: FormData): Promise<ChecklistState> {
+  try {
+    const user = await noter(condominiumId);
+    const today = spNow(Date.now()).date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) return { error: "Data inválida." };
+    const text = String(form.get("text") ?? "").trim().slice(0, 2000);
+    let photos: string[] = [];
+    try {
+      photos = JSON.parse(String(form.get("photos") ?? "[]"));
+    } catch {
+      return { error: "Fotos inválidas." };
+    }
+    const prefix = `/api/media/checklist-${condominiumId}/`;
+    if (!Array.isArray(photos) || photos.length > MAX_NOTE_PHOTOS || photos.some((p) => typeof p !== "string" || !p.startsWith(prefix))) return { error: "Fotos inválidas." };
+    if (!text && !photos.length) return { error: "Escreva algo ou anexe uma foto." };
+    const note = await db.checklistNote.create({
+      data: { condominiumId, date, text, photos: JSON.stringify(photos), userId: user.id, userName: user.name },
+    });
+    await audit(user, "create", "checklist_note", note.id, { new: { date, photos: photos.length }, condominiumId });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/checklist");
+  return { ok: true, message: "Anotação registrada." };
+}
+
+/** Exclui uma anotação: quem escreveu, o síndico ou o superadmin. */
+export async function deleteChecklistNote(id: string) {
+  const note = await db.checklistNote.findUnique({ where: { id } });
+  if (!note) return;
+  const user = await noter(note.condominiumId);
+  if (note.userId !== user.id && user.role === "caretaker") throw new Error("Só quem escreveu pode excluir.");
+  await db.checklistNote.delete({ where: { id } });
+  // As fotos da anotação saem do armazenamento junto
+  try {
+    for (const url of JSON.parse(note.photos) as string[]) await deleteFile(url);
+  } catch {
+    // JSON antigo/inválido: nada a apagar
+  }
+  await audit(user, "delete", "checklist_note", id, { old: { date: note.date, text: note.text.slice(0, 200) }, condominiumId: note.condominiumId });
+  revalidatePath("/checklist");
 }
