@@ -85,6 +85,8 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
     : q(date, { cal: "1", mes: date.slice(0, 7) });
   const manage = user.role === "caretaker" ? null : admin ? `/admin/condominios/${condominiumId}/estrutura?tab=checklist` : "/estrutura?tab=checklist";
 
+  const calendar = cal && <MonthCalendar mes={mes} today={today} selected={date} stat={stat} notes={noteDays} href={(d) => q(d)} monthHref={(m) => q(date, { mes: m })} />;
+
   return (
     <div className="animate-in">
       {admin && <RememberCondo id={condominiumId} />}
@@ -109,7 +111,7 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
       )}
 
       {cal ? (
-        <MonthCalendar mes={mes} today={today} selected={date} stat={stat} notes={noteDays} href={(d) => q(d)} monthHref={(m) => q(date, { mes: m })} />
+        <div className="mb-6 lg:hidden">{calendar}</div>
       ) : (
       <div className="no-scrollbar -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         {summary.map((s) => {
@@ -139,6 +141,7 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
           title={date === today ? "Checklist de hoje" : `Checklist de ${fmtDay(date)}`}
         />
         <div className="space-y-6">
+          {cal && <div className="hidden lg:block">{calendar}</div>}
           <DayNotes notes={dayNotes} condominiumId={condominiumId} date={date} canWrite />
           <DayGallery photos={gallery} />
         </div>
@@ -160,7 +163,7 @@ function prevMonth(mes: string) {
 
 type DayStat = { d: string; due: number; done: number; issues: number };
 
-/** Mês em grade: cada dia colorido pela situação do checklist; clicar abre o dia. */
+/** Calendário compacto: número do dia + ponto da situação; clicar abre o dia. */
 function MonthCalendar({ mes, today, selected, stat, notes, href, monthHref }: {
   mes: string;
   today: string;
@@ -176,56 +179,58 @@ function MonthCalendar({ mes, today, selected, stat, notes, href, monthHref }: {
   for (let d = first; d.startsWith(mes); d = addDays(d, 1)) days.push(d);
   const [y, m] = mes.split("-").map(Number);
   const canNext = nextMonth(mes) <= today.slice(0, 7);
-  const tally = { ok: 0, bad: 0, warn: 0 };
-
-  const cells = days.map((d) => {
-    const future = d > today;
-    const s = future ? null : stat(d);
-    const complete = !!s && s.due > 0 && s.done >= s.due;
-    const tone = !s || !s.due ? "none" : s.issues ? "warn" : complete ? "ok" : d < today ? "bad" : "open";
-    if (tone === "ok") tally.ok++;
-    if (tone === "bad") tally.bad++;
-    if (tone === "warn") tally.warn++;
-    const body = (
-      <>
-        <span className={cx("text-xs font-medium", d === today ? "text-brand" : "text-fg-2")}>{Number(d.slice(8))}</span>
-        <span className={cx("mt-auto font-num text-[11px] font-semibold tabular-nums sm:text-xs", tone === "ok" ? "text-ok" : tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "text-muted")}>
-          {s?.due ? `${s.done}/${s.due}` : future ? "" : "—"}
-        </span>
-        {notes.has(d) && <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-brand" title="Tem anotações" />}
-      </>
-    );
-    const cls = cx(
-      "relative flex aspect-square min-h-12 flex-col rounded-xl border p-1.5 text-left transition sm:aspect-[4/3] sm:p-2",
-      d === selected ? "border-brand ring-2 ring-brand/30" : "border-line",
-      tone === "ok" ? "bg-ok/8" : tone === "bad" ? "bg-bad/8" : tone === "warn" ? "bg-warn/10" : "bg-surface",
-      future ? "opacity-40" : "hover:border-line-strong hover:shadow-card",
-    );
-    return future ? <div key={d} className={cls}>{body}</div> : <Link key={d} href={href(d)} className={cls} aria-label={`Abrir ${d.split("-").reverse().join("/")}`}>{body}</Link>;
-  });
+  const arrow = "inline-flex size-7 items-center justify-center rounded-lg text-muted transition hover:bg-bg-2 hover:text-fg";
+  const DOT = { ok: "bg-ok", bad: "bg-bad", warn: "bg-warn", open: "bg-muted/50", none: "" } as const;
 
   return (
-    <div className="mb-6 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Link href={monthHref(prevMonth(mes))} className={buttonClass("outline", "sm")} aria-label="Mês anterior"><ChevronLeft className="size-4" /></Link>
-        <p className="min-w-36 text-center font-display text-lg font-semibold">{MONTHS[m - 1]} de {y}</p>
+    <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+      <div className="mb-3 flex items-center gap-1">
+        <p className="mr-auto text-sm font-semibold">{MONTHS[m - 1]} <span className="font-normal text-muted">{y}</span></p>
+        {mes !== today.slice(0, 7) && <Link href={monthHref(today.slice(0, 7))} className="mr-1 text-xs font-medium text-brand hover:underline">Hoje</Link>}
+        <Link href={monthHref(prevMonth(mes))} className={arrow} aria-label="Mês anterior"><ChevronLeft className="size-4" /></Link>
         {canNext ? (
-          <Link href={monthHref(nextMonth(mes))} className={buttonClass("outline", "sm")} aria-label="Próximo mês"><ChevronRight className="size-4" /></Link>
+          <Link href={monthHref(nextMonth(mes))} className={arrow} aria-label="Próximo mês"><ChevronRight className="size-4" /></Link>
         ) : (
-          <span className={cx(buttonClass("outline", "sm"), "pointer-events-none opacity-40")}><ChevronRight className="size-4" /></span>
+          <span className={cx(arrow, "pointer-events-none opacity-30")}><ChevronRight className="size-4" /></span>
         )}
-        {mes !== today.slice(0, 7) && <Link href={monthHref(today.slice(0, 7))} className={buttonClass("ghost", "sm")}>Este mês</Link>}
-        <div className="ml-auto flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
-          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-ok" />{tally.ok} completo(s)</span>
-          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-bad" />{tally.bad} incompleto(s)</span>
-          <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-warn" />{tally.warn} com problema</span>
-          <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-brand" />anotações</span>
-        </div>
       </div>
-      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
-        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((w) => <p key={w} className="pb-1 text-center text-[11px] font-medium text-muted">{w}</p>)}
-        {Array.from({ length: lead }, (_, i) => <div key={`e${i}`} />)}
-        {cells}
+
+      <div className="grid grid-cols-7 gap-y-0.5 text-center">
+        {["D", "S", "T", "Q", "Q", "S", "S"].map((w, i) => <p key={i} className="pb-1.5 text-[10px] font-medium text-muted">{w}</p>)}
+        {Array.from({ length: lead }, (_, i) => <span key={`e${i}`} />)}
+        {days.map((d) => {
+          const future = d > today;
+          const s = future ? null : stat(d);
+          const complete = !!s && s.due > 0 && s.done >= s.due;
+          const tone = !s || !s.due ? "none" : s.issues ? "warn" : complete ? "ok" : d < today ? "bad" : "open";
+          const sel = d === selected;
+          const label = s?.due ? `${s.done} de ${s.due} conferidos${s.issues ? ` · ${s.issues} com problema` : ""}` : "Sem itens";
+          const inner = (
+            <>
+              <span className={cx("flex size-8 items-center justify-center rounded-full text-xs tabular-nums transition", sel ? "bg-brand font-semibold text-brand-ink" : d === today ? "font-semibold text-brand ring-1 ring-brand/40" : "text-fg-2", !future && !sel && "group-hover:bg-bg-2")}>
+                {Number(d.slice(8))}
+              </span>
+              <span className="flex h-1.5 items-center gap-0.5">
+                {tone !== "none" && <span className={cx("size-1 rounded-full", DOT[tone])} />}
+                {notes.has(d) && <span className="size-1 rounded-full bg-brand" />}
+              </span>
+            </>
+          );
+          return future ? (
+            <span key={d} className="flex flex-col items-center opacity-30">{inner}</span>
+          ) : (
+            <Link key={d} href={href(d)} title={`${d.split("-").reverse().join("/")} · ${label}${notes.has(d) ? " · com anotações" : ""}`} className="group flex flex-col items-center">
+              {inner}
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 border-t border-line pt-3 text-[10px] text-muted">
+        <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-ok" />Completo</span>
+        <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-bad" />Incompleto</span>
+        <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-warn" />Problema</span>
+        <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-brand" />Anotação</span>
       </div>
     </div>
   );
