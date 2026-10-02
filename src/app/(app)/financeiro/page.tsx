@@ -13,7 +13,8 @@ import { FIN_STATUS, FIN_TYPES, LOG_LABEL, dateToDay, fmtBRL, fmtDayBR, type Fin
 import { setCouncilFinanceAccess } from "@/app/actions/finance";
 import { ExportButton } from "./export-button";
 import { ReportDialog } from "./report-dialog";
-import { ADMIN_CONDO_COOKIE, RememberCondo } from "@/components/remember-condo";
+import { RememberCondo } from "@/components/remember-condo";
+import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 import { Badge, Card, CardHeader, Empty, Input, LinkButton, PageHeader, Select, Stat, buttonClass, cx } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Financeiro" };

@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { nowMs } from "@/lib/format";
 import { NAV } from "@/lib/nav";
 import { showFinanceNav } from "@/lib/finance-server";
+import { adminScope } from "@/lib/admin-scope-server";
+import { CondoSwitcher } from "@/components/condo-switcher";
 import { ROLE_LABEL } from "@/lib/roles";
 import { logout, stopImpersonating } from "@/app/actions/auth";
 import { SideNav, MobileNav, MenuButton, NAV_PINS_COOKIE } from "@/components/nav-links";
@@ -38,6 +40,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const pinCookie = jar.get(NAV_PINS_COOKIE)?.value;
   const pins = pinCookie === undefined ? null : safeDecode(pinCookie).split(",").filter((h) => items.some((i) => i.href === h));
   const place = user.condominium?.name ?? "Todos os condomínios";
+  // Superadmin: seletor do condomínio em foco (vale para as páginas que filtram por condomínio)
+  const [scope, scopeList] = user.role === "superadmin" && !user.impersonator
+    ? await Promise.all([adminScope(user), db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })])
+    : [null, null];
 
   // Aviso de cobrança para o síndico (pagamento falhou ou teste acabando)
   // full: notebook/desktop · short: celular (a faixa tem altura fixa de uma linha)
@@ -64,6 +70,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <Logo />
         </Link>
 
+        {scopeList ? (
+          <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={scopeList} current={scope} /></div>
+        ) : (
         <div className="mx-1 mb-4 mt-6 flex items-center gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
             <Building2 className="size-4" strokeWidth={1.8} />
@@ -73,6 +82,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <p className="truncate text-[11px] text-muted">{user.condominium ? ROLE_LABEL[user.role] : "Plataforma"}</p>
           </div>
         </div>
+        )}
 
         <SideNav items={items} customized={customized} />
 
@@ -139,7 +149,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-8 lg:pb-16">{children}</main>
       </div>
-      <MobileNav items={items} customized={customized} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
+      <MobileNav items={items} customized={customized} condos={scopeList ? { list: scopeList, current: scope } : undefined} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
     </div>
   );
 }

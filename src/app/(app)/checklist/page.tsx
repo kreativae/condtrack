@@ -4,7 +4,8 @@ import { CalendarDays, ChevronLeft, ChevronRight, Rows3, Settings2 } from "lucid
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
 import { requireUser } from "@/lib/auth";
-import { ADMIN_CONDO_COOKIE, RememberCondo } from "@/components/remember-condo";
+import { RememberCondo } from "@/components/remember-condo";
+import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 import { nowMs } from "@/lib/format";
 import { addDays, fmtDay, isDue, spNow } from "@/lib/checklist";
 import { dayItemsForUi } from "@/lib/checklist-server";

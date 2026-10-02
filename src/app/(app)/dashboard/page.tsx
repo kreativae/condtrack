@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
+import { adminScope } from "@/lib/admin-scope-server";
 import { SuperadminDashboard } from "./superadmin";
 import { SyndicDashboard } from "./syndic";
 import { CaretakerDashboard } from "./caretaker";
@@ -14,7 +15,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const welcome = (await searchParams)["bem-vindo"] === "1";
   switch (user.role) {
     case "superadmin":
-      return <SuperadminDashboard user={user} welcome={welcome} />;
+      return <SuperadminDashboard user={user} welcome={welcome} scope={await adminScope(user)} />;
     case "syndic":
       return <SyndicDashboard user={user} />;
     case "caretaker":

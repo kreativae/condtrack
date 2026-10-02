@@ -47,7 +47,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Relatório financeiro: `FinanceReportPanel` (`financeiro/report-dialog.tsx`) é usado na janela do Financeiro e em
   Relatórios; filtros na URL (`de`/`ate`, `tipo`, `situacao`, `cats` separado por `|`) lidos por `financePeriod()` e
   `financeReportFilter()`. PDF em `/relatorio/financeiro` (`imprimir=1` abre a janela de salvar), CSV em `/api/financeiro/exportar`.
-  Superadmin: o último condomínio aberto (Financeiro e Checklist) fica no cookie `sa_condo` (`?trocar=1` volta à escolha).
+  Superadmin: condomínio em foco no cookie `sa_condo` (`lib/admin-scope*.ts`), escolhido no cartão do menu (`CondoSwitcher`)
+  ou ao abrir um condomínio no Financeiro/Checklist. Dashboard, OS, Feed, Usuários, Auditoria e Relatórios respeitam
+  (`adminScope(user)`); vazio = todos. Não importe constantes de arquivos "use client" em código de servidor.
 - **Ordem do menu**: cada usuário segura e arrasta os itens (desktop e celular, `useReorder` em `nav-links.tsx`); a ordem fica em
   `User.navOrder` (salva por `app/actions/nav.ts`) e o layout aplica. Páginas novas entram no fim da ordem salva.
 - **Painel personalizável**: ícone de ajustes no cabeçalho do dashboard (todos menos morador). Blocos de cada perfil em

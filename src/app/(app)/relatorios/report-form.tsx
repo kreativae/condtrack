@@ -7,14 +7,14 @@ import { Field, Input, Select, buttonClass } from "@/components/ui";
 type Preset = { key: string; label: string };
 
 /** Escolha do período; o relatório abre numa nova aba, pronto para salvar em PDF. */
-export function ReportForm({ presets, condos, today }: { presets: readonly Preset[]; condos: { id: string; name: string }[] | null; today: string }) {
+export function ReportForm({ presets, condos, today, defaultCondo }: { presets: readonly Preset[]; condos: { id: string; name: string }[] | null; today: string; defaultCondo?: string }) {
   const [periodo, setPeriodo] = useState("mes-anterior");
   const custom = periodo === "personalizado";
   return (
     <form action="/relatorio" target="_blank" className="space-y-5 p-5 sm:p-6">
       {condos && (
         <Field label="Condomínio">
-          <Select name="condo" required defaultValue="">
+          <Select name="condo" required defaultValue={defaultCondo ?? ""}>
             <option value="" disabled>Selecione…</option>
             {condos.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>

@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-
-/** Último condomínio aberto pelo superadmin (Financeiro, Checklist), neste aparelho. */
-export const ADMIN_CONDO_COOKIE = "sa_condo";
+import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 
 /** Superadmin: lembra o último condomínio aberto. */
 export function RememberCondo({ id }: { id: string }) {

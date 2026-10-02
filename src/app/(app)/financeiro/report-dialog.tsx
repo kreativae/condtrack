@@ -83,16 +83,19 @@ export function FinanceReportPanel({
   categories: baseCategories,
   condoId: baseCondoId,
   condos,
+  initialCondo,
   today,
   scroll,
 }: {
   categories?: string[];
   condoId?: string;
   condos?: CondoOption[];
+  /** Superadmin: começa no condomínio em foco do menu. */
+  initialCondo?: string;
   today: string;
   scroll?: boolean;
 }) {
-  const [condoSel, setCondoSel] = useState("");
+  const [condoSel, setCondoSel] = useState(initialCondo && condos?.some((c) => c.id === initialCondo) ? initialCondo : "");
   const condo = condos?.find((c) => c.id === condoSel);
   const categories = useMemo(() => (condos ? condo?.categories ?? [] : baseCategories ?? []), [condos, condo, baseCategories]);
   const condoId = condos ? condo?.id : baseCondoId;

@@ -13,14 +13,16 @@ import type { CurrentUser } from "@/lib/auth";
 import { DashboardSettings } from "@/components/dashboard-settings";
 import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
 
-export async function SuperadminDashboard({ user, welcome }: { user: CurrentUser; welcome?: boolean }) {
+export async function SuperadminDashboard({ user, welcome, scope }: { user: CurrentUser; welcome?: boolean; scope?: { id: string; name: string } | null }) {
+  // Condomínio em foco (seletor do menu): todos os números passam a ser só dele
+  const only = scope ? { condominiumId: scope.id } : {};
   const show = dashboardVisibility(user.dashboardHidden);
   const [condos, m, users, late, subs] = await Promise.all([
-    db.condominium.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    orderMetrics({}),
-    db.user.count({ where: { status: "active" } }),
-    db.serviceOrder.findMany({ where: { status: { in: ACTIVE_STATUSES }, dueDate: { lt: new Date() } }, include: orderListInclude, orderBy: { dueDate: "asc" }, take: 6 }),
-    db.subscription.findMany({ where: { status: { in: PAYING }, cancelAtPeriodEnd: false } }),
+    db.condominium.findMany({ where: { active: true, ...(scope && { id: scope.id }) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    orderMetrics(only),
+    db.user.count({ where: { status: "active", ...only } }),
+    db.serviceOrder.findMany({ where: { status: { in: ACTIVE_STATUSES }, dueDate: { lt: new Date() }, ...only }, include: orderListInclude, orderBy: { dueDate: "asc" }, take: 6 }),
+    db.subscription.findMany({ where: { status: { in: PAYING }, cancelAtPeriodEnd: false, ...only } }),
   ]);
   const mrr = subs.reduce((a, s) => a + monthlyEquivalent(s.unitAmount ?? 0, s.interval), 0);
 
@@ -35,8 +37,9 @@ export async function SuperadminDashboard({ user, welcome }: { user: CurrentUser
   return (
     <div className="animate-in">
       <PageHeader
-        eyebrow="Superadministração"
-        title="Visão global da plataforma"
+        eyebrow={scope ? `Superadministração · ${scope.name}` : "Superadministração"}
+        title={scope ? `Visão do condomínio ${scope.name}` : "Visão global da plataforma"}
+        description={scope ? "Mostrando só este condomínio. Para ver todos, troque no cartão do menu." : undefined}
         actions={<><DashboardSettings sections={DASHBOARD_SECTIONS.superadmin} hidden={user.dashboardHidden.split(",").filter(Boolean)} /><LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton></>}
       />
       {welcome && (
@@ -52,7 +55,7 @@ export async function SuperadminDashboard({ user, welcome }: { user: CurrentUser
       {show("stats") && (
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
         <Stat label="MRR" value={brl(mrr)} tone="brand" hint={`${subs.length} pagante(s)`} />
-        <Stat label="Condomínios ativos" value={condos.length} />
+        {!scope && <Stat label="Condomínios ativos" value={condos.length} />}
         <Stat label="Usuários ativos" value={users} />
         <Stat label="OS em aberto" value={m.open} />
         <Stat label="Concluídas (30d)" value={m.approved30} tone="ok" />
@@ -60,7 +63,7 @@ export async function SuperadminDashboard({ user, welcome }: { user: CurrentUser
       </div>
       )}
 
-      {show("finance") && <FinanceSummary />}
+      {show("finance") && <FinanceSummary condominiumId={scope?.id} />}
 
       <div className={cx("grid gap-6", show("condos") && show("ranking") && "lg:grid-cols-[1.4fr_1fr]")}>
         {show("condos") && (

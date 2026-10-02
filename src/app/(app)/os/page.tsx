@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { Plus, Search } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { adminScope } from "@/lib/admin-scope-server";
 import { orderListInclude, orderScope } from "@/lib/orders";
 import { ACTIVE_STATUSES, PRIORITY_META, STATUS_META, STATUSES } from "@/lib/workflow";
 import { OrderRows } from "@/components/order-list";
@@ -27,6 +28,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/os">) {
 
   const where: Prisma.ServiceOrderWhereInput = { AND: [orderScope(user)] };
   const and = where.AND as Prisma.ServiceOrderWhereInput[];
+  // Superadmin com condomínio em foco (seletor do menu)
+  const scope = await adminScope(user);
+  if (scope) and.push({ condominiumId: scope.id });
+  const catCondo = scope?.id ?? user.condominiumId;
   if (status) and.push({ status });
   else if (view === "active") and.push({ status: { in: ACTIVE_STATUSES } });
   else if (view === "done") and.push({ status: { in: ["approved", "cancelled"] } });
@@ -40,7 +45,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/os">) {
   const page = pageParam(sp.page, total, PAGE);
   const [orders, categories] = await Promise.all([
     db.serviceOrder.findMany({ where, include: orderListInclude, orderBy: [{ createdAt: "desc" }], skip: (page - 1) * PAGE, take: PAGE }),
-    user.condominiumId ? db.serviceCategory.findMany({ where: { condominiumId: user.condominiumId }, orderBy: { name: "asc" } }) : [],
+    catCondo ? db.serviceCategory.findMany({ where: { condominiumId: catCondo }, orderBy: { name: "asc" } }) : [],
   ]);
 
   const tabs: [string, string][] = [

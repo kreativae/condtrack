@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { adminScope } from "@/lib/admin-scope-server";
 import { FeedCard, feedInclude } from "@/components/feed-card";
 import { Card, Empty, PageHeader, Select, buttonClass } from "@/components/ui";
 import { FrozenPage, FrozenTop, Pager, ScrollArea, pageParam, withPage } from "@/components/frozen";
@@ -16,7 +17,9 @@ export default async function FeedPage({ searchParams }: PageProps<"/feed">) {
   const admin = user.role === "superadmin";
   // Superadmin vê todos os condomínios (com filtro); os demais, só o próprio
   const condos = admin ? await db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
-  const condo = admin && typeof sp.condo === "string" && condos.some((c) => c.id === sp.condo) ? sp.condo : null;
+  // Filtro da página; sem filtro, vale o condomínio em foco do menu ("" = todos)
+  const scope = admin && sp.condo === undefined ? await adminScope(user) : null;
+  const condo = admin ? (typeof sp.condo === "string" && condos.some((c) => c.id === sp.condo) ? sp.condo : scope?.id ?? null) : null;
   const where = { status: "approved", ...(admin ? (condo ? { condominiumId: condo } : {}) : { condominiumId: user.condominiumId! }) };
   const total = await db.serviceOrder.count({ where });
   const page = pageParam(sp.page, total, PAGE);

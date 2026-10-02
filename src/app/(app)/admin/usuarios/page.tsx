@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Search, UserPlus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
+import { adminScope } from "@/lib/admin-scope-server";
 import { ROLES } from "@/lib/roles";
 import { UsersTable } from "@/components/admin/users-table";
 import { DeleteInactiveUsers } from "@/components/admin/delete-inactive";
@@ -14,14 +15,15 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
   const me = await requireUser("superadmin");
   const params = await searchParams;
   const { role, q } = params;
+  const scope = await adminScope(me);
   const inactive = await db.user.count({ where: { status: "inactive", NOT: { id: me.id } } });
   return (
     <FrozenPage>
       <FrozenTop>
         <PageHeader
           eyebrow="Superadministração"
-          title="Usuários da plataforma"
-          description="Use o ícone de olho para visualizar a plataforma como qualquer usuário."
+          title={scope ? `Usuários de ${scope.name}` : "Usuários da plataforma"}
+          description={scope ? "Mostrando só este condomínio (troque no cartão do menu). Use o ícone de olho para visualizar como o usuário." : "Use o ícone de olho para visualizar a plataforma como qualquer usuário."}
           actions={<><DeleteInactiveUsers count={inactive} /><LinkButton href="/admin/usuarios/novo"><UserPlus className="size-4" />Novo usuário</LinkButton></>}
         />
         <form className="relative mb-4 max-w-md">
@@ -30,7 +32,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
           <Input name="q" defaultValue={typeof q === "string" ? q : ""} placeholder="Buscar por nome ou e-mail" className="pl-9" />
         </form>
       </FrozenTop>
-      <UsersTable params={params} meId={me.id} where={{}} base="/admin/usuarios" role={typeof role === "string" ? role : undefined} roles={[...ROLES]} showCondo canImpersonate q={typeof q === "string" ? q : undefined} />
+      <UsersTable params={params} meId={me.id} where={scope ? { condominiumId: scope.id } : {}} base="/admin/usuarios" role={typeof role === "string" ? role : undefined} roles={[...ROLES]} showCondo canImpersonate q={typeof q === "string" ? q : undefined} />
     </FrozenPage>
   );
 }

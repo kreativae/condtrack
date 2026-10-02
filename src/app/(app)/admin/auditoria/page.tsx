@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { adminScope } from "@/lib/admin-scope-server";
 import { fmtDateTime } from "@/lib/format";
 import { Badge, PageHeader } from "@/components/ui";
 import { FrozenPage, FrozenTop, Pager, ScrollCard, pageParam, stickyHead, withPage } from "@/components/frozen";
@@ -11,11 +12,15 @@ export const metadata: Metadata = { title: "Auditoria" };
 const PAGE = 50;
 
 export default async function AuditPage({ searchParams }: PageProps<"/admin/auditoria">) {
-  await requireUser("superadmin");
+  const me = await requireUser("superadmin");
   const sp = await searchParams;
-  const total = await db.auditLog.count();
+  // Condomínio em foco (seletor do menu)
+  const scope = await adminScope(me);
+  const where = scope ? { condominiumId: scope.id } : {};
+  const total = await db.auditLog.count({ where });
   const page = pageParam(sp.page, total, PAGE);
   const logs = await db.auditLog.findMany({
+    where,
     include: { user: { select: { name: true } }, condominium: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
     skip: (page - 1) * PAGE,
@@ -26,7 +31,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
   return (
     <FrozenPage>
       <FrozenTop>
-        <PageHeader eyebrow="Segurança" title="Logs de auditoria" description={`${total} registro(s) — todas as ações críticas com IP, user-agent e horário.`} />
+        <PageHeader eyebrow="Segurança" title="Logs de auditoria" description={`${total} registro(s)${scope ? ` de ${scope.name}` : ""} — todas as ações críticas com IP, user-agent e horário.`} />
       </FrozenTop>
 
       <ScrollCard footer={<Pager page={page} pageSize={PAGE} total={total} href={(p) => withPage("/admin/auditoria", sp, p)} />}>

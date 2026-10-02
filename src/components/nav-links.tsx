@@ -12,6 +12,7 @@ import { logout } from "@/app/actions/auth";
 import { saveNavOrder } from "@/app/actions/nav";
 import { Logo } from "./logo";
 import { Avatar } from "./ui";
+import { CondoSwitcher } from "./condo-switcher";
 
 const ICONS: Record<string, LucideIcon> = {
   gauge: Gauge, building: Building2, clipboard: ClipboardList, users: Users, shield: ShieldCheck, sparkles: Sparkles,
@@ -299,7 +300,7 @@ type MobileUser = { name: string; avatarUrl: string | null; roleLabel: string; p
  * Navegação no celular: barra de atalhos no rodapé + menu lateral com todas as páginas.
  * No menu, o alfinete fixa (ou tira) a página da barra do rodapé — guardado neste aparelho.
  */
-export function MobileNav({ items, initialPins, user, customized }: { items: NavItem[]; initialPins: string[] | null; user: MobileUser; customized?: boolean }) {
+export function MobileNav({ items, initialPins, user, customized, condos }: { items: NavItem[]; initialPins: string[] | null; user: MobileUser; customized?: boolean; condos?: { list: { id: string; name: string }[]; current: { id: string; name: string } | null } }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pins, setPins] = useState<string[]>(() => initialPins ?? defaultPins(items));
@@ -383,6 +384,10 @@ export function MobileNav({ items, initialPins, user, customized }: { items: Nav
               <X className="size-5" />
             </button>
           </div>
+          {condos ? (
+            // Superadmin: escolhe o condomínio em foco
+            <div className="mx-4 mb-3"><CondoSwitcher condos={condos.list} current={condos.current} onPicked={() => setOpen(false)} /></div>
+          ) : (
           <div className="mx-4 mb-3 flex items-center gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"><Building2 className="size-4" strokeWidth={1.8} /></span>
             <div className="min-w-0">
@@ -390,6 +395,7 @@ export function MobileNav({ items, initialPins, user, customized }: { items: Nav
               <p className="truncate text-[11px] text-muted">{user.roleLabel}</p>
             </div>
           </div>
+          )}
 
           <nav ref={reorder.container} className="flex-1 space-y-0.5 overflow-y-auto px-2 py-1">
             {reorder.list.map((it) => {
