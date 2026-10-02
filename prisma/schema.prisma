@@ -96,6 +96,8 @@ model User {
   lockedUntil   DateTime?
   lastLoginAt   DateTime?
   condominiumId String?
+  /// Ordem do menu escolhida pelo usuário (hrefs separados por vírgula; vazio = padrão do perfil)
+  navOrder      String    @default("")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { startTransition, useEffect, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell, Building2, LogOut, Menu, Pin, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Wallet, type LucideIcon,
+  Bell, Building2, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Wallet, type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import type { NavItem } from "@/lib/nav";
 import { logout } from "@/app/actions/auth";
+import { saveNavOrder } from "@/app/actions/nav";
 import { Logo } from "./logo";
 import { Avatar } from "./ui";
 
@@ -23,20 +24,161 @@ function isActive(pathname: string, href: string) {
   return pathname === base || pathname.startsWith(base + "/");
 }
 
-export function SideNav({ items }: { items: NavItem[] }) {
-  const pathname = usePathname();
+const HOLD_MS = 350;
+
+/**
+ * Reordenar o menu segurando e arrastando um item (mouse ou toque).
+ * Um toque/clique rápido continua navegando; mover antes do tempo de segurar cancela (deixa rolar).
+ * Ao soltar, a nova ordem é salva na conta do usuário.
+ */
+function useReorder(items: NavItem[]) {
+  const router = useRouter();
+  const [list, setList] = useState(items);
+  const [dragging, setDragging] = useState<string | null>(null);
+  // Nova ordem vinda do servidor (salvou em outro menu, restaurou o padrão…)
+  const key = items.map((i) => i.href).join(",");
+  const [prevKey, setPrevKey] = useState(key);
+  if (key !== prevKey) {
+    setPrevKey(key);
+    setList(items);
+  }
+  const listRef = useRef(list);
+  useEffect(() => {
+    listRef.current = list;
+  }, [list]);
+  const nodes = useRef(new Map<string, HTMLElement>());
+  const drag = useRef<string | null>(null);
+  const press = useRef<{ x: number; y: number; timer: number; el: HTMLElement; id: number } | null>(null);
+  const suppress = useRef(false);
+  const container = useRef<HTMLElement | null>(null);
+
+  // Enquanto arrasta no toque, a página não rola
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const stop = (e: TouchEvent) => drag.current && e.preventDefault();
+    el.addEventListener("touchmove", stop, { passive: false });
+    return () => el.removeEventListener("touchmove", stop);
+  }, []);
+
+  function end(commit: boolean) {
+    if (press.current) window.clearTimeout(press.current.timer);
+    press.current = null;
+    const was = drag.current;
+    drag.current = null;
+    setDragging(null);
+    if (was && commit) {
+      const order = listRef.current.map((i) => i.href);
+      startTransition(async () => {
+        await saveNavOrder(order);
+        router.refresh();
+      });
+    }
+  }
+
+  const handlers = (href: string) => ({
+    ref: (el: HTMLElement | null) => {
+      if (el) nodes.current.set(href, el);
+      else nodes.current.delete(href);
+    },
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return;
+      const el = e.currentTarget;
+      const id = e.pointerId;
+      const timer = window.setTimeout(() => {
+        drag.current = href;
+        suppress.current = true;
+        setDragging(href);
+        try {
+          el.setPointerCapture(id);
+        } catch {
+          // o ponteiro já saiu: segue sem captura
+        }
+        navigator.vibrate?.(10);
+      }, HOLD_MS);
+      press.current = { x: e.clientX, y: e.clientY, timer, el, id };
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      const p = press.current;
+      if (!drag.current) {
+        // Mexeu antes de segurar: é rolagem ou clique, não arrasto
+        if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) end(false);
+        return;
+      }
+      const cur = listRef.current;
+      const from = cur.findIndex((i) => i.href === drag.current);
+      let to = from;
+      cur.forEach((it, i) => {
+        if (it.href === drag.current) return;
+        const r = nodes.current.get(it.href)?.getBoundingClientRect();
+        if (!r) return;
+        const mid = r.top + r.height / 2;
+        if (i < from && e.clientY < mid) to = Math.min(to, i);
+        if (i > from && e.clientY > mid) to = Math.max(to, i);
+      });
+      if (to !== from) {
+        const next = [...cur];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        listRef.current = next;
+        setList(next);
+      }
+    },
+    onPointerUp: () => end(true),
+    onPointerCancel: () => end(!!drag.current),
+    // Segurar não abre o menu de contexto do celular
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    // Depois de arrastar, o clique que vem junto não navega
+    onClickCapture: (e: React.MouseEvent) => {
+      if (suppress.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        suppress.current = false;
+      }
+    },
+    draggable: false,
+  });
+
+  return { list, dragging, handlers, container };
+}
+
+/** Link para voltar à ordem padrão do perfil. */
+function ResetOrder({ className }: { className?: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
   return (
-    <nav className="space-y-0.5">
-      {items.map((it) => {
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => start(async () => { await saveNavOrder([]); router.refresh(); })}
+      className={clsx("inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline disabled:opacity-50", className)}
+    >
+      <RotateCcw className="size-3" />Restaurar ordem padrão
+    </button>
+  );
+}
+
+const DRAG_CLASS = "relative z-10 scale-[1.02] bg-surface shadow-pop ring-1 ring-brand/30";
+const NO_TOUCH_MENU = "select-none [-webkit-touch-callout:none]";
+
+export function SideNav({ items, customized }: { items: NavItem[]; customized?: boolean }) {
+  const pathname = usePathname();
+  const { list, dragging, handlers, container } = useReorder(items);
+  return (
+    <nav ref={container} className="space-y-0.5" title="Segure e arraste um item para mudar a ordem">
+      {list.map((it) => {
         const Icon = ICONS[it.icon] ?? Gauge;
         const active = isActive(pathname, it.href);
         return (
           <Link
             key={it.href}
             href={it.href}
+            {...handlers(it.href)}
             className={clsx(
               "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
-              active ? "bg-brand-soft font-semibold text-brand" : "font-medium text-fg-2 hover:bg-bg-2 hover:text-fg",
+              NO_TOUCH_MENU,
+              dragging === it.href ? DRAG_CLASS + " cursor-grabbing" : active ? "bg-brand-soft font-semibold text-brand" : "font-medium text-fg-2 hover:bg-bg-2 hover:text-fg",
+              dragging === it.href && active && "font-semibold text-brand",
             )}
           >
             <Icon className="size-[18px]" strokeWidth={active ? 2.1 : 1.8} />
@@ -44,6 +186,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
           </Link>
         );
       })}
+      {customized && <ResetOrder className="px-3 pt-2" />}
     </nav>
   );
 }
@@ -77,12 +220,19 @@ type MobileUser = { name: string; avatarUrl: string | null; roleLabel: string; p
  * Navegação no celular: barra de atalhos no rodapé + menu lateral com todas as páginas.
  * No menu, o alfinete fixa (ou tira) a página da barra do rodapé — guardado neste aparelho.
  */
-export function MobileNav({ items, initialPins, user }: { items: NavItem[]; initialPins: string[] | null; user: MobileUser }) {
+export function MobileNav({ items, initialPins, user, customized }: { items: NavItem[]; initialPins: string[] | null; user: MobileUser; customized?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pins, setPins] = useState<string[]>(() => initialPins ?? defaultPins(items));
   const [warn, setWarn] = useState(false);
-  const pinned = items.filter((i) => pins.includes(i.href));
+  const reorder = useReorder(items);
+  // No menu, o ref fica na linha inteira (para medir a posição); os eventos, no link
+  const rowHandlers = (href: string) => {
+    const { ref: _ref, ...rest } = reorder.handlers(href);
+    void _ref;
+    return rest;
+  };
+  const pinned = reorder.list.filter((i) => pins.includes(i.href));
 
   useEffect(() => {
     const show = () => setOpen(true);
@@ -162,17 +312,18 @@ export function MobileNav({ items, initialPins, user }: { items: NavItem[]; init
             </div>
           </div>
 
-          <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">
-            {items.map((it) => {
+          <nav ref={reorder.container} className="flex-1 space-y-0.5 overflow-y-auto px-2">
+            {reorder.list.map((it) => {
               const Icon = ICONS[it.icon] ?? Gauge;
               const active = isActive(pathname, it.href);
               const on = pins.includes(it.href);
               return (
-                <div key={it.href} className={clsx("flex items-center rounded-xl", active && "bg-brand-soft")}>
+                <div key={it.href} ref={reorder.handlers(it.href).ref} className={clsx("flex items-center rounded-xl transition", reorder.dragging === it.href ? DRAG_CLASS : active && "bg-brand-soft")}>
                   <Link
                     href={it.href}
+                    {...rowHandlers(it.href)}
                     onClick={() => setOpen(false)}
-                    className={clsx("flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-sm", active ? "font-semibold text-brand" : "font-medium text-fg-2")}
+                    className={clsx("flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-sm", NO_TOUCH_MENU, active ? "font-semibold text-brand" : "font-medium text-fg-2")}
                   >
                     <Icon className="size-[18px] shrink-0" strokeWidth={active ? 2.1 : 1.8} />
                     <span className="truncate">{it.label}</span>
@@ -193,7 +344,8 @@ export function MobileNav({ items, initialPins, user }: { items: NavItem[]; init
           </nav>
 
           <p className={clsx("px-5 py-3 text-xs", warn ? "font-medium text-warn" : "text-muted")}>
-            {warn ? `A barra tem espaço para ${MAX_PINS} atalhos. Tire um alfinete antes de fixar outro.` : `Toque no alfinete para fixar até ${MAX_PINS} páginas na barra de atalhos.`}
+            {warn ? `A barra tem espaço para ${MAX_PINS} atalhos. Tire um alfinete antes de fixar outro.` : `Toque no alfinete para fixar até ${MAX_PINS} páginas na barra de atalhos. Segure e arraste para mudar a ordem.`}
+            {customized && !warn && <ResetOrder className="mt-1.5 flex" />}
           </p>
           <div className="space-y-1 border-t border-line p-3">
             <Link href="/perfil" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl p-2 hover:bg-bg-2">

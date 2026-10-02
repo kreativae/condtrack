@@ -25,7 +25,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   }
   const unread = user.role === "resident" ? 0 : await db.notification.count({ where: { userId: user.id, read: false } });
   // Financeiro do conselho só aparece quando o síndico/superadmin libera
-  const items = NAV[user.role].filter((i) => i.href !== "/financeiro" || showFinanceNav(user));
+  const base = NAV[user.role].filter((i) => i.href !== "/financeiro" || showFinanceNav(user));
+  // Ordem escolhida pelo usuário (segurar e arrastar no menu); páginas novas entram no lugar padrão, no fim
+  const saved = user.navOrder ? user.navOrder.split(",") : [];
+  const rank = (href: string, i: number) => (saved.includes(href) ? saved.indexOf(href) : 1000 + i);
+  const items = base.map((it, i) => ({ it, r: rank(it.href, i) })).sort((a, b) => a.r - b.r).map((x) => x.it);
+  const customized = saved.length > 0;
   const unit = user.units[0]?.unit;
   const jar = await cookies();
   const theme = jar.get("theme")?.value === "dark" ? "dark" : "light";
@@ -69,7 +74,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
 
-        <SideNav items={items} />
+        <SideNav items={items} customized={customized} />
 
         <div className="mt-auto space-y-1 border-t border-line pt-3">
           <Link href="/perfil" className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-bg-2">
@@ -134,7 +139,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-8 lg:pb-16">{children}</main>
       </div>
-      <MobileNav items={items} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
+      <MobileNav items={items} customized={customized} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
     </div>
   );
 }
