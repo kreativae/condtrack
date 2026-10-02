@@ -11,7 +11,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - Trabalho direto na `main`; a Vercel publica cada push em produção. **Pergunte antes de dar push.**
 - Um commit por ajuste, com push logo em seguida, para nada ficar preso numa máquina só.
 - Se um build falhar na Vercel, o site continua na versão anterior; corrija na `main`.
-- Ponto de restauração: tag `v1-estavel` (2026-09-28, com a aba Aparência já testada no ar). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.
+- Pontos de restauração: tags `v1-estavel` (2026-09-28, aba Aparência) e `v2-estavel` (2026-10-01, Financeiro completo). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.
 - O Mac principal pode não ter Node/npm: sem `npm run build` local, o build da Vercel é a verificação. Escreva com cuidado
   e revise o diff antes de commitar.
 
@@ -44,6 +44,16 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `Condominium.councilFinanceAccess` está ligado (síndico/superadmin liberam na própria página). Tudo vai para `FinanceLog`
   (criou, editou com antes/depois, visualizou, abriu anexo, excluiu, mudou o acesso), com nome e perfil gravados no log.
   Exclusão é lógica (`deletedAt`), anexos removidos ficam guardados. Arquivos em `/api/financeiro/*` (fora do proxy).
+  Relatório financeiro: `FinanceReportPanel` (`financeiro/report-dialog.tsx`) é usado na janela do Financeiro e em
+  Relatórios; filtros na URL (`de`/`ate`, `tipo`, `situacao`, `cats` separado por `|`) lidos por `financePeriod()` e
+  `financeReportFilter()`. PDF em `/relatorio/financeiro` (`imprimir=1` abre a janela de salvar), CSV em `/api/financeiro/exportar`.
+  Superadmin: o último condomínio aberto fica no cookie `fin_condo` (`?trocar=1` volta à escolha).
+- **Navegação no celular** (`components/nav-links.tsx`): barra de atalhos (até 4, no cookie `nav_pins`, por aparelho) + botão
+  Menu que abre o menu lateral com todas as páginas e o alfinete para fixar. Itens vêm de `src/lib/nav.ts`.
+- **Janelas e sobreposições** (`fixed inset-0`): renderize com `createPortal(..., document.body)`. A animação `animate-in`
+  das páginas prende elementos `fixed` dentro dela no Chrome.
+- **Cartões de números** (`Stat` em `ui.tsx`): o tamanho do valor depende só da largura do cartão (`@container`),
+  para cartões lado a lado ficarem iguais. Use `fmtBRL()` para dinheiro (sinal de menos que não quebra linha).
 - **Checklist do zelador**: `src/lib/checklist*.ts`, `src/app/actions/checklist.ts`, `src/app/api/cron/checklist`.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
@@ -53,4 +63,6 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   troca de e-mail, visualizador de fotos e metadados, checklist do zelador.
 - 2026-09-28: aba Aparência (cores de todas as páginas).
 - 2026-09-29: relatórios de serviços em PDF.
-- 2026-10-01: Financeiro (lançamentos, notas fiscais, histórico de edição e visualização, acesso do conselho).
+- 2026-10-01: Financeiro (lançamentos, notas fiscais, histórico de edição e visualização, acesso do conselho), resumo no
+  dashboard, relatório financeiro (CSV/PDF com filtros), menu do celular com atalhos fixáveis e ajustes de responsivo.
+  Dados fictícios de demonstração no condomínio Odyssey (jul–out/2026), criados pelo síndico.
