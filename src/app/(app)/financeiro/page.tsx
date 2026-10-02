@@ -13,7 +13,7 @@ import { FIN_STATUS, FIN_TYPES, LOG_LABEL, dateToDay, fmtBRL, fmtDayBR, type Fin
 import { setCouncilFinanceAccess } from "@/app/actions/finance";
 import { ExportButton } from "./export-button";
 import { ReportDialog } from "./report-dialog";
-import { FIN_CONDO_COOKIE, RememberCondo } from "./remember-condo";
+import { ADMIN_CONDO_COOKIE, RememberCondo } from "@/components/remember-condo";
 import { Badge, Card, CardHeader, Empty, Input, LinkButton, PageHeader, Select, Stat, buttonClass, cx } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Financeiro" };
@@ -29,7 +29,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
   // Superadmin escolhe o condomínio
   if (user.role === "superadmin" && !sp.condo) {
     // Volta direto ao último condomínio aberto (a menos que tenha pedido para trocar)
-    const last = (await cookies()).get(FIN_CONDO_COOKIE)?.value;
+    const last = (await cookies()).get(ADMIN_CONDO_COOKIE)?.value;
     if (last && sp.trocar !== "1" && (await db.condominium.findUnique({ where: { id: last }, select: { id: true } }))) redirect(`/financeiro?condo=${last}`);
     const condos = await db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
     return (

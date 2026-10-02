@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Settings2 } from "lucide-react";
 import { db } from "@/lib/db";
+import { cookies } from "next/headers";
 import { requireUser } from "@/lib/auth";
+import { ADMIN_CONDO_COOKIE, RememberCondo } from "@/components/remember-condo";
 import { nowMs } from "@/lib/format";
 import { addDays, fmtDay, isDue, spNow } from "@/lib/checklist";
 import { dayItemsForUi } from "@/lib/checklist-server";
@@ -18,7 +20,9 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
   const sp = await searchParams;
   const admin = user.role === "superadmin";
   const condos = admin ? await db.condominium.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
-  const condominiumId = admin ? (condos.find((c) => c.id === sp.condo)?.id ?? condos[0]?.id) : user.condominiumId!;
+  // Superadmin: o escolhido, senão o último aberto (Financeiro/Checklist), senão o primeiro
+  const last = admin ? (await cookies()).get(ADMIN_CONDO_COOKIE)?.value : undefined;
+  const condominiumId = admin ? (condos.find((c) => c.id === sp.condo)?.id ?? condos.find((c) => c.id === last)?.id ?? condos[0]?.id) : user.condominiumId!;
   if (!condominiumId) return <PageHeader title="Checklist do zelador" description="Nenhum condomínio ativo." />;
   const condoName = admin ? condos.find((c) => c.id === condominiumId)?.name : user.condominium?.name;
 
@@ -44,6 +48,7 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
 
   return (
     <div className="animate-in">
+      {admin && <RememberCondo id={condominiumId} />}
       <PageHeader
         eyebrow={condoName}
         title="Checklist do zelador"
