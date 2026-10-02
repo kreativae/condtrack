@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useEffect, useRef, useState, useTransition } from "react";
+import { startTransition, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell, Building2, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Wallet, type LucideIcon,
+  Bell, Building2, GripVertical, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Wallet, type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import type { NavItem } from "@/lib/nav";
@@ -25,17 +25,23 @@ function isActive(pathname: string, href: string) {
 }
 
 const HOLD_MS = 350;
+const SLIDE = "transform 180ms cubic-bezier(.2,.7,.3,1)";
+
+type DragState = "pressing" | "dragging" | "dropping" | null;
 
 /**
  * Reordenar o menu segurando e arrastando um item (mouse ou toque).
- * Um toque/clique rápido continua navegando; mover antes do tempo de segurar cancela (deixa rolar).
- * Ao soltar, a nova ordem é salva na conta do usuário.
+ * - Segurando: o item afunda um pouco (sinal de que vai levantar).
+ * - Arrastando: o item segue o dedo/mouse e os outros deslizam para abrir espaço.
+ * - Soltando: o item assenta no lugar e a ordem é salva na conta do usuário.
+ * Um toque/clique rápido continua navegando; mover antes de segurar cancela (deixa rolar).
  */
 function useReorder(items: NavItem[]) {
   const router = useRouter();
   const [list, setList] = useState(items);
-  const [dragging, setDragging] = useState<string | null>(null);
-  // Nova ordem vinda do servidor (salvou em outro menu, restaurou o padrão…)
+  const [active, setActive] = useState<{ href: string; state: DragState } | null>(null);
+  const [offset, setOffset] = useState(0);
+  // Nova ordem vinda do servidor (salvou no outro menu, restaurou o padrão…)
   const key = items.map((i) => i.href).join(",");
   const [prevKey, setPrevKey] = useState(key);
   if (key !== prevKey) {
@@ -43,14 +49,16 @@ function useReorder(items: NavItem[]) {
     setList(items);
   }
   const listRef = useRef(list);
+  const nodes = useRef(new Map<string, HTMLElement>());
+  const before = useRef(new Map<string, number>());
+  const drag = useRef<{ href: string; grab: number; y: number; offset: number } | null>(null);
+  const press = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const suppress = useRef(false);
+  const container = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     listRef.current = list;
   }, [list]);
-  const nodes = useRef(new Map<string, HTMLElement>());
-  const drag = useRef<string | null>(null);
-  const press = useRef<{ x: number; y: number; timer: number; el: HTMLElement; id: number } | null>(null);
-  const suppress = useRef(false);
-  const container = useRef<HTMLElement | null>(null);
 
   // Enquanto arrasta no toque, a página não rola
   useEffect(() => {
@@ -61,13 +69,53 @@ function useReorder(items: NavItem[]) {
     return () => el.removeEventListener("touchmove", stop);
   }, []);
 
+  /** Topo do lugar do item na lista (sem o deslocamento do arrasto). */
+  const slotTop = (href: string) => {
+    const el = nodes.current.get(href);
+    if (!el) return 0;
+    const extra = drag.current?.href === href ? drag.current.offset : 0;
+    return el.getBoundingClientRect().top - extra;
+  };
+
+  // Depois de trocar a ordem: os outros itens deslizam da posição antiga para a nova (FLIP)
+  // e o item arrastado continua exatamente sob o dedo.
+  useLayoutEffect(() => {
+    nodes.current.forEach((el, href) => {
+      if (drag.current?.href === href) return;
+      const old = before.current.get(href);
+      if (old == null) return;
+      const delta = old - el.getBoundingClientRect().top;
+      if (!delta) return;
+      el.style.transition = "none";
+      el.style.transform = `translateY(${delta}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = SLIDE;
+        el.style.transform = "";
+      });
+    });
+    before.current.clear();
+    // O item arrastado ainda tem o deslocamento antigo aplicado: slotTop() desconta
+    const d = drag.current;
+    if (d) {
+      d.offset = d.y - d.grab - slotTop(d.href);
+      setOffset(d.offset);
+    }
+  }, [list]);
+
   function end(commit: boolean) {
     if (press.current) window.clearTimeout(press.current.timer);
     press.current = null;
-    const was = drag.current;
+    const d = drag.current;
     drag.current = null;
-    setDragging(null);
-    if (was && commit) {
+    if (!d) {
+      setActive(null);
+      return;
+    }
+    // Assenta no lugar
+    setActive({ href: d.href, state: "dropping" });
+    setOffset(0);
+    window.setTimeout(() => setActive((a) => (a?.href === d.href && a.state === "dropping" ? null : a)), 200);
+    if (commit) {
       const order = listRef.current.map((i) => i.href);
       startTransition(async () => {
         await saveNavOrder(order);
@@ -83,40 +131,50 @@ function useReorder(items: NavItem[]) {
     },
     onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
       if (e.button !== 0) return;
-      const el = e.currentTarget;
+      const target = e.currentTarget;
       const id = e.pointerId;
+      const y0 = e.clientY;
+      setActive({ href, state: "pressing" });
       const timer = window.setTimeout(() => {
-        drag.current = href;
+        drag.current = { href, grab: y0 - slotTop(href), y: y0, offset: 0 };
         suppress.current = true;
-        setDragging(href);
+        setActive({ href, state: "dragging" });
+        setOffset(0);
         try {
-          el.setPointerCapture(id);
+          target.setPointerCapture(id);
         } catch {
           // o ponteiro já saiu: segue sem captura
         }
-        navigator.vibrate?.(10);
+        navigator.vibrate?.(12);
       }, HOLD_MS);
-      press.current = { x: e.clientX, y: e.clientY, timer, el, id };
+      press.current = { x: e.clientX, y: y0, timer };
     },
     onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
-      const p = press.current;
-      if (!drag.current) {
+      const d = drag.current;
+      if (!d) {
         // Mexeu antes de segurar: é rolagem ou clique, não arrasto
+        const p = press.current;
         if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) end(false);
         return;
       }
+      d.y = e.clientY;
+      d.offset = e.clientY - d.grab - (nodes.current.get(d.href)!.getBoundingClientRect().top - d.offset);
+      setOffset(d.offset);
+      // Troca de lugar quando o centro do item arrastado passa do meio do vizinho
       const cur = listRef.current;
-      const from = cur.findIndex((i) => i.href === drag.current);
+      const from = cur.findIndex((i) => i.href === d.href);
+      const center = e.clientY - d.grab + (nodes.current.get(d.href)?.offsetHeight ?? 0) / 2;
       let to = from;
       cur.forEach((it, i) => {
-        if (it.href === drag.current) return;
+        if (i === from) return;
         const r = nodes.current.get(it.href)?.getBoundingClientRect();
         if (!r) return;
         const mid = r.top + r.height / 2;
-        if (i < from && e.clientY < mid) to = Math.min(to, i);
-        if (i > from && e.clientY > mid) to = Math.max(to, i);
+        if (i < from && center < mid) to = Math.min(to, i);
+        if (i > from && center > mid) to = Math.max(to, i);
       });
       if (to !== from) {
+        nodes.current.forEach((el, h) => before.current.set(h, el.getBoundingClientRect().top));
         const next = [...cur];
         const [moved] = next.splice(from, 1);
         next.splice(to, 0, moved);
@@ -126,6 +184,9 @@ function useReorder(items: NavItem[]) {
     },
     onPointerUp: () => end(true),
     onPointerCancel: () => end(!!drag.current),
+    onPointerLeave: () => {
+      if (!drag.current && press.current) end(false);
+    },
     // Segurar não abre o menu de contexto do celular
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
     // Depois de arrastar, o clique que vem junto não navega
@@ -139,7 +200,21 @@ function useReorder(items: NavItem[]) {
     draggable: false,
   });
 
-  return { list, dragging, handlers, container };
+  /** Estilo e estado visual de cada item. */
+  const look = (href: string) => {
+    const st = active?.href === href ? active.state : null;
+    const style: React.CSSProperties =
+      st === "dragging"
+        ? { transform: `translateY(${offset}px) scale(1.03)`, transition: "box-shadow 150ms, background-color 150ms", zIndex: 20, position: "relative" }
+        : st === "dropping"
+          ? { transform: "translateY(0) scale(1)", transition: SLIDE, zIndex: 20, position: "relative" }
+          : st === "pressing"
+            ? { transform: "scale(0.97)", transition: `transform ${HOLD_MS}ms ease-out` }
+            : {};
+    return { state: st, style, lifted: st === "dragging" };
+  };
+
+  return { list, handlers, look, container, dragging: active?.state === "dragging" };
 }
 
 /** Link para voltar à ordem padrão do perfil. */
@@ -158,31 +233,35 @@ function ResetOrder({ className }: { className?: string }) {
   );
 }
 
-const DRAG_CLASS = "relative z-10 scale-[1.02] bg-surface shadow-pop ring-1 ring-brand/30";
+/** Item levantado: cartão com sombra e borda na cor da marca. */
+const LIFTED = "bg-surface shadow-[0_12px_32px_-8px_rgb(15_23_42/0.35)] ring-1 ring-brand/40 cursor-grabbing";
 const NO_TOUCH_MENU = "select-none [-webkit-touch-callout:none]";
 
 export function SideNav({ items, customized }: { items: NavItem[]; customized?: boolean }) {
   const pathname = usePathname();
-  const { list, dragging, handlers, container } = useReorder(items);
+  const { list, dragging, handlers, container, look } = useReorder(items);
   return (
-    <nav ref={container} className="space-y-0.5" title="Segure e arraste um item para mudar a ordem">
+    <nav ref={container} className={clsx("space-y-0.5", dragging && "cursor-grabbing")} title="Segure e arraste um item para mudar a ordem">
       {list.map((it) => {
         const Icon = ICONS[it.icon] ?? Gauge;
         const active = isActive(pathname, it.href);
+        const lk = look(it.href);
         return (
           <Link
             key={it.href}
             href={it.href}
             {...handlers(it.href)}
+            style={lk.style}
             className={clsx(
-              "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
+              "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
               NO_TOUCH_MENU,
-              dragging === it.href ? DRAG_CLASS + " cursor-grabbing" : active ? "bg-brand-soft font-semibold text-brand" : "font-medium text-fg-2 hover:bg-bg-2 hover:text-fg",
-              dragging === it.href && active && "font-semibold text-brand",
+              lk.lifted ? LIFTED : active ? "bg-brand-soft" : "hover:bg-bg-2",
+              active ? "font-semibold text-brand" : clsx("font-medium", lk.lifted ? "text-fg" : "text-fg-2 hover:text-fg"),
             )}
           >
             <Icon className="size-[18px]" strokeWidth={active ? 2.1 : 1.8} />
             {it.label}
+            {lk.lifted && <GripVertical className="ml-auto size-4 text-muted" />}
           </Link>
         );
       })}
@@ -312,13 +391,18 @@ export function MobileNav({ items, initialPins, user, customized }: { items: Nav
             </div>
           </div>
 
-          <nav ref={reorder.container} className="flex-1 space-y-0.5 overflow-y-auto px-2">
+          <nav ref={reorder.container} className="flex-1 space-y-0.5 overflow-y-auto px-2 py-1">
             {reorder.list.map((it) => {
               const Icon = ICONS[it.icon] ?? Gauge;
               const active = isActive(pathname, it.href);
               const on = pins.includes(it.href);
               return (
-                <div key={it.href} ref={reorder.handlers(it.href).ref} className={clsx("flex items-center rounded-xl transition", reorder.dragging === it.href ? DRAG_CLASS : active && "bg-brand-soft")}>
+                <div
+                  key={it.href}
+                  ref={reorder.handlers(it.href).ref}
+                  style={reorder.look(it.href).style}
+                  className={clsx("flex items-center rounded-xl transition-colors", reorder.look(it.href).lifted ? LIFTED : active && "bg-brand-soft")}
+                >
                   <Link
                     href={it.href}
                     {...rowHandlers(it.href)}
@@ -327,6 +411,7 @@ export function MobileNav({ items, initialPins, user, customized }: { items: Nav
                   >
                     <Icon className="size-[18px] shrink-0" strokeWidth={active ? 2.1 : 1.8} />
                     <span className="truncate">{it.label}</span>
+                    {reorder.look(it.href).lifted && <GripVertical className="ml-auto size-4 shrink-0 text-muted" />}
                   </Link>
                   <button
                     type="button"
