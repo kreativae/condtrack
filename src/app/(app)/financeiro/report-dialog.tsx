@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Download, Eye, FileBarChart, FileSpreadsheet, FileText, X } from "lucide-react";
 import { Field, Input, Select, buttonClass, cx } from "@/components/ui";
 
@@ -75,7 +76,8 @@ export function ReportDialog({ categories, condoId, today }: { categories: strin
         <FileBarChart className="size-4" />Relatório
       </button>
 
-      {open && (
+      {/* Portal no <body>: a animação de entrada da página prende elementos "fixed" dentro dela */}
+      {open && createPortal(
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Relatório financeiro">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div className="relative flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-surface shadow-pop animate-in sm:rounded-3xl">
@@ -175,7 +177,8 @@ export function ReportDialog({ categories, condoId, today }: { categories: strin
               </a>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
