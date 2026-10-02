@@ -18,7 +18,7 @@ export function LoginAppearanceForm({ initial, passkeys }: { initial: LoginAppea
   const [saved, setSaved] = useState(initial);
   const [state, save, saving] = useActionState(saveLoginAppearance, undefined);
   const [device, setDevice] = useState<keyof typeof DEVICES>("desktop");
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const dirty = JSON.stringify(a) !== JSON.stringify(saved);
   const set = <K extends keyof LoginAppearance>(k: K, v: LoginAppearance[K]) => setA((x) => ({ ...x, [k]: v }));
 

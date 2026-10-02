@@ -28,7 +28,7 @@ export function ThemeAppearanceForm({ initial, current }: { initial: ThemeAppear
   const [t, setT] = useState(initial);
   const [saved, setSaved] = useState(initial);
   const [mode, setMode] = useState<ThemeMode>(current);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const [state, save, saving] = useActionState(saveThemeAppearance, undefined);
   const dirty = JSON.stringify(t) !== JSON.stringify(saved);
   const set = (k: ThemeKey, v: string) => setT((x) => ({ ...x, [mode]: { ...x[mode], [k]: v } }));
