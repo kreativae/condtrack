@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, ExternalLink, Handshake, RefreshCw } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { stripeDashboardUrl } from "@/lib/stripe";
@@ -47,6 +47,7 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
         description={`${units} unidades · Síndico: ${condo.users.map((u) => `${u.name} (${u.email})`).join(", ") || "—"}`}
         actions={
           <>
+            <a href="#negociacao" className={buttonClass("brand")}><Handshake className="size-4" />Negociação especial</a>
             {s?.stripeCustomerId && (
               <a href={stripeCustomerUrl!} target="_blank" rel="noreferrer" className={buttonClass("outline")}>
                 Abrir no Stripe <ExternalLink className="size-3.5" />
@@ -73,6 +74,22 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
         <Stat label="Último pagamento" value={lastPaid ? brl(lastPaid.amountPaid) : "—"} hint={lastPaid ? fmtDate(lastPaid.paidAt) : undefined} />
         <Stat label="Total recebido" value={brl(totalPaid)} tone="ok" />
       </div>
+
+      <Card id="negociacao" className="mb-8 scroll-mt-24">
+        <CardHeader
+          title="Negociação especial"
+          subtitle="Preço por unidade para este condomínio (mensal e anual). A cobrança acompanha as unidades cadastradas, com mínimo."
+          action={deal ? (deal.active ? <span className="rounded-full bg-ok/10 px-2.5 py-0.5 text-xs font-semibold text-ok">Ativa</span> : <span className="rounded-full bg-muted/10 px-2.5 py-0.5 text-xs font-semibold text-muted">Inativa</span>) : null}
+        />
+        <div className="p-5">
+          <DealForm
+            condominiumId={id}
+            units={units}
+            live={live}
+            deal={deal && { monthlyUnitPrice: deal.monthlyUnitPrice, yearlyUnitPrice: deal.yearlyUnitPrice, minUnits: deal.minUnits, trialDays: deal.trialDays, notes: deal.notes, active: deal.active }}
+          />
+        </div>
+      </Card>
 
       <div className="mb-8 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <Card>
@@ -113,22 +130,6 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
           </div>
         </Card>
       </div>
-
-      <Card className="mb-8">
-        <CardHeader
-          title="Negociação especial"
-          subtitle="Preço por unidade para este condomínio (mensal e anual). A cobrança acompanha as unidades cadastradas, com mínimo."
-          action={deal ? (deal.active ? <span className="rounded-full bg-ok/10 px-2.5 py-0.5 text-xs font-semibold text-ok">Ativa</span> : <span className="rounded-full bg-muted/10 px-2.5 py-0.5 text-xs font-semibold text-muted">Inativa</span>) : null}
-        />
-        <div className="p-5">
-          <DealForm
-            condominiumId={id}
-            units={units}
-            live={live}
-            deal={deal && { monthlyUnitPrice: deal.monthlyUnitPrice, yearlyUnitPrice: deal.yearlyUnitPrice, minUnits: deal.minUnits, trialDays: deal.trialDays, notes: deal.notes, active: deal.active }}
-          />
-        </div>
-      </Card>
 
       <h2 className="mb-4 font-display text-xl font-semibold">Faturas</h2>
       <InvoiceTable invoices={invoices} scroll />

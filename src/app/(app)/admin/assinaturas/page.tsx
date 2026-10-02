@@ -23,6 +23,7 @@ export default async function BillingAdminPage({ searchParams }: PageProps<"/adm
     db.condominium.findMany({
       include: {
         subscription: { include: { plan: true } },
+        billingDeal: { select: { active: true } },
         payments: { where: { status: { in: ["paid", "open", "uncollectible"] } }, orderBy: { createdAt: "desc" }, take: 1 },
         _count: { select: { buildings: true } },
       },
@@ -131,6 +132,10 @@ export default async function BillingAdminPage({ searchParams }: PageProps<"/adm
                   <tr key={c.id} className="group">
                     <td className="px-5 py-3">
                       <Link href={`/admin/assinaturas/${c.id}`} className="font-medium hover:text-brand">{c.name}</Link>
+                      {/* Atalho para definir o preço por unidade deste condomínio */}
+                      <Link href={`/admin/assinaturas/${c.id}#negociacao`} className={cx("ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium", c.billingDeal?.active ? "bg-brand-soft text-brand" : "text-muted ring-1 ring-line hover:text-brand [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100")}>
+                        {c.billingDeal?.active ? "Negociação" : "Negociar"}
+                      </Link>
                       {!c.active && <p className="text-xs text-muted">Condomínio inativo</p>}
                     </td>
                     <td className="px-5 py-3">{s?.plan ? `${s.plan.name} · ${s.interval === "year" ? "anual" : "mensal"}` : s?.stripeSubscriptionId ? `Negociação · ${s.quantity} unid. · ${s.interval === "year" ? "anual" : "mensal"}` : "—"}</td>
