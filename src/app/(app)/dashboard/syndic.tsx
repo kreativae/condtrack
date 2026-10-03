@@ -8,9 +8,7 @@ import { orderListInclude } from "@/lib/orders";
 import { RankBars } from "@/components/charts";
 import { OrderList } from "@/components/order-list";
 import { StatusBreakdown } from "@/components/status-breakdown";
-import { Card, CardHeader, LinkButton, PageHeader, StatStrip, cx } from "@/components/ui";
-import { AttentionStrip } from "@/components/dashboard/attention";
-import { nowMs } from "@/lib/format";
+import { Card, CardHeader, LinkButton, PageHeader, Stat, cx } from "@/components/ui";
 import { ChecklistSummary } from "@/components/checklist/summary";
 import { FinanceSummary } from "@/components/finance-summary";
 import { DashboardSettings } from "@/components/dashboard-settings";
@@ -20,9 +18,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
   const show = dashboardVisibility(user.dashboardHidden);
   const where = { condominiumId: cid };
-  const now = nowMs();
-  const DAY = 86_400_000;
-  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, approvedRecent, openedWeek] = await Promise.all([
+  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers] = await Promise.all([
     orderMetrics(where),
     db.serviceOrder.findMany({ where: { ...where, status: "validated" }, include: orderListInclude, orderBy: { validatedAt: "asc" } }),
     db.serviceOrder.findMany({ where, include: orderListInclude, orderBy: { updatedAt: "desc" }, take: 6 }),
@@ -32,16 +28,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
     db.serviceCategory.findMany({ where }),
     db.commonArea.findMany({ where }),
     db.user.findMany({ where: inCondo(cid, ["provider"]), select: { id: true, name: true } }),
-    // Aprovadas nas últimas 8 semanas: mini gráfico e comparação com os 30 dias anteriores
-    db.serviceOrder.findMany({ where: { ...where, approvedAt: { gte: new Date(now - 60 * DAY) } }, select: { approvedAt: true } }),
-    db.serviceOrder.count({ where: { ...where, createdAt: { gte: new Date(now - 7 * DAY) } } }),
   ]);
-  const weekly = Array.from({ length: 8 }, (_, i) => {
-    const end = now - (7 - i) * 7 * DAY;
-    return approvedRecent.filter((o) => o.approvedAt && o.approvedAt.getTime() > end - 7 * DAY && o.approvedAt.getTime() <= end).length;
-  });
-  const prev30 = approvedRecent.filter((o) => o.approvedAt && o.approvedAt.getTime() <= now - 30 * DAY).length;
-  const diff30 = m.approved30 - prev30;
   const name = (list: { id: string; name: string }[], id: string | null) => list.find((x) => x.id === id)?.name ?? "Sem categoria";
   const top = <T,>(rows: (T & { _count: number })[], key: (r: T) => string) =>
     rows.map((r) => ({ name: key(r), value: r._count })).sort((a, b) => b.value - a.value).slice(0, 6);
@@ -53,23 +40,16 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
       <PageHeader
         eyebrow={user.condominium?.name}
         title={`Olá, ${user.name.split(" ")[0]}`}
-        description="Visão geral do condomínio e o que precisa de você."
+        description="Visão geral do condomínio e decisões pendentes."
         actions={<><DashboardSettings sections={DASHBOARD_SECTIONS.syndic} hidden={user.dashboardHidden.split(",").filter(Boolean)} /><LinkButton href="/os/nova"><Plus className="size-4" />Nova OS</LinkButton></>}
       />
-      {show("attention") && <AttentionStrip condominiumId={cid} />}
       {show("stats") && (
-        <StatStrip
-          items={[
-            { label: "OS em aberto", value: m.open, hint: openedWeek ? `${openedWeek} ${openedWeek === 1 ? "aberta" : "abertas"} nos últimos 7 dias` : "nenhuma nova nos últimos 7 dias" },
-            {
-              label: "Concluídas em 30 dias", value: m.approved30, spark: weekly,
-              trend: diff30 === 0 ? undefined : { text: `${diff30 > 0 ? "↑" : "↓"} ${Math.abs(diff30)} em relação aos 30 dias anteriores`, good: diff30 > 0 },
-              hint: "igual aos 30 dias anteriores",
-            },
-            { label: "Atrasadas", value: m.overdue, tone: m.overdue ? "bad" : undefined, hint: m.overdue ? "passaram do prazo" : "nenhuma fora do prazo" },
-            { label: "Tempo médio de resolução", value: fmtHours(m.avgHours), hint: "da abertura à aprovação" },
-          ]}
-        />
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Stat label="OS em aberto" value={m.open} />
+        <Stat label="Aguardando sua aprovação" value={m.counts.validated} tone={m.counts.validated ? "brand" : undefined} />
+        <Stat label="Atrasadas" value={m.overdue} tone={m.overdue ? "bad" : undefined} />
+        <Stat label="Tempo médio de resolução" value={fmtHours(m.avgHours)} hint={`${m.approved30} concluídas em 30 dias`} />
+      </div>
       )}
 
       {show("checklist") && <ChecklistSummary condominiumId={cid} />}

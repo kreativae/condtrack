@@ -358,17 +358,14 @@ export function MobileNav({ items, initialPins, user, customized, condos }: { it
           const Icon = ICONS[it.icon] ?? Gauge;
           const active = isActive(pathname, it.href);
           return (
-            <Link key={it.href} href={it.href} aria-current={active ? "page" : undefined} className={clsx("flex flex-col items-center gap-1 py-2 text-[10px]", active ? "font-bold text-brand" : "font-medium text-muted")}>
-              {/* Item ativo: pílula atrás do ícone */}
-              <span className={clsx("flex h-7 w-12 items-center justify-center rounded-full transition-colors", active && "bg-brand-soft")}>
-                <Icon className="size-5" strokeWidth={active ? 2.1 : 1.6} />
-              </span>
+            <Link key={it.href} href={it.href} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium", active ? "text-brand" : "text-muted")}>
+              <Icon className="size-5" strokeWidth={1.6} />
               <span className="max-w-full truncate px-1">{it.short ?? it.label}</span>
             </Link>
           );
         })}
-        <button type="button" onClick={() => setOpen(true)} className={clsx("flex flex-col items-center gap-1 py-2 text-[10px] font-medium", open ? "text-brand" : "text-muted")}>
-          <span className="flex h-7 w-12 items-center justify-center"><Menu className="size-5" strokeWidth={1.6} /></span>
+        <button type="button" onClick={() => setOpen(true)} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium", open ? "text-brand" : "text-muted")}>
+          <Menu className="size-5" strokeWidth={1.6} />
           <span>Menu</span>
         </button>
       </nav>

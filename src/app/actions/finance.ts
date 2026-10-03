@@ -6,7 +6,6 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { flash } from "@/lib/flash";
 import { financeAccess, financeLog, loadEntryFor } from "@/lib/finance-server";
 import { DAY_RE, FIN_STATUS, FIN_TYPES, dateToDay, dayToDate, fmtBRL, parseBRL } from "@/lib/finance";
 
@@ -108,7 +107,6 @@ export async function createFinanceEntry(_prev: FinanceState, form: FormData): P
   } catch (e) {
     return fail(e);
   }
-  await flash("Lançamento criado");
   refresh();
   redirect(`/financeiro/${id}`);
 }
@@ -146,7 +144,6 @@ export async function setFinanceStatus(form: FormData) {
     action: "updated",
     changes: { status: [show("status", entry.status), show("status", status)], paidAt: [show("paidAt", entry.paidAt), show("paidAt", paidAt)] },
   });
-  await flash(status === "paid" ? "Marcado como pago" : "Voltou para pendente");
   refresh(id);
 }
 

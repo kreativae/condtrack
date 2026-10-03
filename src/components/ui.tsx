@@ -56,11 +56,11 @@ export function CardHeader({ title, action, subtitle }: { title: ReactNode; subt
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+    <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        {eyebrow && <p className="mb-1 text-xs font-semibold first-letter:uppercase text-brand sm:text-sm">{eyebrow}</p>}
-        <h1 className="text-balance font-display text-[22px] font-bold leading-tight tracking-tight sm:text-[30px]">{title}</h1>
-        {description && <p className="mt-1.5 max-w-2xl text-[13px] text-muted sm:mt-2 sm:text-sm">{description}</p>}
+        {eyebrow && <p className="mb-1.5 text-sm font-medium first-letter:uppercase text-brand">{eyebrow}</p>}
+        <h1 className="font-display text-2xl font-bold leading-tight sm:text-[32px]">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-sm text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">{actions}</div>}
     </header>
@@ -111,44 +111,6 @@ export function Field({ label, hint, children, className }: { label: string; hin
       {children}
       {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
-  );
-}
-
-export type StatItem = { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone; trend?: { text: string; good: boolean }; spark?: number[] };
-
-/**
- * Números do painel sem cartão: soltos sobre o fundo, separados por linhas finas, com tendência
- * opcional (texto verde/vermelho) e mini gráfico. Para destacar o que importa, cartão só onde separa algo.
- */
-export function StatStrip({ items }: { items: StatItem[] }) {
-  return (
-    <div className="mb-6 grid grid-cols-2 border-y border-line lg:grid-cols-4">
-      {items.map((s, i) => (
-        <div key={s.label} className={cx("@container flex flex-col gap-1 px-1 py-4 sm:px-5", i % 2 === 1 && "border-l border-line", i >= 2 && "border-t border-line lg:border-t-0", i === 2 && "lg:border-l")}>
-          <p className="text-xs font-medium text-muted sm:text-[13px]">{s.label}</p>
-          <div className="flex items-end justify-between gap-2">
-            <p className={cx("font-num font-bold tracking-tight tabular-nums text-[26px] @[14rem]:text-[30px]", s.tone ? toneText[s.tone] : "text-fg")}>{s.value}</p>
-            {s.spark && s.spark.length > 1 && <Sparkline values={s.spark} />}
-          </div>
-          {s.trend ? (
-            <p className={cx("text-xs font-semibold", s.trend.good ? "text-ok" : "text-bad")}>{s.trend.text}</p>
-          ) : (
-            s.hint && <p className="text-xs text-muted">{s.hint}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Mini gráfico de linha (cor da marca), escalado aos próprios valores. */
-export function Sparkline({ values }: { values: number[] }) {
-  const w = 76, h = 26, max = Math.max(...values, 1), min = Math.min(...values, 0);
-  const pts = values.map((v, i) => `${((i / (values.length - 1)) * (w - 4) + 2).toFixed(1)},${(h - 2 - ((v - min) / (max - min || 1)) * (h - 4)).toFixed(1)}`).join(" ");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="hidden shrink-0 text-brand @[12rem]:block">
-      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
 

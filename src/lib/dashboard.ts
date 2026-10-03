@@ -13,7 +13,6 @@ export const DASHBOARD_SECTIONS: Record<Role, DashSection[]> = {
     { key: "late", label: "Alertas de OS atrasadas" },
   ],
   syndic: [
-    { key: "attention", label: "Pede sua atenção" },
     { key: "stats", label: "Indicadores" },
     { key: "checklist", label: "Checklist de hoje" },
     { key: "finance", label: "Resumo financeiro" },

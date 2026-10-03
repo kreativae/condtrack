@@ -67,12 +67,6 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Menu que abre o menu lateral com todas as páginas e o alfinete para fixar. Itens vêm de `src/lib/nav.ts`.
 - **Janelas e sobreposições** (`fixed inset-0`): renderize com `createPortal(..., document.body)`. A animação `animate-in`
   das páginas prende elementos `fixed` dentro dela no Chrome.
-- **Avisos rápidos (toasts)**: a server action chama `flash("OS aprovada…")` (`src/lib/flash.ts`, cookie curto) e o
-  `<Toaster>` do layout mostra no canto. Use para ações sem retorno na tela (transições, marcar pago…); formulários com
-  `Alert` próprio não precisam. Carregamento: `src/app/(app)/loading.tsx` (esqueleto genérico).
-- **Painel**: `StatStrip` (números sem cartão, com tendência e `Sparkline`) e `AttentionStrip`
-  (`components/dashboard/attention.tsx`, o que pede atenção do síndico). Linhas de OS (`OrderRows`): ícone/cor da
-  categoria, 6 etapas, prestador e prazo em palavras ("Atrasada 2 dias").
 - **Cartões de números** (`Stat` em `ui.tsx`): o tamanho do valor depende só da largura do cartão (`@container`),
   para cartões lado a lado ficarem iguais. Use `fmtBRL()` para dinheiro (sinal de menos que não quebra linha).
 - **Checklist do zelador**: `src/lib/checklist*.ts`, `src/app/actions/checklist.ts`, `src/app/api/cron/checklist`.

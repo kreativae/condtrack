@@ -15,7 +15,7 @@ export function userMemberships(userId: string) {
   return db.membership.findMany({
     // Condomínios arquivados não aparecem nos vínculos
     where: { userId, condominium: { deletedAt: null } },
-    include: { condominium: { select: { id: true, name: true, active: true, accentColor: true } } },
+    include: { condominium: { select: { id: true, name: true, active: true } } },
     orderBy: { condominium: { name: "asc" } },
   });
 }
