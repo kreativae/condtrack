@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Prisma } from "@prisma/client";
-import { ChevronLeft, ChevronRight, Lock, LockOpen, Paperclip, Plus, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, LockOpen, Paperclip, PiggyBank, Plus, Wallet } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDateTime, nowMs } from "@/lib/format";
@@ -123,6 +123,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
         actions={
           <>
             <ReportDialog categories={categories.map((c) => c.category)} condoId={user.role === "superadmin" ? condo.id : undefined} today={dateToDay(new Date(now))} />
+            <LinkButton variant="outline" href={`/financeiro/orcamento${condoQS}`}><PiggyBank className="size-4" />Orçamento</LinkButton>
             <ExportButton query={exportQS} />
             {access.edit && <LinkButton href={`/financeiro/novo${condoQS}`}><Plus className="size-4" />Novo lançamento</LinkButton>}
           </>

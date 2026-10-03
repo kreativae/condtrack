@@ -215,7 +215,7 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   }
   await db.checklistCheck.createMany({ data: checks });
 
-  // ───── Financeiro: últimos 4 meses (mês atual com pendências)
+  // ───── Financeiro: do início do ano (mínimo 4 meses) até o mês atual, com pendências
   const ym = (offset: number) => {
     const [y, m] = today.split("-").map(Number);
     const d = new Date(Date.UTC(y, m - 1 + offset, 1));
@@ -248,7 +248,9 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   };
   const todayDay = Number(today.slice(8));
   let docN = 1200;
-  for (const offset of [-3, -2, -1, 0]) {
+  // Desde janeiro (para o orçamento do ano fazer sentido), sempre com pelo menos os últimos 4 meses
+  const monthsBack = Math.max(4, Number(today.slice(5, 7)));
+  for (const offset of Array.from({ length: monthsBack }, (_, i) => i - monthsBack + 1)) {
     const mes = ym(offset);
     for (const f of [...monthly, ...(extras[offset] ?? [])]) {
       const dueDay = Math.min(f.day, 28);
@@ -280,6 +282,19 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
       { condominiumId: cid, kind: "document", title: "Seguro predial obrigatório", description: "Apólice contra incêndio.", every: 1, unit: "year", nextDue: addDays(today, 210), leadDays: 30, createdById: syndic.id },
       { condominiumId: cid, kind: "document", title: "Laudo do SPDA (para-raios)", every: 1, unit: "year", nextDue: addDays(today, 150), leadDays: 30, createdById: syndic.id },
     ],
+  });
+
+  // ───── Orçamento do ano (valores próximos do realizado mensal × 12, com algumas categorias estourando)
+  const budgetYear = Number(today.slice(0, 4));
+  const budgetLines: [string, string, number][] = [
+    ["income", "Taxa condominial", 4_864_000 * 12], ["income", "Fundo de reserva", 486_400 * 12], ["income", "Aluguel de áreas comuns", 600_000],
+    ["expense", "Folha de pagamento", 1_980_000 * 12], ["expense", "Encargos e impostos", 642_000 * 12], ["expense", "Energia", 340_000 * 12],
+    ["expense", "Água", 450_000 * 12], ["expense", "Elevadores", 210_000 * 12], ["expense", "Limpeza", 260_000 * 12],
+    ["expense", "Portaria e segurança", 1_040_000 * 12], ["expense", "Administradora", 220_000 * 12], ["expense", "Seguros", 900_000],
+    ["expense", "Obras e reformas", 800_000], ["expense", "Manutenção", 1_200_000], ["expense", "Piscina", 300_000],
+  ];
+  await db.financeBudget.createMany({
+    data: budgetLines.map(([type, category, amountCents]) => ({ condominiumId: cid, year: budgetYear, type, category, amountCents, updatedById: syndic.id })),
   });
 
   // ───── Comunicados

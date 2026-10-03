@@ -52,6 +52,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Superadmin: condomínio em foco no cookie `sa_condo` (`lib/admin-scope*.ts`), escolhido no cartão do menu (`CondoSwitcher`)
   ou ao abrir um condomínio no Financeiro/Checklist. Dashboard, OS, Feed, Usuários, Auditoria e Relatórios respeitam
   (`adminScope(user)`); vazio = todos. Não importe constantes de arquivos "use client" em código de servidor.
+- **Orçamento** (`/financeiro/orcamento`, botão no Financeiro): `FinanceBudget` = valor do ano por tipo e categoria.
+  `src/lib/budget.ts` compara orçado, previsto até o mês (proporcional) e realizado (lançamentos do ano pela competência,
+  pagos e pendentes, sem cancelados/excluídos). Salvar substitui as linhas do ano e grava `budget_updated` no `FinanceLog`.
+  Mesmo acesso do Financeiro (conselho só vê, se liberado).
 - **Ordem do menu**: cada usuário segura e arrasta os itens (desktop e celular, `useReorder` em `nav-links.tsx`); a ordem fica em
   `User.navOrder` (salva por `app/actions/nav.ts`) e o layout aplica. Páginas novas entram no fim da ordem salva.
 - **Painel personalizável**: ícone de ajustes no cabeçalho do dashboard (todos menos morador). Blocos de cada perfil em

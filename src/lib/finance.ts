@@ -48,6 +48,7 @@ export const LOG_LABEL: Record<string, string> = {
   attachment_viewed: "abriu o anexo",
   council_access: "alterou o acesso do conselho",
   exported: "gerou um relatório",
+  budget_updated: "alterou o orçamento",
 };
 
 /** Rótulos dos campos no histórico de edição. */
@@ -70,12 +71,12 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" 
 // "−" (sinal de menos) em vez de hífen: a linha nunca quebra entre o sinal e o valor
 export const fmtBRL = (cents: number) => brl.format(cents / 100).replace("-", "\u2212");
 
-/** "1.234,56", "1234.56" ou "1234" → centavos. null se inválido. */
+/** "1.234,56", "1234.56", "120.000" (milhar) ou "1234" → centavos. null se inválido. */
 export function parseBRL(input: string): number | null {
   let s = input.replace(/[R$\s]/g, "");
   if (!s) return null;
   if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
-  else if ((s.match(/\./g) ?? []).length > 1) s = s.replace(/\./g, "");
+  else if ((s.match(/\./g) ?? []).length > 1 || /^\d{1,3}\.\d{3}$/.test(s)) s = s.replace(/\./g, "");
   if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
   return Math.round(Number(s) * 100);
 }
