@@ -107,6 +107,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `app/actions/announcements.ts`); o síndico aprova (apaga, conteúdo guardado na auditoria) ou recusa no próprio card.
   O síndico apaga direto só os comunicados que ele mesmo publicou (`deleteOwnAnnouncement`).
   Mesmo padrão das assembleias: um pedido por vez, decisão reservada com `updateMany` condicional.
+- **LGPD**: `/termos` e `/privacidade` (abertas a todos, lista `OPEN` no `proxy.ts`; textos em `src/lib/legal.ts`, dados da
+  empresa em Configurações → Dados legais). Aceite obrigatório da versão vigente (`User.termsVersion`; o layout manda para
+  `/aceite`; mudar a "versão" em Configurações pede novo aceite de todos). Meu perfil → Privacidade: `/api/meus-dados`
+  (JSON com os dados da pessoa) e pedido de exclusão (`deletionRequestedAt`, avisa os superadmins). Textos são modelo:
+  revisar com advogado.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

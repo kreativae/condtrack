@@ -53,6 +53,11 @@ export function LoginForm({ next, passkeys, turnstileSiteKey, a }: { next?: stri
           {a.buttonText}
         </SubmitButton>
         {a.showHelp && <p className="text-center text-xs text-muted" style={a.textColor ? { color: a.textColor } : undefined}>{a.helpText}</p>}
+        <p className="text-center text-[11px] text-muted">
+          <Link href="/termos" className="hover:text-brand hover:underline">Termos de Uso</Link>
+          <span className="mx-1.5">·</span>
+          <Link href="/privacidade" className="hover:text-brand hover:underline">Política de Privacidade</Link>
+        </p>
       </form>
     </div>
   );

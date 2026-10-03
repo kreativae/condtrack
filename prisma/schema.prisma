@@ -123,6 +123,11 @@ model User {
   totpLastStep  Int?
   /// Hashes dos códigos de recuperação restantes, separados por vírgula
   recoveryCodes String    @default("")
+  /// LGPD: aceite dos termos e da política (versão = data da última atualização em Configurações → Dados legais)
+  termsAcceptedAt DateTime?
+  termsVersion  String?
+  /// LGPD: a pessoa pediu a exclusão da conta (o superadmin conclui em Editar usuário)
+  deletionRequestedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { CreditCard, Database, LogIn, Mail, MessagesSquare, Palette, ScanFace, ShieldCheck, Triangle } from "lucide-react";
+import { CreditCard, Database, LogIn, Mail, MessagesSquare, Palette, Scale, ScanFace, ShieldCheck, Triangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings, maskSecret, settingsSource } from "@/lib/settings";
@@ -26,7 +26,7 @@ import { getAllTemplates, getTemplateOverrides } from "@/lib/messages-server";
 
 export const metadata: Metadata = { title: "Configurações" };
 
-const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace, aparencia: Palette, login: LogIn, mensagens: MessagesSquare } as const;
+const ICON = { stripe: CreditCard, email: Mail, vercel: Triangle, neon: Database, security: ShieldCheck, passkeys: ScanFace, legal: Scale, aparencia: Palette, login: LogIn, mensagens: MessagesSquare } as const;
 const STRIPE_EVENTS = [
   "checkout.session.completed",
   "customer.subscription.created",
@@ -108,6 +108,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
     neon: (await neonConfig()).ready,
     security: true,
     passkeys: status.passkeys.enabled !== false,
+    legal: !!status.legal.companyName && !!status.legal.dpoEmail,
   };
 
   const fields: ClientField[] = def.fields.map((f) => ({

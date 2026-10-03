@@ -22,7 +22,7 @@ export type FieldDef = {
 
 export type GroupDef = { key: SettingsGroup; title: string; description: string; fields: FieldDef[] };
 
-export type SettingsGroup = "stripe" | "email" | "vercel" | "neon" | "security" | "passkeys";
+export type SettingsGroup = "stripe" | "email" | "vercel" | "neon" | "security" | "passkeys" | "legal";
 
 export const SETTINGS: GroupDef[] = [
   {
@@ -99,6 +99,20 @@ export const SETTINGS: GroupDef[] = [
       { key: "rpName", label: "Nome exibido no aparelho", type: "text", default: "Condtrack", placeholder: "Condtrack" },
       { key: "rpId", label: "Domínio (RP ID)", type: "text", placeholder: "condtrack.app", hint: "Domínio onde o sistema roda, sem https:// (ex.: app.condtrack.com.br). Vazio = domínio atual. Passkeys ficam presas a este domínio." },
       { key: "allowedOrigins", label: "Origens permitidas", type: "text", placeholder: "https://app.condtrack.com.br", hint: "Separe por vírgula. Vazio = origem atual." },
+    ],
+  },
+  {
+    key: "legal",
+    title: "Dados legais (LGPD)",
+    description: "Quem responde pela plataforma nos Termos de Uso e na Política de Privacidade. Mudar a data da versão pede um novo aceite de todos.",
+    fields: [
+      { key: "companyName", label: "Razão social", type: "text", placeholder: "Condtrack Tecnologia Ltda." },
+      { key: "cnpj", label: "CNPJ", type: "text", placeholder: "00.000.000/0001-00" },
+      { key: "address", label: "Endereço", type: "text", placeholder: "Rua…, nº — Cidade, UF" },
+      { key: "dpoName", label: "Encarregado de dados (DPO)", type: "text", placeholder: "Nome do encarregado" },
+      { key: "dpoEmail", label: "E-mail do encarregado", type: "text", placeholder: "privacidade@seudominio.com.br", hint: "Canal para pedidos sobre dados pessoais (art. 41 da LGPD)." },
+      { key: "forum", label: "Foro (comarca)", type: "text", placeholder: "São Paulo, SP" },
+      { key: "version", label: "Versão dos termos (data)", type: "text", default: "2026-10-03", placeholder: "AAAA-MM-DD", hint: "Atualize ao mudar os textos: todos aceitam de novo no próximo acesso." },
     ],
   },
 ];

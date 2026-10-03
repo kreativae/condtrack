@@ -20,9 +20,13 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui";
 import { unitLabel } from "@/lib/units";
+import { redirect } from "next/navigation";
+import { termsVersion } from "@/lib/legal";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
+  // LGPD: aceite da versão vigente dos Termos e da Política (no "visualizar como" não se aceita pela pessoa)
+  if (!user.impersonator && user.termsVersion !== (await termsVersion())) redirect("/aceite");
   // Checklist atrasado: verifica sem atrasar a página (envia no máximo um aviso por dia)
   if (user.condominiumId) {
     const cid = user.condominiumId;

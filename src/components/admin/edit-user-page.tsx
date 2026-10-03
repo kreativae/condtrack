@@ -53,6 +53,11 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
         </div>
         {admin && !self && u.totpEnabledAt && <ResetTwoFactorButton id={u.id} name={u.name} />}
       </Card>
+      {u.deletionRequestedAt && (
+        <p className="mb-6 rounded-2xl bg-warn/10 px-4 py-3 text-sm text-fg-2 ring-1 ring-inset ring-warn/15">
+          <b className="text-warn">Pedido de exclusão (LGPD)</b> em {fmtDateTime(u.deletionRequestedAt)}. Confira se não há pendências e exclua a conta em Usuários (ícone de lixeira na linha da pessoa).
+        </p>
+      )}
       <Card className="p-6 sm:p-8">
         <EditUserForm
           user={{

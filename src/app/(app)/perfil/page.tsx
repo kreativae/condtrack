@@ -8,6 +8,7 @@ import { EmailForm, PasswordForm, ProfileForm } from "./forms";
 import { PasskeysCard } from "./passkeys";
 import { TwoFactorCard } from "./two-factor";
 import { PushCard } from "./push";
+import { PrivacyCard } from "./privacy";
 import { pushPublicKey } from "@/lib/push";
 import { recoveryCount } from "@/lib/totp";
 import { db } from "@/lib/db";
@@ -51,6 +52,18 @@ export default async function ProfilePage() {
             <div className="p-5"><EmailForm email={user.email} /></div>
           </Card>
           <Card><CardHeader title="Senha" /><div className="p-5"><PasswordForm /></div></Card>
+          <Card id="privacidade">
+            <CardHeader title="Privacidade e seus dados" subtitle="Seus direitos pela LGPD" />
+            <div className="p-5">
+              <PrivacyCard
+                acceptedAt={user.termsAcceptedAt?.toISOString() ?? null}
+                version={user.termsVersion}
+                deletionRequestedAt={user.deletionRequestedAt?.toISOString() ?? null}
+                superadmin={user.role === "superadmin"}
+                disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
+              />
+            </div>
+          </Card>
         </div>
         {/* Segurança e avisos */}
         <div className="space-y-6">

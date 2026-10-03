@@ -2,11 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session-token";
 
 const PUBLIC = ["/login", "/primeiro-acesso", "/esqueci-senha", "/redefinir-senha"];
+// Abertas para todos, com ou sem login (documentos legais)
+const OPEN = ["/termos", "/privacidade"];
 
 // Checagem otimista: apenas redireciona. A autorização real acontece em cada
 // página/ação via requireUser() e nas regras de lib/workflow.ts.
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (OPEN.some((p) => pathname === p)) return NextResponse.next();
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   const isPublic = PUBLIC.some((p) => pathname.startsWith(p));
 
