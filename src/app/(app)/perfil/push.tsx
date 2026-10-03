@@ -45,8 +45,12 @@ export function PushCard({ publicKey, devices, disabledReason }: { publicKey: st
       if (Notification.permission === "denied") setSupport("denied");
       else setSupport("ok");
       const reg = await navigator.serviceWorker.getRegistration("/");
+      // Atualiza o service worker (pega a versão nova do sw.js) e reenvia a inscrição atual:
+      // se o navegador trocou as chaves, o servidor passa a usar as novas
+      reg?.update().catch(() => null);
       const sub = await reg?.pushManager.getSubscription();
       setCurrent(sub?.endpoint ?? null);
+      if (sub && Notification.permission === "granted") subscribePush(sub.toJSON(), deviceName(), true).catch(() => null);
     });
   }, []);
 

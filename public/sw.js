@@ -40,3 +40,23 @@ self.addEventListener("notificationclick", (event) => {
     }),
   );
 });
+
+// O navegador renovou a inscrição (chaves novas): avisa o servidor, senão as notificações
+// seguintes chegam com as chaves antigas e são descartadas sem aviso.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      const old = event.oldSubscription;
+      let sub = event.newSubscription;
+      const key = old && old.options ? old.options.applicationServerKey : null;
+      if (!sub && key) sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      if (!sub) return;
+      await fetch("/api/push/assinatura", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: sub.toJSON(), oldEndpoint: old ? old.endpoint : null }),
+      });
+    })(),
+  );
+});
