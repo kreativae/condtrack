@@ -88,6 +88,8 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   unidade). Rascunho → publicar (abre a votação, cria comunicado e avisa) → encerra no prazo (cron/página) ou pelo síndico
   → ata gerada da apuração (`minutesDraft`), editável, em PDF em `/relatorio/ata/[id]`. Quem vota: `voterUnits()` (UserUnit
   "owner" no condomínio). Resultado parcial só para quem organiza, a menos que `showPartial`. Regras em `lib/assembly*.ts`.
+  Publicada, só muda por pedido do superadmin (`AssemblyChange`: editar ou excluir) aprovado pelo síndico; itens alterados
+  perdem os votos (`describeChange`/`applyAssemblyEdit`), encerrada não muda a pauta.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

@@ -8,20 +8,24 @@ import { SubmitButton } from "@/components/submit-button";
 import { Alert, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { ASSEMBLY_KINDS, DEFAULT_OPTIONS } from "@/lib/assembly";
 
-type Item = { key: number; title: string; description: string; options: string };
+type Item = { key: number; id: string | null; title: string; description: string; options: string };
 export type AssemblyInitial = {
   title: string; kind: string; description: string; location: string; meetingAt: string; votingEndsAt: string; showPartial: boolean;
-  items: { title: string; description: string; options: string[] }[];
+  items: { id?: string; title: string; description: string; options: string[] }[];
 };
 
 let seq = 0;
-const blank = (): Item => ({ key: ++seq, title: "", description: "", options: "" });
+const blank = (): Item => ({ key: ++seq, id: null, title: "", description: "", options: "" });
 
-export function AssemblyForm({ action, initial, condominiumId }: { action: (s: AssemblyState, f: FormData) => Promise<AssemblyState>; initial?: AssemblyInitial; condominiumId: string }) {
+/**
+ * `request`: superadmin editando assembleia publicada — vira pedido para o síndico aprovar.
+ * `lockItems`: assembleia encerrada, a pauta não muda (só os dados).
+ */
+export function AssemblyForm({ action, initial, condominiumId, request, lockItems }: { action: (s: AssemblyState, f: FormData) => Promise<AssemblyState>; initial?: AssemblyInitial; condominiumId: string; request?: boolean; lockItems?: boolean }) {
   const [state, form, pending] = useFormSubmit(action);
   const [items, setItems] = useState<Item[]>(() =>
     initial?.items.length
-      ? initial.items.map((i) => ({ key: ++seq, title: i.title, description: i.description, options: i.options.join("\n") === DEFAULT_OPTIONS.join("\n") ? "" : i.options.join("\n") }))
+      ? initial.items.map((i) => ({ key: ++seq, id: i.id ?? null, title: i.title, description: i.description, options: i.options.join("\n") === DEFAULT_OPTIONS.join("\n") ? "" : i.options.join("\n") }))
       : [{ ...blank(), title: "Prestação de contas do período" }, { ...blank(), title: "Previsão orçamentária do próximo período" }],
   );
   const set = (key: number, patch: Partial<Item>) => setItems((l) => l.map((i) => (i.key === key ? { ...i, ...patch } : i)));
@@ -60,14 +64,15 @@ export function AssemblyForm({ action, initial, condominiumId }: { action: (s: A
         <ol className="space-y-3">
           {items.map((it, idx) => (
             <li key={it.key} className="rounded-2xl p-4 ring-1 ring-line">
+              <input type="hidden" name="itemId" value={it.id ?? ""} />
               <div className="flex gap-2">
                 <span className="mt-2.5 w-6 shrink-0 font-num text-sm font-semibold text-brand">{idx + 1}.</span>
                 <div className="min-w-0 flex-1 space-y-2">
-                  <Input name="itemTitle" value={it.title} onChange={(e) => set(it.key, { title: e.target.value })} placeholder="Assunto a votar" maxLength={200} />
-                  <Textarea name="itemDescription" rows={2} value={it.description} onChange={(e) => set(it.key, { description: e.target.value })} placeholder="Detalhes (opcional)" maxLength={2000} />
-                  <Textarea name="itemOptions" rows={2} value={it.options} onChange={(e) => set(it.key, { options: e.target.value })} placeholder={`Opções, uma por linha (vazio = ${DEFAULT_OPTIONS.join(" / ")})`} />
+                  <Input name="itemTitle" readOnly={lockItems} value={it.title} onChange={(e) => set(it.key, { title: e.target.value })} placeholder="Assunto a votar" maxLength={200} />
+                  <Textarea name="itemDescription" readOnly={lockItems} rows={2} value={it.description} onChange={(e) => set(it.key, { description: e.target.value })} placeholder="Detalhes (opcional)" maxLength={2000} />
+                  <Textarea name="itemOptions" readOnly={lockItems} rows={2} value={it.options} onChange={(e) => set(it.key, { options: e.target.value })} placeholder={`Opções, uma por linha (vazio = ${DEFAULT_OPTIONS.join(" / ")})`} />
                 </div>
-                <div className="flex shrink-0 flex-col gap-1">
+                <div className={lockItems ? "hidden" : "flex shrink-0 flex-col gap-1"}>
                   <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0} aria-label="Subir" className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-bg-2 disabled:opacity-30"><ArrowUp className="size-4" /></button>
                   <button type="button" onClick={() => move(idx, 1)} disabled={idx === items.length - 1} aria-label="Descer" className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-bg-2 disabled:opacity-30"><ArrowDown className="size-4" /></button>
                   <button type="button" onClick={() => setItems((l) => l.filter((x) => x.key !== it.key))} aria-label="Remover item" className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-bg-2 hover:text-bad"><X className="size-4" /></button>
@@ -76,7 +81,11 @@ export function AssemblyForm({ action, initial, condominiumId }: { action: (s: A
             </li>
           ))}
         </ol>
-        <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setItems((l) => [...l, blank()])}><Plus className="size-4" />Adicionar item</Button>
+        {lockItems ? (
+          <p className="mt-2 text-xs text-muted">Assembleia encerrada: a pauta e o resultado não mudam.</p>
+        ) : (
+          <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setItems((l) => [...l, blank()])}><Plus className="size-4" />Adicionar item</Button>
+        )}
       </section>
 
       <label className="flex items-start gap-2 text-sm">
@@ -84,9 +93,14 @@ export function AssemblyForm({ action, initial, condominiumId }: { action: (s: A
         <span>Mostrar o resultado parcial aos votantes <span className="block text-xs text-muted">Desligado: todos veem o resultado só depois do encerramento (o síndico acompanha sempre).</span></span>
       </label>
 
+      {request && (
+        <Field label="Motivo para o síndico" hint="O síndico vê o que muda e decide. Itens com votos que mudarem de texto ou opções terão os votos zerados.">
+          <Textarea name="reason" rows={2} maxLength={500} placeholder="Ex.: corrigir a data da assembleia, que foi remarcada." />
+        </Field>
+      )}
       {state?.error && <Alert>{state.error}</Alert>}
       <div className="flex justify-end border-t border-line pt-5">
-        <SubmitButton pending={pending} pendingText="Salvando…">Salvar rascunho</SubmitButton>
+        <SubmitButton pending={pending} pendingText={request ? "Enviando…" : "Salvando…"}>{request ? "Enviar para aprovação do síndico" : "Salvar rascunho"}</SubmitButton>
       </div>
     </form>
   );

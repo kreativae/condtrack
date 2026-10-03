@@ -7,9 +7,10 @@ import { closeVoting, deleteAssembly, extendVoting, publishAssembly, type Assemb
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Button, Input, buttonClass } from "@/components/ui";
+import { RequestDelete } from "./change-request";
 
 /** Ações do síndico/superadmin conforme a situação da assembleia. */
-export function ManageBar({ id, status, votingEndsAt }: { id: string; status: string; votingEndsAt: string }) {
+export function ManageBar({ id, status, votingEndsAt, superadmin, hasPending }: { id: string; status: string; votingEndsAt: string; superadmin?: boolean; hasPending?: boolean }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<AssemblyState>(undefined);
   const [extending, setExtending] = useState(false);
@@ -49,7 +50,14 @@ export function ManageBar({ id, status, votingEndsAt }: { id: string; status: st
             </Button>
           </>
         )}
-        {status === "closed" && <p className="text-sm text-fg-2">Votação encerrada. Revise a ata abaixo e gere o PDF.</p>}
+        {status === "closed" && <p className="w-full text-sm text-fg-2">Votação encerrada. Revise a ata abaixo e gere o PDF.</p>}
+        {/* Superadmin: assembleia publicada só muda com a aprovação do síndico */}
+        {superadmin && status !== "draft" && !hasPending && (
+          <>
+            <Link href={`/assembleias/${id}/editar`} className={buttonClass("outline")}><Pencil className="size-4" />Editar (com aprovação)</Link>
+            <RequestDelete id={id} />
+          </>
+        )}
       </div>
       {extending && (
         <form {...extForm} className="flex flex-wrap items-end gap-2">

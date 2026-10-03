@@ -7,12 +7,13 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { nowMs } from "@/lib/format";
 import { unitLabel } from "@/lib/units";
-import { assemblyAccess, closeExpiredAssemblies, loadAssembly, unitsCount, voterUnits } from "@/lib/assembly-server";
+import { assemblyAccess, closeExpiredAssemblies, describeChange, loadAssembly, unitsCount, voterUnits, type ProposedAssembly } from "@/lib/assembly-server";
 import { ASSEMBLY_KINDS, ASSEMBLY_STATUS, fmtDateTimeBR, fmtMeeting, parseOptions, pct, tally, toLocalInput, type AssemblyKind, type AssemblyStatus } from "@/lib/assembly";
 import { Badge, Card, CardHeader, PageHeader, buttonClass, cx } from "@/components/ui";
 import { ManageBar } from "./manage-bar";
 import { VotePanel } from "./vote-panel";
 import { MinutesEditor } from "./minutes-editor";
+import { ChangeRequestPanel } from "./change-request";
 
 export const metadata: Metadata = { title: "Assembleia" };
 
@@ -25,7 +26,16 @@ export default async function AssemblyPage({ params }: PageProps<"/assembleias/[
   if (!access.view || (a.status === "draft" && !access.manage)) notFound();
   if (a.status === "open") after(() => closeExpiredAssemblies(nowMs(), a.condominiumId).catch((e) => console.error("[assembleia]", e)));
 
-  const [total, myUnits] = await Promise.all([unitsCount(a.condominiumId), voterUnits(user.id, a.condominiumId)]);
+  const [total, myUnits, change] = await Promise.all([
+    unitsCount(a.condominiumId),
+    voterUnits(user.id, a.condominiumId),
+    access.manage ? db.assemblyChange.findFirst({ where: { assemblyId: a.id, status: "pending" }, orderBy: { createdAt: "desc" } }) : null,
+  ]);
+  // Pedido do superadmin aguardando o síndico: o que muda e quantos itens perdem os votos
+  const pendingChange = change && {
+    id: change.id, kind: change.kind, reason: change.reason, requestedBy: change.requestedBy, createdAt: change.createdAt.toISOString(),
+    ...(change.kind === "edit" ? describeChange(a, JSON.parse(change.payload) as ProposedAssembly) : { lines: [], resetItems: 0 }),
+  };
   const open = a.status === "open" && a.votingEndsAt.getTime() > nowMs();
   const showResults = access.manage || a.status === "closed" || a.showPartial;
   const votedUnits = new Set(a.items.flatMap((i) => i.votes.map((v) => v.unitId)));
@@ -70,7 +80,8 @@ export default async function AssemblyPage({ params }: PageProps<"/assembleias/[
         {a.description && <p className="whitespace-pre-line text-sm text-fg-2 sm:col-span-2">{a.description}</p>}
       </Card>
 
-      {access.manage && <ManageBar id={a.id} status={a.status} votingEndsAt={toLocalInput(a.votingEndsAt)} />}
+      {pendingChange && <ChangeRequestPanel pending={pendingChange} canDecide={user.role === "syndic" && !user.impersonator} canCancel={user.role === "superadmin"} />}
+      {access.manage && <ManageBar id={a.id} status={a.status} votingEndsAt={toLocalInput(a.votingEndsAt)} superadmin={user.role === "superadmin"} hasPending={!!pendingChange} />}
 
       {open && myUnits.length > 0 && (
         <VotePanel id={a.id} units={myUnits} items={items.map((i) => ({ id: i.id, title: i.title, description: i.description, options: i.options }))} mine={mine} />

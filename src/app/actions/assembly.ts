@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
-import { assemblyAccess, closeAssembly, voterUnits } from "@/lib/assembly-server";
+import { applyAssemblyEdit, assemblyAccess, closeAssembly, condoSyndics, describeChange, voterUnits, type ProposedAssembly } from "@/lib/assembly-server";
 import { fmtDateTimeBR, fmtMeeting, fromLocalInput, optionsFromText, parseOptions } from "@/lib/assembly";
 
 export type AssemblyState = { error?: string; ok?: boolean; message?: string } | undefined;
@@ -28,9 +28,10 @@ const schema = z.object({
   showPartial: z.string().optional(),
 });
 
-/** Cria ou edita um rascunho (a pauta só muda enquanto é rascunho). */
-export async function saveAssembly(id: string | null, _: AssemblyState, form: FormData): Promise<AssemblyState> {
-  const user = await requireUser("superadmin", "syndic");
+type Parsed = { data: { title: string; kind: string; description: string; location: string; meetingAt: Date; votingEndsAt: Date; showPartial: boolean }; items: { id: string | null; title: string; description: string; options: string[] }[] };
+
+/** Lê o formulário da assembleia (dados + pauta). Usado no rascunho e nos pedidos do superadmin. */
+function parseAssemblyForm(form: FormData): Parsed | { error: string } {
   const parsed = schema.safeParse(Object.fromEntries([...form.entries()].filter(([k, v]) => !k.startsWith("item") && v !== "")));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -39,19 +40,29 @@ export async function saveAssembly(id: string | null, _: AssemblyState, form: Fo
   if (!meetingAt) return { error: "Informe a data e a hora da assembleia." };
   if (!votingEndsAt) return { error: "Informe até quando vai a votação online." };
 
-  // Pauta: título, descrição e opções (uma por linha) de cada item
+  // Pauta: título, descrição e opções (uma por linha) de cada item; itemId liga ao item já existente
+  const ids = form.getAll("itemId").map((v) => String(v));
   const titles = form.getAll("itemTitle").map((v) => String(v).trim());
   const descs = form.getAll("itemDescription").map((v) => String(v).trim());
   const opts = form.getAll("itemOptions").map(String);
-  const items: { title: string; description: string; options: string[] }[] = [];
+  const items: Parsed["items"] = [];
   for (let i = 0; i < titles.length; i++) {
     if (!titles[i]) continue;
     const options = optionsFromText(opts[i] ?? "");
     if (!options) return { error: `Item “${titles[i].slice(0, 40)}”: use de 2 a 10 opções, uma por linha.` };
-    items.push({ title: titles[i].slice(0, 200), description: (descs[i] ?? "").slice(0, 2000), options });
+    items.push({ id: ids[i] || null, title: titles[i].slice(0, 200), description: (descs[i] ?? "").slice(0, 2000), options });
   }
   if (!items.length) return { error: "Inclua pelo menos um item na pauta." };
   if (items.length > 30) return { error: "No máximo 30 itens na pauta." };
+  return { data: { title: d.title, kind: d.kind, description: d.description, location: d.location, meetingAt, votingEndsAt, showPartial: d.showPartial === "on" }, items };
+}
+
+/** Cria ou edita um rascunho (a pauta só muda enquanto é rascunho; publicada, só por pedido aprovado). */
+export async function saveAssembly(id: string | null, _: AssemblyState, form: FormData): Promise<AssemblyState> {
+  const user = await requireUser("superadmin", "syndic");
+  const p = parseAssemblyForm(form);
+  if ("error" in p) return { error: p.error };
+  const { items } = p;
 
   const existing = id ? await managed(user, id) : null;
   if (id && !existing) return { error: "Assembleia não encontrada." };
@@ -59,7 +70,7 @@ export async function saveAssembly(id: string | null, _: AssemblyState, form: Fo
   const condominiumId = existing?.condominiumId ?? (user.role === "superadmin" ? String(form.get("condominiumId") ?? "") : user.condominiumId);
   if (!condominiumId || !(await db.condominium.findUnique({ where: { id: condominiumId }, select: { id: true } }))) return { error: "Escolha o condomínio." };
 
-  const data = { title: d.title, kind: d.kind, description: d.description, location: d.location, meetingAt, votingEndsAt, showPartial: d.showPartial === "on" };
+  const data = p.data;
   const itemRows = items.map((it, position) => ({ position, title: it.title, description: it.description, options: JSON.stringify(it.options) }));
   const saved = existing
     ? await db.$transaction(async (tx) => {
@@ -183,4 +194,124 @@ export async function deleteAssembly(id: string) {
   await audit(user, "delete", "assembly", id, { old: { titulo: a.title }, condominiumId: a.condominiumId });
   revalidatePath("/assembleias");
   redirect("/assembleias");
+}
+
+// ───── Pedidos do superadmin com aprovação do síndico (assembleia já publicada)
+
+async function openRequestGuard(id: string) {
+  const user = await requireUser("superadmin");
+  const a = await db.assembly.findUnique({ where: { id }, include: { items: { orderBy: { position: "asc" }, include: { votes: { select: { id: true } } } } } });
+  if (!a) return { error: "Assembleia não encontrada." } as const;
+  if (a.status === "draft") return { error: "Rascunhos são editados direto." } as const;
+  if (await db.assemblyChange.findFirst({ where: { assemblyId: id, status: "pending" } })) return { error: "Já há um pedido aguardando o síndico. Cancele-o antes de fazer outro." } as const;
+  const syndics = await condoSyndics(a.condominiumId);
+  if (!syndics.length) return { error: "Este condomínio não tem síndico para aprovar o pedido." } as const;
+  return { user, a, syndics } as const;
+}
+
+async function notifySyndics(a: { id: string; condominiumId: string; title: string }, syndics: { id: string }[], autor: string, acao: string) {
+  await notify(
+    { condominiumId: a.condominiumId, userIds: syndics.map((s) => s.id) },
+    { type: "assembly_change_request", vars: { titulo: a.title, autor, acao }, referenceType: "assembly", referenceId: a.id },
+  );
+}
+
+/** Superadmin propõe uma edição; nada muda até o síndico aprovar. */
+export async function requestAssemblyEdit(id: string, _: AssemblyState, form: FormData): Promise<AssemblyState> {
+  const g = await openRequestGuard(id);
+  if ("error" in g) return { error: g.error };
+  const p = parseAssemblyForm(form);
+  if ("error" in p) return { error: p.error };
+  const { user, a, syndics } = g;
+  if (a.status === "open" && p.data.votingEndsAt <= new Date()) return { error: "O novo fim da votação precisa ser no futuro." };
+  const payload: ProposedAssembly = { ...p.data, meetingAt: p.data.meetingAt.toISOString(), votingEndsAt: p.data.votingEndsAt.toISOString(), items: p.items };
+  const { lines } = describeChange(a, payload);
+  if (!lines.length) return { error: "Nada foi alterado." };
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+  const c = await db.assemblyChange.create({ data: { assemblyId: id, kind: "edit", payload: JSON.stringify(payload), reason, requestedById: user.id, requestedBy: user.name } });
+  await audit(user, "assembly_change_request", "assembly", id, { new: { pedido: c.id, tipo: "edição", mudancas: lines }, condominiumId: a.condominiumId });
+  await notifySyndics(a, syndics, user.name, "editar");
+  revalidatePath(`/assembleias/${id}`);
+  redirect(`/assembleias/${id}`);
+}
+
+/** Superadmin pede a exclusão; só acontece com a aprovação do síndico. */
+export async function requestAssemblyDelete(id: string, _: AssemblyState, form: FormData): Promise<AssemblyState> {
+  const g = await openRequestGuard(id);
+  if ("error" in g) return { error: g.error };
+  const { user, a, syndics } = g;
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+  if (reason.length < 5) return { error: "Explique o motivo da exclusão para o síndico." };
+  const c = await db.assemblyChange.create({ data: { assemblyId: id, kind: "delete", reason, requestedById: user.id, requestedBy: user.name } });
+  await audit(user, "assembly_change_request", "assembly", id, { new: { pedido: c.id, tipo: "exclusão", motivo: reason }, condominiumId: a.condominiumId });
+  await notifySyndics(a, syndics, user.name, "excluir");
+  revalidatePath(`/assembleias/${id}`);
+  return { ok: true, message: "Pedido enviado ao síndico." };
+}
+
+/** Superadmin desiste do pedido. */
+export async function cancelAssemblyChange(changeId: string) {
+  const user = await requireUser("superadmin");
+  const c = await db.assemblyChange.findUnique({ where: { id: changeId }, include: { assembly: { select: { condominiumId: true } } } });
+  if (!c || c.status !== "pending") return;
+  await db.assemblyChange.update({ where: { id: changeId }, data: { status: "cancelled", decidedById: user.id, decidedBy: user.name, decidedAt: new Date() } });
+  await audit(user, "assembly_change_cancel", "assembly", c.assemblyId, { new: { pedido: c.id }, condominiumId: c.assembly.condominiumId });
+  revalidatePath(`/assembleias/${c.assemblyId}`);
+}
+
+/** Síndico aprova ou recusa o pedido do superadmin. */
+export async function decideAssemblyChange(changeId: string, _: AssemblyState, form: FormData): Promise<AssemblyState> {
+  const user = await requireUser("syndic");
+  // O botão clicado diz a decisão (Aprovar / Recusar)
+  const approve = form.get("decision") === "approve";
+  if (user.impersonator) return { error: "Em modo de visualização não é possível decidir o pedido." };
+  const c = await db.assemblyChange.findUnique({ where: { id: changeId }, include: { assembly: true } });
+  if (!c || c.assembly.condominiumId !== user.condominiumId) return { error: "Pedido não encontrado." };
+  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  // Reserva a decisão: só uma pessoa decide, uma vez
+  const claim = await db.assemblyChange.updateMany({
+    where: { id: changeId, status: "pending" },
+    data: { status: approve ? "approved" : "rejected", decidedById: user.id, decidedBy: user.name, decisionNote: note, decidedAt: new Date() },
+  });
+  if (!claim.count) return { error: "Este pedido já foi decidido." };
+  const a = c.assembly;
+  const tell = (decisao: string) =>
+    notify(
+      { condominiumId: a.condominiumId, userIds: [c.requestedById] },
+      { type: "assembly_change_decided", vars: { titulo: a.title, decisao, autor: user.name, comentario: note }, referenceType: "assembly", referenceId: a.id },
+    );
+
+  if (!approve) {
+    await audit(user, "assembly_change_reject", "assembly", a.id, { new: { pedido: c.id, motivo: note }, condominiumId: a.condominiumId });
+    await tell("recusado");
+    revalidatePath(`/assembleias/${a.id}`);
+    return { ok: true, message: "Pedido recusado. Nada foi alterado." };
+  }
+
+  if (c.kind === "delete") {
+    const votes = await db.assemblyVote.count({ where: { assemblyId: a.id } });
+    await audit(user, "delete", "assembly", a.id, { old: { titulo: a.title, status: a.status, votos: votes, pedidoDe: c.requestedBy, motivo: c.reason }, condominiumId: a.condominiumId });
+    await tell("aprovado (assembleia excluída)");
+    await db.assembly.delete({ where: { id: a.id } });
+    revalidatePath("/assembleias");
+    redirect("/assembleias");
+  }
+
+  const next = JSON.parse(c.payload) as ProposedAssembly;
+  if (a.status === "open" && new Date(next.votingEndsAt) <= new Date()) {
+    await db.assemblyChange.update({ where: { id: changeId }, data: { status: "rejected", decisionNote: "O novo fim da votação já passou." } });
+    return { error: "O novo fim da votação proposto já passou. O pedido foi encerrado; peça um novo ao superadmin." };
+  }
+  const r = await applyAssemblyEdit(a.id, next);
+  await audit(user, "assembly_change_approve", "assembly", a.id, { new: { pedido: c.id, pedidoDe: c.requestedBy, itensZerados: r?.reset ?? [] }, condominiumId: a.condominiumId });
+  await tell("aprovado");
+  // Itens com votos zerados: proprietários votam de novo
+  if (r?.reset.length && r.status === "open") {
+    await notify(
+      { condominiumId: a.condominiumId, roles: ["syndic", "council", "resident", "caretaker"], exclude: user.id },
+      { type: "assembly_revote", vars: { titulo: next.title, itens: r.reset.length, prazo: fmtDateTimeBR(next.votingEndsAt) }, referenceType: "assembly", referenceId: a.id },
+    );
+  }
+  revalidatePath(`/assembleias/${a.id}`);
+  return { ok: true, message: r?.reset.length ? `Alteração aplicada. ${r.reset.length} ${r.reset.length === 1 ? "item teve" : "itens tiveram"} os votos zerados e todos foram avisados.` : "Alteração aplicada." };
 }

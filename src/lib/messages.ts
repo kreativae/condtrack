@@ -87,6 +87,22 @@ export const TEMPLATES: TemplateDef[] = [
     V.condominio,
     { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
   ]),
+  notification("assembly_change_request", "Pedido de alteração de assembleia", "Síndico", "Pedido para {acao}: {titulo}", "{autor} pediu para {acao} a assembleia. Revise e aprove ou recuse.", [
+    V.condominio, V.autor,
+    { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
+    { name: "acao", desc: "editar ou excluir", sample: "editar" },
+  ]),
+  notification("assembly_change_decided", "Pedido de alteração decidido", "Superadmin que pediu", "Pedido {decisao}: {titulo}", "{autor} {decisao} o pedido.\n“{comentario}”", [
+    V.condominio, V.autor, V.comentario,
+    { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
+    { name: "decisao", desc: "aprovado ou recusado", sample: "aprovado" },
+  ]),
+  notification("assembly_revote", "Votos zerados após alteração da pauta", "Todos do condomínio (menos prestadores)", "Vote de novo: {titulo}", "A pauta mudou e {itens} item(ns) precisa(m) de novo voto até {prazo}.", [
+    V.condominio,
+    { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
+    { name: "itens", desc: "Itens com votos zerados", sample: "1" },
+    { name: "prazo", desc: "Fim da votação online", sample: "12/10/2026 22:00" },
+  ]),
   notification("maint_order", "OS de manutenção preventiva aberta", "Síndico e zelador", "Manutenção preventiva: {titulo}", "{protocolo} · prevista para {vencimento}.", [
     V.protocolo,
     V.titulo,

@@ -716,6 +716,7 @@ model Assembly {
   condominium      Condominium    @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   items            AssemblyItem[]
   votes            AssemblyVote[]
+  changes          AssemblyChange[]
 
   @@index([condominiumId, status])
   @@index([status, votingEndsAt])
@@ -752,4 +753,25 @@ model AssemblyVote {
 
   @@unique([itemId, unitId])
   @@index([assemblyId])
+}
+
+/// Pedido do superadmin para editar ou excluir uma assembleia publicada: só vale com a aprovação do síndico.
+/// kind: edit | delete. status: pending | approved | rejected | cancelled. payload = JSON da edição proposta.
+model AssemblyChange {
+  id            String    @id @default(cuid())
+  assemblyId    String
+  kind          String
+  payload       String    @default("{}")
+  reason        String    @default("")
+  status        String    @default("pending")
+  requestedById String?
+  requestedBy   String
+  decidedById   String?
+  decidedBy     String?
+  decisionNote  String?
+  decidedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  assembly      Assembly  @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+
+  @@index([assemblyId, status])
 }
