@@ -33,7 +33,10 @@ export default async function CondosPage() {
                 <div className="p-6">
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <span className="flex size-11 items-center justify-center rounded-xl bg-elevated text-brand ring-1 ring-line-strong"><Building2 className="size-5" strokeWidth={1.5} /></span>
-                    <Badge tone={c.active ? "ok" : "muted"} dot>{c.active ? "Ativo" : "Inativo"}</Badge>
+                    <span className="flex flex-wrap justify-end gap-1.5">
+                      {c.demo && <Badge tone="info">Demonstração</Badge>}
+                      <Badge tone={c.active ? "ok" : "muted"} dot>{c.active ? "Ativo" : "Inativo"}</Badge>
+                    </span>
                   </div>
                   <h2 className="font-display font-semibold text-xl group-hover:text-brand">{c.name}</h2>
                   <p className="mt-1 line-clamp-1 text-xs text-muted">{c.address ?? "Endereço não informado"}</p>

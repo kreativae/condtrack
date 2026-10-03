@@ -12,6 +12,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - Um commit por ajuste, com push logo em seguida, para nada ficar preso numa máquina só.
 - Se um build falhar na Vercel, o site continua na versão anterior; corrija na `main`.
 - Pontos de restauração: tags `v1-estavel` (2026-09-28, aba Aparência) e `v2-estavel` (2026-10-04, antes dos vínculos com vários condomínios). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.
+- O GitHub confere tipos e lint a cada push (`.github/workflows/verificacao.yml`); veja a aba Actions se algo falhar.
 - O Mac principal pode não ter Node/npm: sem `npm run build` local, o build da Vercel é a verificação. Escreva com cuidado
   e revise o diff antes de commitar.
 
@@ -61,9 +62,12 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Cartões de números** (`Stat` em `ui.tsx`): o tamanho do valor depende só da largura do cartão (`@container`),
   para cartões lado a lado ficarem iguais. Use `fmtBRL()` para dinheiro (sinal de menos que não quebra linha).
 - **Checklist do zelador**: `src/lib/checklist*.ts`, `src/app/actions/checklist.ts`, `src/app/api/cron/checklist`.
+  O alerta de atraso roda a cada 15 min pelo GitHub Actions (`.github/workflows/checklist-atrasado.yml`, precisa do secret
+  `CRON_SECRET` e da variable `APP_URL` no GitHub) e também quando alguém abre o app depois do prazo.
   Anotações do dia (texto + fotos) em `ChecklistNote`, com a galeria do dia (`components/checklist/day-notes.tsx`).
 - **Condomínio de demonstração**: botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
-  todas as áreas), vinculado como síndico ao e-mail digitado na janela. Usuários fictícios têm senha aleatória descartada.
+  todas as áreas), vinculado como síndico ao e-mail digitado na janela. Marcados com `Condominium.demo`; só esses têm o botão
+  "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

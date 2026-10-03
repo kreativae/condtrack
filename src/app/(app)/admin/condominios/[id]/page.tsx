@@ -8,10 +8,13 @@ import { orderMetrics, fmtHours } from "@/lib/metrics";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { saveCondominium, toggleCondominium } from "@/app/actions/admin";
 import { CondoForm } from "@/components/admin/condo-form";
+import { DeleteDemoButton } from "@/components/admin/delete-demo-button";
 import { Card, CardHeader, LinkButton, PageHeader, Stat, buttonClass } from "@/components/ui";
 import { LAYOUTS, type Layout } from "@/lib/units";
 
 export const metadata: Metadata = { title: "Condomínio" };
+// Excluir uma demonstração apaga as mídias de cada OS
+export const maxDuration = 60;
 
 export default async function CondoPage({ params }: PageProps<"/admin/condominios/[id]">) {
   await requireUser("superadmin");
@@ -29,15 +32,19 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
   return (
     <div className="animate-in">
       <PageHeader
-        eyebrow="Condomínio"
+        eyebrow={c.demo ? "Condomínio de demonstração" : "Condomínio"}
         title={c.name}
         description={c.address}
         actions={
           <>
             <LinkButton variant="outline" href={`/admin/usuarios/novo?role=syndic`}><UserPlus className="size-4" />Atribuir síndico</LinkButton>
-            <form action={toggleCondominium.bind(null, c.id)}>
-              <button className={buttonClass(c.active ? "danger" : "success")}>{c.active ? "Desativar" : "Reativar"}</button>
-            </form>
+            {c.demo ? (
+              <DeleteDemoButton id={c.id} name={c.name} />
+            ) : (
+              <form action={toggleCondominium.bind(null, c.id)}>
+                <button className={buttonClass(c.active ? "danger" : "success")}>{c.active ? "Desativar" : "Reativar"}</button>
+              </form>
+            )}
           </>
         }
       />

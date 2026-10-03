@@ -2,7 +2,8 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
-import { saveGenerated } from "./storage";
+import { deleteFolder, saveGenerated } from "./storage";
+import { activateMembership } from "./memberships";
 import { addDays, isDue, spNow } from "./checklist";
 import { dayToDate } from "./finance";
 import { nextProtocol } from "./orders";
@@ -49,6 +50,7 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
       email: "administracao@viladasacacias.demo",
       accentColor: "#0E9384",
       checklistDeadline: "09:00",
+      demo: true,
       buildings: { create: [{ name: "Torre Ipê" }, { name: "Torre Jacarandá" }] },
     },
     include: { buildings: true },
@@ -278,4 +280,39 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   });
 
   return condo;
+}
+
+/**
+ * Exclui um condomínio de demonstração com tudo o que foi gerado: OS e mídias, financeiro, checklist,
+ * comunicados e as pessoas fictícias. Quem é real e estava com ele ativo passa para outro vínculo.
+ * Só funciona em condomínios marcados como demo; os de verdade nunca são apagados aqui.
+ */
+export async function deleteDemoCondominium(id: string) {
+  const condo = await db.condominium.findUnique({ where: { id }, select: { id: true, name: true, demo: true } });
+  if (!condo?.demo) return null;
+
+  const orders = await db.serviceOrder.findMany({ where: { condominiumId: id }, select: { id: true } });
+  const orderIds = orders.map((o) => o.id);
+  for (const o of orderIds) await deleteFolder(o).catch(() => null);
+
+  // Pessoas fictícias: e-mail da demonstração e nenhum vínculo com outro condomínio
+  const fake = await db.user.findMany({
+    where: { email: { endsWith: "@demo.condtrack.app" }, memberships: { some: { condominiumId: id }, every: { condominiumId: id } } },
+    select: { id: true },
+  });
+  const fakeIds = fake.map((u) => u.id);
+
+  // Pessoas reais com a demonstração ativa: ativa outro vínculo (ou fica sem condomínio)
+  const active = await db.user.findMany({ where: { condominiumId: id, id: { notIn: fakeIds } }, select: { id: true } });
+  for (const u of active) {
+    const other = await db.membership.findFirst({ where: { userId: u.id, condominiumId: { not: id } }, orderBy: { createdAt: "asc" } });
+    if (other) await activateMembership(u.id, other.condominiumId);
+  }
+
+  await db.$transaction([
+    db.notification.deleteMany({ where: { referenceType: "service_order", referenceId: { in: orderIds } } }),
+    db.user.deleteMany({ where: { id: { in: fakeIds } } }),
+    db.condominium.delete({ where: { id } }),
+  ]);
+  return { name: condo.name, people: fakeIds.length, orders: orderIds.length };
 }

@@ -32,6 +32,8 @@ model Condominium {
   checklistAlertedOn String?
   /// Conselho pode ver o Financeiro (liberado pelo síndico ou superadmin)
   councilFinanceAccess Boolean  @default(false)
+  /// Condomínio de demonstração (dados fictícios, gerado pelo superadmin): pode ser excluído de verdade
+  demo               Boolean  @default(false)
   /// layout: vertical (prédios) | horizontal (casas/lotes) | mixed
   layout             String   @default("vertical")
   /// como chamar as unidades horizontais: house (Casa) | lot (Lote)

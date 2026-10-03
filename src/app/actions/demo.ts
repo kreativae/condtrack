@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { createDemoCondominium } from "@/lib/demo-condo";
+import { createDemoCondominium, deleteDemoCondominium } from "@/lib/demo-condo";
+import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 
 export type DemoState = { error?: string } | null;
 
@@ -24,4 +26,16 @@ export async function createDemoCondo(_prev: DemoState, form: FormData): Promise
   await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, syndic: email }, condominiumId: condo.id });
   revalidatePath("/admin/condominios");
   redirect(`/admin/condominios/${condo.id}`);
+}
+
+/** Exclui um condomínio de demonstração (só os marcados como demo) e tudo o que foi gerado nele. */
+export async function deleteDemoCondo(id: string) {
+  const me = await requireUser("superadmin");
+  const done = await deleteDemoCondominium(id);
+  if (!done) redirect(`/admin/condominios/${id}`);
+  await audit(me, "delete", "condominium", id, { old: { name: done.name, demo: true, pessoasFicticias: done.people, ordens: done.orders }, condominiumId: null });
+  const jar = await cookies();
+  if (jar.get(ADMIN_CONDO_COOKIE)?.value === id) jar.delete(ADMIN_CONDO_COOKIE);
+  revalidatePath("/", "layout");
+  redirect("/admin/condominios");
 }
