@@ -83,7 +83,8 @@ export async function saveGenerated(folder: string, name: string, content: strin
   return `/api/media/${dir}/${file}`;
 }
 
-export type StoredFile = { body: ReadableStream<Uint8Array> | Uint8Array; mime: string; size: number };
+/** size = null quando o armazenamento não informa (resposta comprimida): aí não se envia Content-Length. */
+export type StoredFile = { body: ReadableStream<Uint8Array> | Uint8Array; mime: string; size: number | null };
 
 export async function readStored(parts: string[]): Promise<StoredFile | null> {
   if (parts.length !== 2) return null;
@@ -93,7 +94,9 @@ export async function readStored(parts: string[]): Promise<StoredFile | null> {
   if (blobEnabled()) {
     const res = await get(`${BLOB_PREFIX}/${dir}/${name}`, { access: "private" }).catch(() => null);
     if (!res || res.statusCode !== 200) return null;
-    return { body: res.stream, mime: res.blob.contentType || mimeOf(name), size: res.blob.size };
+    // Arquivos de texto maiores (SVG, XML) vêm comprimidos e sem tamanho: o SDK devolve 0, e um
+    // "Content-Length: 0" faria o navegador ler o arquivo vazio
+    return { body: res.stream, mime: res.blob.contentType || mimeOf(name), size: res.blob.size || null };
   }
 
   const full = path.resolve(/*turbopackIgnore: true*/ ROOT, dir, name);

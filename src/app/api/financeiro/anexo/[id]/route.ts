@@ -25,7 +25,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/financeiro/anexo
     headers: {
       // XML é entregue como texto puro para não ser interpretado pelo navegador
       "Content-Type": att.mimeType.includes("xml") ? "text/plain; charset=utf-8" : file.mime,
-      "Content-Length": String(file.size),
+      ...(file.size ? { "Content-Length": String(file.size) } : {}),
       "Content-Disposition": `${download ? "attachment" : "inline"}; filename*=UTF-8''${name}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
