@@ -6,7 +6,7 @@ import { Building2, Check, ChevronsUpDown, Globe, Loader2, Search } from "lucide
 import { setAdminScope, switchCondo } from "@/app/actions/admin-scope";
 import { cx } from "./ui";
 
-type Condo = { id: string; name: string; hint?: string };
+type Condo = { id: string; name: string; hint?: string; color?: string | null };
 
 /**
  * Cartão do menu com troca de condomínio.
@@ -55,7 +55,8 @@ export function CondoSwitcher({ condos, current, onPicked, mode = "admin", subti
         aria-expanded={open}
         className={cx("flex w-full items-center gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-left transition hover:border-line-strong", open && "border-brand/40 ring-2 ring-brand/15")}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+        {/* Cor de destaque do condomínio em foco/ativo */}
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand" style={current?.color ? { background: current.color, color: "white" } : undefined}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : current ? <Building2 className="size-4" strokeWidth={1.8} /> : <Globe className="size-4" strokeWidth={1.8} />}
         </span>
         <span className="min-w-0 flex-1">
@@ -78,7 +79,7 @@ export function CondoSwitcher({ condos, current, onPicked, mode = "admin", subti
               <Option label="Todos os condomínios" icon={<Globe className="size-4" />} active={!current} onClick={() => pick("")} />
             )}
             {list.map((c) => (
-              <Option key={c.id} label={c.name} hint={c.hint} icon={<Building2 className="size-4" />} active={current?.id === c.id} onClick={() => pick(c.id)} />
+              <Option key={c.id} label={c.name} hint={c.hint} icon={c.color ? <span className="block size-3 rounded-full" style={{ background: c.color }} /> : <Building2 className="size-4" />} active={current?.id === c.id} onClick={() => pick(c.id)} />
             ))}
             {!list.length && <li className="px-3 py-2 text-xs text-muted">Nenhum condomínio encontrado.</li>}
           </ul>

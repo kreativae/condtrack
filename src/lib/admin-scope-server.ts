@@ -10,5 +10,5 @@ export async function adminScope(user: CurrentUser) {
   const id = (await cookies()).get(ADMIN_CONDO_COOKIE)?.value;
   if (!id) return null;
   // Arquivado não vale como foco (volta para "todos")
-  return db.condominium.findFirst({ where: { id, deletedAt: null }, select: { id: true, name: true } });
+  return db.condominium.findFirst({ where: { id, deletedAt: null }, select: { id: true, name: true, accentColor: true } });
 }

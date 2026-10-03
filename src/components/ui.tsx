@@ -56,11 +56,11 @@ export function CardHeader({ title, action, subtitle }: { title: ReactNode; subt
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
       <div className="min-w-0">
-        {eyebrow && <p className="mb-1.5 text-sm font-medium first-letter:uppercase text-brand">{eyebrow}</p>}
-        <h1 className="font-display text-2xl font-bold leading-tight sm:text-[32px]">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-sm text-muted">{description}</p>}
+        {eyebrow && <p className="mb-1 text-xs font-semibold first-letter:uppercase text-brand sm:text-sm">{eyebrow}</p>}
+        <h1 className="text-balance font-display text-[22px] font-bold leading-tight tracking-tight sm:text-[30px]">{title}</h1>
+        {description && <p className="mt-1.5 max-w-2xl text-[13px] text-muted sm:mt-2 sm:text-sm">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">{actions}</div>}
     </header>

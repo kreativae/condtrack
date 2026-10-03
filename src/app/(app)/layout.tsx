@@ -53,11 +53,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const place = user.condominium?.name ?? "Todos os condomínios";
   // Superadmin: seletor do condomínio em foco (vale para as páginas que filtram por condomínio)
   const [scope, scopeList] = user.role === "superadmin" && !user.impersonator
-    ? await Promise.all([adminScope(user), db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } })])
+    ? await Promise.all([adminScope(user), db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true, accentColor: true }, orderBy: { name: "asc" } })])
     : [null, null];
   // Vários condomínios (síndico profissional, prestador…): troca o condomínio ativo pelo cartão
   const multi = ms.length > 1
-    ? { list: ms.filter((m) => m.condominium.active || m.condominiumId === user.condominiumId).map((m) => ({ id: m.condominiumId, name: m.condominium.name, hint: ROLE_LABEL[m.role as keyof typeof ROLE_LABEL] })), current: user.condominium ? { id: user.condominium.id, name: user.condominium.name } : null }
+    ? { list: ms.filter((m) => m.condominium.active || m.condominiumId === user.condominiumId).map((m) => ({ id: m.condominiumId, name: m.condominium.name, color: m.condominium.accentColor, hint: ROLE_LABEL[m.role as keyof typeof ROLE_LABEL] })), current: user.condominium ? { id: user.condominium.id, name: user.condominium.name, color: user.condominium.accentColor } : null }
     : null;
 
   // Aviso de cobrança para o síndico (pagamento falhou ou teste acabando)
@@ -86,12 +86,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </Link>
 
         {scopeList ? (
-          <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={scopeList} current={scope} /></div>
+          <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={scopeList.map((c) => ({ id: c.id, name: c.name, color: c.accentColor }))} current={scope && { id: scope.id, name: scope.name, color: scope.accentColor }} /></div>
         ) : multi ? (
           <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={multi.list} current={multi.current} mode="member" subtitle={ROLE_LABEL[user.role]} /></div>
         ) : (
         <div className="mx-1 mb-4 mt-6 flex items-center gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+          {/* Cor de destaque do condomínio (cadastro do condomínio): ajuda a saber em que prédio se está */}
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand" style={user.condominium?.accentColor ? { background: user.condominium.accentColor, color: "white" } : undefined}>
             <Building2 className="size-4" strokeWidth={1.8} />
           </span>
           <div className="min-w-0">
