@@ -16,11 +16,11 @@ export default async function FeedPage({ searchParams }: PageProps<"/feed">) {
   const sp = await searchParams;
   const admin = user.role === "superadmin";
   // Superadmin vê todos os condomínios (com filtro); os demais, só o próprio
-  const condos = admin ? await db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
+  const condos = admin ? await db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
   // Filtro da página; sem filtro, vale o condomínio em foco do menu ("" = todos)
   const scope = admin && sp.condo === undefined ? await adminScope(user) : null;
   const condo = admin ? (typeof sp.condo === "string" && condos.some((c) => c.id === sp.condo) ? sp.condo : scope?.id ?? null) : null;
-  const where = { status: "approved", ...(admin ? (condo ? { condominiumId: condo } : {}) : { condominiumId: user.condominiumId! }) };
+  const where = { status: "approved", ...(admin ? (condo ? { condominiumId: condo } : { condominium: { deletedAt: null } }) : { condominiumId: user.condominiumId! }) };
   const total = await db.serviceOrder.count({ where });
   const page = pageParam(sp.page, total, PAGE);
   const items = await db.serviceOrder.findMany({ where, include: feedInclude, orderBy: { approvedAt: "desc" }, skip: (page - 1) * PAGE, take: PAGE });

@@ -23,7 +23,7 @@ export default async function ChecklistPage({ searchParams }: PageProps<"/checkl
   const user = await requireUser("superadmin", "syndic", "caretaker");
   const sp = await searchParams;
   const admin = user.role === "superadmin";
-  const condos = admin ? await db.condominium.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
+  const condos = admin ? await db.condominium.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
   // Superadmin: o escolhido, senão o último aberto (Financeiro/Checklist), senão o primeiro
   const last = admin ? (await cookies()).get(ADMIN_CONDO_COOKIE)?.value : undefined;
   const condominiumId = admin ? (condos.find((c) => c.id === sp.condo)?.id ?? condos.find((c) => c.id === last)?.id ?? condos[0]?.id) : user.condominiumId!;

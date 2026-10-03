@@ -21,6 +21,7 @@ export default async function BillingAdminPage({ searchParams }: PageProps<"/adm
 
   const [condos, paid12, recent] = await Promise.all([
     db.condominium.findMany({
+      where: { deletedAt: null },
       include: {
         subscription: { include: { plan: true } },
         billingDeal: { select: { active: true } },

@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
@@ -351,7 +353,7 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
   if (me.role === "superadmin" && !self && form.get("membershipsForm") === "1") {
     try {
       const raw = JSON.parse(String(form.get("memberships") ?? "[]")) as { condominiumId?: unknown; role?: unknown; permissions?: unknown }[];
-      const condoIds = new Set((await db.condominium.findMany({ select: { id: true } })).map((c) => c.id));
+      const condoIds = new Set((await db.condominium.findMany({ where: { deletedAt: null }, select: { id: true } })).map((c) => c.id));
       extras = raw
         .filter((m) => typeof m.condominiumId === "string" && condoIds.has(m.condominiumId) && m.condominiumId !== condominiumId && typeof m.role === "string" && (ROLES as readonly string[]).includes(m.role) && m.role !== "superadmin")
         .map((m) => ({
@@ -436,4 +438,57 @@ export async function removeSyndic(condominiumId: string, userId: string) {
   }
   await audit(me, "remove_syndic", "user", userId, { old: { perfil: "syndic" }, condominiumId });
   revalidatePath(`/admin/condominios/${condominiumId}`);
+}
+
+// ───── Excluir (arquivar) e restaurar condomínio (superadmin)
+
+const BILLING_OPEN = ["trialing", "active", "past_due", "unpaid", "paused"];
+
+/**
+ * "Excluir" um condomínio real = arquivar: some da plataforma, mas OS, financeiro, assembleias e histórico
+ * ficam guardados (regra do financeiro: nada é apagado). Quem só tinha este condomínio é desativado.
+ */
+export async function archiveCondominium(id: string, _: AdminState, form: FormData): Promise<AdminState> {
+  const me = await requireUser("superadmin");
+  const c = await db.condominium.findUnique({ where: { id }, include: { subscription: true } });
+  if (!c || c.deletedAt) return { error: "Condomínio não encontrado." };
+  if (c.demo) return { error: "Demonstrações são apagadas em Excluir demonstração." };
+  const typed = String(form.get("confirm") ?? "").trim().toLowerCase();
+  if (typed !== c.name.trim().toLowerCase()) return { error: "Digite o nome do condomínio exatamente como aparece para confirmar." };
+  if (c.subscription && BILLING_OPEN.includes(c.subscription.status) && c.subscription.stripeSubscriptionId) {
+    return { error: "A assinatura deste condomínio ainda está ativa. Cancele em Assinaturas antes de excluir." };
+  }
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+
+  // Quem está com este condomínio ativo: passa para outro vínculo; sem outro, fica desativado (volta ao restaurar)
+  const people = await db.user.findMany({ where: { condominiumId: id, role: { not: "superadmin" } }, select: { id: true, status: true } });
+  const disabled: string[] = [];
+  for (const u of people) {
+    const other = await db.membership.findFirst({ where: { userId: u.id, condominiumId: { not: id }, condominium: { deletedAt: null } }, orderBy: { createdAt: "asc" } });
+    if (other) await activateMembership(u.id, other.condominiumId);
+    else if (u.status === "active") {
+      await db.user.update({ where: { id: u.id }, data: { status: "inactive" } });
+      disabled.push(u.id);
+    }
+  }
+  await db.condominium.update({ where: { id }, data: { deletedAt: new Date(), deletedBy: me.name, active: false, archivedUserIds: disabled.join(",") } });
+  await audit(me, "archive", "condominium", id, { old: { nome: c.name }, new: { motivo: reason || null, pessoasDesativadas: disabled.length }, condominiumId: id });
+
+  const jar = await cookies();
+  if (jar.get(ADMIN_CONDO_COOKIE)?.value === id) jar.delete(ADMIN_CONDO_COOKIE);
+  revalidatePath("/", "layout");
+  redirect("/admin/condominios");
+}
+
+/** Restaura um condomínio arquivado e reativa quem tinha sido desativado no arquivamento. */
+export async function restoreCondominium(id: string) {
+  const me = await requireUser("superadmin");
+  const c = await db.condominium.findUnique({ where: { id } });
+  if (!c?.deletedAt) return;
+  const ids = c.archivedUserIds.split(",").filter(Boolean);
+  if (ids.length) await db.user.updateMany({ where: { id: { in: ids }, status: "inactive" }, data: { status: "active" } });
+  await db.condominium.update({ where: { id }, data: { deletedAt: null, deletedBy: null, active: true, archivedUserIds: "" } });
+  await audit(me, "restore", "condominium", id, { new: { pessoasReativadas: ids.length }, condominiumId: id });
+  revalidatePath("/", "layout");
+  redirect(`/admin/condominios/${id}`);
 }

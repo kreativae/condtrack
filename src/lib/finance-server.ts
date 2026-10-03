@@ -32,7 +32,7 @@ export function showFinanceNav(user: CurrentUser) {
 export async function financeCondo(user: CurrentUser, condoParam: unknown) {
   const id = user.role === "superadmin" ? (typeof condoParam === "string" ? condoParam : null) : user.condominiumId;
   if (!id) return null;
-  return db.condominium.findUnique({ where: { id }, select: { id: true, name: true, councilFinanceAccess: true } });
+  return db.condominium.findFirst({ where: { id, deletedAt: null }, select: { id: true, name: true, councilFinanceAccess: true } });
 }
 
 /** Lançamento + checagem de acesso (null = não existe ou sem permissão). */

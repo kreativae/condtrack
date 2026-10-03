@@ -7,6 +7,8 @@ import { orderMetrics, fmtHours } from "@/lib/metrics";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { SubscriptionBadge } from "@/components/billing/shared";
 import { DemoCondoButton } from "@/components/admin/demo-condo-button";
+import { RestoreCondoButton } from "@/components/admin/archive-condo";
+import { fmtDateTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Condomínios" };
 // A geração do condomínio de demonstração leva alguns segundos
@@ -14,7 +16,9 @@ export const maxDuration = 60;
 
 export default async function CondosPage() {
   await requireUser("superadmin");
+  const archived = await db.condominium.findMany({ where: { deletedAt: { not: null } }, select: { id: true, name: true, deletedAt: true, deletedBy: true }, orderBy: { deletedAt: "desc" } });
   const condos = await db.condominium.findMany({
+    where: { deletedAt: null },
     include: { _count: { select: { users: true, buildings: true } }, memberships: { where: { role: "syndic" }, select: { user: { select: { name: true } } } }, subscription: { include: { plan: true } } },
     orderBy: { name: "asc" },
   });
@@ -57,6 +61,22 @@ export default async function CondosPage() {
           );
         })}
       </div>
+      {archived.length > 0 && (
+        <details className="mt-8 rounded-2xl border border-line bg-surface">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-medium">Excluídos ({archived.length})</summary>
+          <ul className="divide-y divide-line border-t border-line">
+            {archived.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/admin/condominios/${a.id}`} className="font-medium hover:text-brand">{a.name}</Link>
+                  <p className="text-xs text-muted">Excluído em {fmtDateTime(a.deletedAt)}{a.deletedBy && ` por ${a.deletedBy}`} · dados guardados</p>
+                </div>
+                <RestoreCondoButton id={a.id} size="sm" />
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }

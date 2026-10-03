@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const place = user.condominium?.name ?? "Todos os condomínios";
   // Superadmin: seletor do condomínio em foco (vale para as páginas que filtram por condomínio)
   const [scope, scopeList] = user.role === "superadmin" && !user.impersonator
-    ? await Promise.all([adminScope(user), db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })])
+    ? await Promise.all([adminScope(user), db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } })])
     : [null, null];
   // Vários condomínios (síndico profissional, prestador…): troca o condomínio ativo pelo cartão
   const multi = ms.length > 1

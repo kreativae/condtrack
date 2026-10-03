@@ -31,6 +31,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/os">) {
   // Superadmin com condomínio em foco (seletor do menu)
   const scope = await adminScope(user);
   if (scope) and.push({ condominiumId: scope.id });
+  // Condomínios arquivados somem das listas
+  else and.push({ condominium: { deletedAt: null } });
   const catCondo = scope?.id ?? user.condominiumId;
   if (status) and.push({ status });
   else if (view === "active") and.push({ status: { in: ACTIVE_STATUSES } });

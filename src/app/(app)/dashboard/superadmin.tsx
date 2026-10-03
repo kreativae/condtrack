@@ -19,7 +19,7 @@ export async function SuperadminDashboard({ user, welcome, scope }: { user: Curr
   const only = scope ? { condominiumId: scope.id } : {};
   const show = dashboardVisibility(user.dashboardHidden);
   const [condos, m, users, late, subs] = await Promise.all([
-    db.condominium.findMany({ where: { active: true, ...(scope && { id: scope.id }) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.condominium.findMany({ where: { active: true, deletedAt: null, ...(scope && { id: scope.id }) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     orderMetrics(only),
     db.user.count({ where: { status: "active", ...(scope ? inCondo(scope.id) : {}) } }),
     db.serviceOrder.findMany({ where: { status: { in: ACTIVE_STATUSES }, dueDate: { lt: new Date() }, ...only }, include: orderListInclude, orderBy: { dueDate: "asc" }, take: 6 }),

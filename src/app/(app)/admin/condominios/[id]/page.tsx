@@ -10,6 +10,8 @@ import { saveCondominium } from "@/app/actions/admin";
 import { CondoForm } from "@/components/admin/condo-form";
 import { DeleteDemoButton } from "@/components/admin/delete-demo-button";
 import { SyndicsCard } from "@/components/admin/syndics-card";
+import { ArchiveCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
+import { fmtDateTime } from "@/lib/format";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { LAYOUTS, type Layout } from "@/lib/units";
 
@@ -40,10 +42,15 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
         actions={
           <>
             <LinkButton variant="outline" href={`/admin/usuarios/novo?role=syndic`}><UserPlus className="size-4" />Cadastrar síndico</LinkButton>
-            {c.demo && <DeleteDemoButton id={c.id} name={c.name} />}
+            {c.demo ? <DeleteDemoButton id={c.id} name={c.name} /> : c.deletedAt ? <RestoreCondoButton id={c.id} /> : <ArchiveCondoButton id={c.id} name={c.name} />}
           </>
         }
       />
+      {c.deletedAt && (
+        <p className="mb-6 rounded-2xl bg-bad/10 px-4 py-3 text-sm text-fg-2 ring-1 ring-inset ring-bad/15">
+          <b className="text-bad">Excluído</b> em {fmtDateTime(c.deletedAt)}{c.deletedBy && ` por ${c.deletedBy}`}. Não aparece na plataforma; os dados estão guardados. Use <b>Restaurar</b> para trazer de volta.
+        </p>
+      )}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="OS em aberto" value={m.open} />
         <Stat label="Concluídas (30d)" value={m.approved30} tone="ok" />

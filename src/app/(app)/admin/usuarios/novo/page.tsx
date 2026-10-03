@@ -12,7 +12,7 @@ export default async function AdminNewUserPage({ searchParams }: PageProps<"/adm
   await requireUser("superadmin");
   const { role } = await searchParams;
   const [condos, units] = await Promise.all([
-    db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.unit.findMany({ include: { building: true }, orderBy: [{ building: { name: "asc" } }, { number: "asc" }] }),
   ]);
   return (

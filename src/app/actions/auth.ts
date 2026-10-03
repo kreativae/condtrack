@@ -48,6 +48,13 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
     return generic;
   }
 
+  // Senha certa, mas só tinha vínculo com condomínios arquivados: não entra (checado depois da senha
+  // para não revelar a quem não sabe a senha que a conta existe)
+  const links = user.role === "superadmin" ? [] : await db.membership.findMany({ where: { userId: user.id }, select: { condominium: { select: { deletedAt: true } } } });
+  if (links.length && links.every((l) => l.condominium.deletedAt)) {
+    return { error: "Seu condomínio não está mais na plataforma. Fale com a administração." };
+  }
+
   const next = String(form.get("next") ?? "");
 
   // Duas etapas: a senha confere, mas a sessão só abre depois do código do app.

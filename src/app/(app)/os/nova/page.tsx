@@ -14,7 +14,7 @@ export default async function NewOrderPage() {
   const scope = isAdmin ? { condominium: { active: true } } : { condominiumId: user.condominiumId ?? "__none__" };
 
   const [condos, categories, areas, units] = await Promise.all([
-    isAdmin ? db.condominium.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [],
+    isAdmin ? db.condominium.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [],
     db.serviceCategory.findMany({ where: scope, select: { id: true, name: true, condominiumId: true }, orderBy: { name: "asc" } }),
     db.commonArea.findMany({ where: scope, select: { id: true, name: true, condominiumId: true }, orderBy: { name: "asc" } }),
     user.role === "council"

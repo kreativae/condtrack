@@ -48,8 +48,16 @@ function loadUser(id: string) {
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await getSession();
   if (!session) return null;
-  const user = await loadUser(session.uid);
+  let user = await loadUser(session.uid);
   if (!user || user.status !== "active") return null;
+  // Condomínio ativo arquivado: passa para outro vínculo; sem nenhum, a sessão não vale mais
+  if (user.role !== "superadmin" && user.condominium?.deletedAt) {
+    const other = await db.membership.findFirst({ where: { userId: user.id, condominium: { deletedAt: null } }, orderBy: { createdAt: "asc" } });
+    if (!other) return null;
+    await db.user.update({ where: { id: user.id }, data: { condominiumId: other.condominiumId, role: other.role, permissions: other.permissions } });
+    user = await loadUser(session.uid);
+    if (!user) return null;
+  }
 
   let impersonator: CurrentUser["impersonator"] = null;
   if (session.actor && session.actor !== session.uid) {
@@ -62,7 +70,9 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
 export async function requireUser(...roles: Role[]) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // Sessão válida de quem não pode mais entrar (conta desativada, condomínio arquivado):
+  // /api/sair limpa o cookie; sem isso, o proxy mandaria de volta do /login para o /dashboard sem fim
+  if (!user) redirect((await getSession()) ? "/api/sair" : "/login");
   if (roles.length && !roles.includes(user.role)) redirect("/dashboard");
   return user;
 }

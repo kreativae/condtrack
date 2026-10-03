@@ -13,7 +13,8 @@ export function inCondo(condominiumId: string, roles?: readonly string[]): Prism
 /** Vínculos de um usuário, com o nome do condomínio (para o seletor do menu). */
 export function userMemberships(userId: string) {
   return db.membership.findMany({
-    where: { userId },
+    // Condomínios arquivados não aparecem nos vínculos
+    where: { userId, condominium: { deletedAt: null } },
     include: { condominium: { select: { id: true, name: true, active: true } } },
     orderBy: { condominium: { name: "asc" } },
   });

@@ -14,7 +14,7 @@ export default async function ReportsPage() {
   const user = await requireUser("superadmin", "syndic", "council");
   const admin = user.role === "superadmin";
   // Superadmin escolhe o condomínio; os demais, sempre o próprio
-  const condos = admin ? await db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }) : null;
+  const condos = admin ? await db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : null;
   // Financeiro: superadmin e síndico; conselho só com o acesso liberado
   const finance = showFinanceNav(user);
   const cats = finance

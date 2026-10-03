@@ -32,7 +32,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
     // Volta direto ao último condomínio aberto (a menos que tenha pedido para trocar)
     const last = (await cookies()).get(ADMIN_CONDO_COOKIE)?.value;
     if (last && sp.trocar !== "1" && (await db.condominium.findUnique({ where: { id: last }, select: { id: true } }))) redirect(`/financeiro?condo=${last}`);
-    const condos = await db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
+    const condos = await db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } });
     return (
       <div className="mx-auto max-w-xl animate-in">
         <PageHeader eyebrow="Gestão" title="Financeiro" description="Escolha o condomínio para ver receitas, despesas e notas fiscais." />

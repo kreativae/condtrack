@@ -71,6 +71,15 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   O alerta de atraso roda a cada 15 min pelo GitHub Actions (`.github/workflows/checklist-atrasado.yml`, precisa do secret
   `CRON_SECRET` e da variable `APP_URL` no GitHub) e também quando alguém abre o app depois do prazo.
   Anotações do dia (texto + fotos) em `ChecklistNote`, com a galeria do dia (`components/checklist/day-notes.tsx`).
+- **Excluir condomínio real = arquivar** (`Condominium.deletedAt`, `archiveCondominium`/`restoreCondominium` em
+  `actions/admin.ts`): some de todas as listas, do seletor e dos vínculos (filtro `deletedAt: null` em cada consulta de
+  condomínios, em `adminScope`, `financeCondo`, `userMemberships` e nas listas globais de OS/feed), mas nada é apagado.
+  Quem só tinha esse condomínio fica `inactive` (ids em `archivedUserIds`, reativados ao restaurar). Exige assinatura
+  cancelada e digitar o nome. **Lista nova de condomínios precisa do filtro `deletedAt: null`.** Sessão que não vale
+  mais (conta desativada, condomínio arquivado) passa por `/api/sair`, que limpa o cookie (evita laço login ↔ dashboard).
+- **Edição completa do condomínio** (superadmin, página do condomínio): tipo e nomenclatura (casas/lotes acompanham),
+  logo (`brand/`), horário do checklist, acesso do conselho (registrado no FinanceLog), ativo e síndicos (`assignSyndic`,
+  `removeSyndic`).
 - **Condomínio de demonstração**: botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
   todas as áreas), vinculado como síndico ao e-mail digitado na janela. Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.

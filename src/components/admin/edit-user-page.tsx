@@ -24,7 +24,7 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
   if (!self && !admin && !(m.length === 1 && m[0].condominiumId === me.condominiumId && roles.includes(m[0].role as Role))) notFound();
 
   const [condos, units] = await Promise.all([
-    admin ? db.condominium.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }) : [],
+    admin ? db.condominium.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [],
     db.unit.findMany({
       where: admin ? {} : { building: { condominiumId: me.condominiumId! } },
       include: { building: true },
