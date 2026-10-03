@@ -25,7 +25,7 @@ export default async function ProfilePage() {
     db.pushDevice.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
   ]);
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="mx-auto max-w-6xl animate-in">
       <PageHeader eyebrow="Conta" title="Meu perfil" />
       <Card brand className="mb-6 flex flex-col items-center gap-5 p-6 sm:flex-row">
         <Avatar name={user.name} src={user.avatarUrl} size={72} />
@@ -42,43 +42,49 @@ export default async function ProfilePage() {
           <p className="mt-2 text-xs text-muted">Último acesso: {fmtDateTime(user.lastLoginAt)}</p>
         </div>
       </Card>
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card><CardHeader title="Dados pessoais" /><div className="p-5"><ProfileForm name={user.name} phone={user.phone} /></div></Card>
-        <Card><CardHeader title="Segurança" /><div className="p-5"><PasswordForm /></div></Card>
-        <Card className="md:col-span-2">
-          <CardHeader title="E-mail de acesso" subtitle="O e-mail que você usa para entrar. O endereço antigo recebe um aviso da troca." />
-          <div className="p-5 md:max-w-md"><EmailForm email={user.email} /></div>
-        </Card>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {/* Conta */}
+        <div className="space-y-6">
+          <Card><CardHeader title="Dados pessoais" /><div className="p-5"><ProfileForm name={user.name} phone={user.phone} /></div></Card>
+          <Card>
+            <CardHeader title="E-mail de acesso" subtitle="O e-mail que você usa para entrar. O endereço antigo recebe um aviso da troca." />
+            <div className="p-5"><EmailForm email={user.email} /></div>
+          </Card>
+          <Card><CardHeader title="Senha" /><div className="p-5"><PasswordForm /></div></Card>
+        </div>
+        {/* Segurança e avisos */}
+        <div className="space-y-6">
+          <Card id="duas-etapas">
+            <CardHeader title="Verificação em duas etapas" subtitle="Código do app autenticador do celular a cada login com senha" />
+            <div className="p-5">
+              <TwoFactorCard
+                enabledAt={user.totpEnabledAt?.toISOString() ?? null}
+                recoveryLeft={recoveryCount(tf?.recoveryCodes ?? "")}
+                disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
+              />
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Face ID / biometria" subtitle="Login sem senha neste e em outros aparelhos" />
+            <div className="p-5">
+              <PasskeysCard
+                items={passkeys.map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt.toISOString(), lastUsedAt: p.lastUsedAt?.toISOString() ?? null }))}
+                disabledReason={!pk.enabled ? "O login com biometria está desativado pela administração." : user.impersonator ? "Indisponível em modo de visualização." : undefined}
+              />
+            </div>
+          </Card>
+          <Card id="notificacoes">
+            <CardHeader title="Notificações no celular" subtitle="Avisos do Condtrack direto na tela do celular ou do computador" />
+            <div className="p-5">
+              <PushCard
+                publicKey={pushPublicKey()}
+                devices={devices.map((d) => ({ id: d.id, name: d.name, endpoint: d.endpoint, createdAt: d.createdAt.toISOString(), lastUsedAt: d.lastUsedAt?.toISOString() ?? null }))}
+                disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
+              />
+            </div>
+          </Card>
+        </div>
       </div>
-      <Card className="mt-6" id="notificacoes">
-        <CardHeader title="Notificações no celular" subtitle="Avisos do Condtrack direto na tela do celular ou do computador" />
-        <div className="p-5">
-          <PushCard
-            publicKey={pushPublicKey()}
-            devices={devices.map((d) => ({ id: d.id, name: d.name, endpoint: d.endpoint, createdAt: d.createdAt.toISOString(), lastUsedAt: d.lastUsedAt?.toISOString() ?? null }))}
-            disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
-          />
-        </div>
-      </Card>
-      <Card className="mt-6" id="duas-etapas">
-        <CardHeader title="Verificação em duas etapas" subtitle="Código do app autenticador do celular a cada login com senha" />
-        <div className="p-5">
-          <TwoFactorCard
-            enabledAt={user.totpEnabledAt?.toISOString() ?? null}
-            recoveryLeft={recoveryCount(tf?.recoveryCodes ?? "")}
-            disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
-          />
-        </div>
-      </Card>
-      <Card className="mt-6">
-        <CardHeader title="Face ID / biometria" subtitle="Login sem senha neste e em outros aparelhos" />
-        <div className="p-5">
-          <PasskeysCard
-            items={passkeys.map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt.toISOString(), lastUsedAt: p.lastUsedAt?.toISOString() ?? null }))}
-            disabledReason={!pk.enabled ? "O login com biometria está desativado pela administração." : user.impersonator ? "Indisponível em modo de visualização." : undefined}
-          />
-        </div>
-      </Card>
       <form action={logout} className="mt-8 lg:hidden"><button className={buttonClass("outline") + " w-full"}>Sair</button></form>
     </div>
   );

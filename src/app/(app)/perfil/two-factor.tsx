@@ -72,7 +72,7 @@ export function TwoFactorCard({ enabledAt, recoveryLeft, disabledReason }: Props
 
   if (!enabledAt) {
     return (
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-2 text-muted"><ShieldOff className="size-5" /></span>
           <p className="text-sm text-fg-2">

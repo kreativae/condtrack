@@ -104,7 +104,7 @@ export function PushCard({ publicKey, devices, disabledReason }: { publicKey: st
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-2 text-brand"><BellRing className="size-5" /></span>
           <p className="text-sm text-fg-2">
