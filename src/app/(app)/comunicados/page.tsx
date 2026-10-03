@@ -7,7 +7,7 @@ import { DELETED_USER, fmtDateTime } from "@/lib/format";
 import { confirmRead } from "@/app/actions/misc";
 import { Badge, Card, CardHeader, Empty, PageHeader, buttonClass, type Tone } from "@/components/ui";
 import { AnnouncementForm } from "./form";
-import { AnnouncementDeletePanel, RequestAnnouncementDelete } from "./delete-request";
+import { AnnouncementDeletePanel, DeleteOwnAnnouncement, RequestAnnouncementDelete } from "./delete-request";
 import { adminScope } from "@/lib/admin-scope-server";
 import { FrozenPage, FrozenTop, Pager, ScrollArea, pageParam, withPage } from "@/components/frozen";
 
@@ -79,8 +79,11 @@ export default async function AnnouncementsPage({ searchParams }: PageProps<"/co
                   canCancel={admin}
                 />
               )
+            ) : admin ? (
+              <div className="mt-2 flex justify-end"><RequestAnnouncementDelete id={a.id} /></div>
             ) : (
-              admin && <div className="mt-2 flex justify-end"><RequestAnnouncementDelete id={a.id} /></div>
+              // Síndico apaga direto o que ele mesmo publicou
+              syndic && a.authorId === user.id && <div className="mt-2 flex justify-end"><DeleteOwnAnnouncement id={a.id} /></div>
             )}
           </Card>
         );

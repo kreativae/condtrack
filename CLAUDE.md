@@ -92,6 +92,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   perdem os votos (`describeChange`/`applyAssemblyEdit`), encerrada não muda a pauta.
 - **Comunicados**: o superadmin vê os do condomínio em foco e só **pede** a exclusão (`AnnouncementChange`,
   `app/actions/announcements.ts`); o síndico aprova (apaga, conteúdo guardado na auditoria) ou recusa no próprio card.
+  O síndico apaga direto só os comunicados que ele mesmo publicou (`deleteOwnAnnouncement`).
   Mesmo padrão das assembleias: um pedido por vez, decisão reservada com `updateMany` condicional.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 

@@ -74,3 +74,13 @@ export async function decideAnnouncementDelete(changeId: string, _: Announcement
   revalidatePath("/comunicados");
   return { ok: true, message: approve ? "Comunicado excluído." : "Pedido recusado. O comunicado continua publicado." };
 }
+
+/** Síndico apaga direto um comunicado que ele mesmo publicou (o conteúdo fica na auditoria). */
+export async function deleteOwnAnnouncement(id: string) {
+  const user = await requireUser("syndic");
+  const a = await db.announcement.findUnique({ where: { id } });
+  if (!a || a.condominiumId !== user.condominiumId || a.authorId !== user.id) return;
+  await audit(user, "delete", "announcement", a.id, { old: { titulo: a.title, conteudo: a.content, publicadoEm: a.publishedAt }, condominiumId: a.condominiumId });
+  await db.announcement.delete({ where: { id } });
+  revalidatePath("/comunicados");
+}

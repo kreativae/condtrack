@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, Trash2 } from "lucide-react";
-import { cancelAnnouncementDelete, decideAnnouncementDelete, requestAnnouncementDelete, type AnnouncementChangeState } from "@/app/actions/announcements";
+import { cancelAnnouncementDelete, decideAnnouncementDelete, deleteOwnAnnouncement, requestAnnouncementDelete, type AnnouncementChangeState } from "@/app/actions/announcements";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Button, Field, Textarea } from "@/components/ui";
@@ -70,5 +70,24 @@ export function AnnouncementDeletePanel({ pending: p, canDecide, canCancel }: { 
       )}
       {state?.error && <Alert>{state.error}</Alert>}
     </div>
+  );
+}
+
+/** Síndico: excluir direto um comunicado que ele publicou. */
+export function DeleteOwnAnnouncement({ id }: { id: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      className="text-bad hover:bg-bad/10"
+      onClick={() => {
+        if (!confirm("Excluir este comunicado? Ele some para todos.")) return;
+        start(() => deleteOwnAnnouncement(id));
+      }}
+    >
+      {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}Excluir
+    </Button>
   );
 }
