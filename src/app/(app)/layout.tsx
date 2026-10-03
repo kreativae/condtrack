@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { maybeAlertLate } from "@/lib/checklist-server";
-import { AlertTriangle, Bell, Building2, LogOut, Eye } from "lucide-react";
+import { AlertTriangle, Building2, LogOut, Eye } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { nowMs } from "@/lib/format";
@@ -15,6 +15,7 @@ import { CondoSwitcher } from "@/components/condo-switcher";
 import { ROLE_LABEL } from "@/lib/roles";
 import { logout, stopImpersonating } from "@/app/actions/auth";
 import { SideNav, MobileNav, MenuButton, NAV_PINS_COOKIE } from "@/components/nav-links";
+import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui";
@@ -143,14 +144,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <div className="flex items-center gap-1">
             <ThemeToggle initial={theme} />
 {user.role !== "resident" && (
-            <Link href="/notificacoes" aria-label="Notificações" className="relative inline-flex size-9 items-center justify-center rounded-xl text-fg-2 transition hover:bg-bg-2 hover:text-fg">
-              <Bell className="size-[18px]" />
-              {unread > 0 && (
-                <span className="absolute right-1 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-bad px-1 font-num text-[10px] font-bold text-white ring-2 ring-bg">
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </Link>
+            <NotificationBell initial={unread} />
             )}
             <Link href="/perfil" className="ml-1 lg:hidden">
               <Avatar name={user.name} src={user.avatarUrl} size={32} />
