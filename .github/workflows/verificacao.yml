@@ -1,0 +1,32 @@
+# Verificação a cada push: confere tipos e lint antes de a gente descobrir um erro só no build da Vercel.
+name: Verificação
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: verificacao-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tipos:
+    name: Tipos e lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # O postinstall roda o "prisma generate" (não precisa de banco)
+      - run: npm ci
+      # Gera os tipos das rotas (PageProps, RouteContext) que o TypeScript usa
+      - run: npx next typegen
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Lint (só avisa)
+        run: npx eslint . --max-warnings=-1
+        continue-on-error: true
