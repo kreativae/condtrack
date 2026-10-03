@@ -8,6 +8,7 @@ import { inCondo } from "@/lib/memberships";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
+import { flash } from "@/lib/flash";
 import { nextProtocol } from "@/lib/orders";
 import type { Role } from "@/lib/roles";
 import { can, canView, PRIORITY_META, STATUSES, STATUS_META, type OrderAction, type Priority, type Status, canDeleteMedia } from "@/lib/workflow";
@@ -97,6 +98,7 @@ export async function createOrder(_: ActionState, form: FormData): Promise<Actio
       ...orderLink(order.id),
     },
   );
+  await flash(`${order.protocol} aberta. O síndico e o zelador foram avisados`);
   revalidatePath("/os");
   return { ok: true, id: order.id };
 }
@@ -127,6 +129,7 @@ export async function assignOrder(id: string, _: ActionState, form: FormData): P
     { condominiumId: o.condominiumId, roles: ["syndic", "caretaker"], userIds: [provider.id], exclude: user.id },
     { type: "os_assigned", vars: { protocolo: o.protocol, titulo: o.title, autor: user.name, prestador: provider.name }, ...orderLink(id) },
   );
+  await flash(`OS atribuída a ${provider.name}`);
   revalidatePath(`/os/${id}`);
   return { ok: true };
 }
@@ -198,6 +201,11 @@ export async function transitionOrder(id: string, kind: keyof typeof TRANSITIONS
     { condominiumId: o.condominiumId, roles: target.roles, userIds: target.userIds, exclude: user.id },
     { type: t.template, vars: { protocolo: o.protocol, titulo: o.title, autor: user.name, comentario: comment }, ...orderLink(id) },
   );
+  const DONE: Record<keyof typeof TRANSITIONS, string> = {
+    start: "Serviço iniciado", validate: "OS validada. O síndico já pode aprovar", return: "OS devolvida ao prestador",
+    approve: "OS aprovada e publicada no feed", reject: "OS rejeitada. O prestador foi avisado", cancel: "OS cancelada",
+  };
+  await flash(DONE[kind]);
   revalidatePath(`/os/${id}`);
   revalidatePath("/feed");
   return { ok: true };
@@ -241,6 +249,7 @@ export async function completeOrder(id: string, _: ActionState, form: FormData):
     { condominiumId: o.condominiumId, roles: ["syndic", "caretaker"] },
     { type: "os_completed", vars: { protocolo: o.protocol, titulo: o.title, autor: user.name }, ...orderLink(id) },
   );
+  await flash("Serviço concluído. Agora o zelador confere");
   revalidatePath(`/os/${id}`);
   return { ok: true };
 }
@@ -258,6 +267,7 @@ export async function commentOrder(id: string, _: ActionState, form: FormData): 
     { condominiumId: o.condominiumId, roles: ["syndic"], userIds: [o.assignedToId, o.requestedById], exclude: user.id },
     { type: "os_comment", vars: { protocolo: o.protocol, titulo: o.title, autor: user.name, comentario: comment.slice(0, 280) }, ...orderLink(id) },
   );
+  await flash("Comentário enviado");
   revalidatePath(`/os/${id}`);
   return { ok: true };
 }
@@ -273,6 +283,7 @@ export async function rateOrder(id: string, _: ActionState, form: FormData): Pro
     db.serviceOrder.update({ where: { id }, data: { rating, ratingComment: comment || null } }),
     db.serviceEvent.create({ data: { serviceOrderId: id, userId: user.id, type: "rating", comment: `Avaliação ${rating}/5${comment ? ` — ${comment}` : ""}` } }),
   ]);
+  await flash("Obrigado! Avaliação enviada");
   revalidatePath(`/os/${id}`);
   return { ok: true };
 }

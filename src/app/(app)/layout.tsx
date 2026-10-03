@@ -16,6 +16,7 @@ import { ROLE_LABEL } from "@/lib/roles";
 import { logout, stopImpersonating } from "@/app/actions/auth";
 import { SideNav, MobileNav, MenuButton, NAV_PINS_COOKIE } from "@/components/nav-links";
 import { NotificationBell } from "@/components/notification-bell";
+import { Toaster } from "@/components/toaster";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
 import { Avatar } from "@/components/ui";
@@ -157,6 +158,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-8 lg:pb-16">{children}</main>
+        <Toaster />
       </div>
       <MobileNav items={items} customized={customized} condos={scopeList ? { list: scopeList, current: scope } : multi ? { ...multi, mode: "member" as const, subtitle: ROLE_LABEL[user.role] } : undefined} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
     </div>
