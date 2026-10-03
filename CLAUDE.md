@@ -78,6 +78,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   página). Serviço: abre a OS `leadDays` antes de `nextDue` (atribuída ao prestador do plano) e já avança `nextDue` com
   `updateMany` condicional (nunca abre duas vezes; ciclos atrasados viram uma OS só). Documento: aviso antes (`alertedFor =
   data`) e no vencimento (`data!`) até "Renovado". Sugestões entram pausadas. Modelos `maint_*` em Mensagens.
+- **Notificações no celular** (Web Push, `src/lib/push.ts`): toda notificação do app (canal "app" em Mensagens) também vai
+  para os aparelhos inscritos (`PushDevice`), pelo `notify()`. Inscrição em Meu perfil (`perfil/push.tsx`); service worker
+  em `public/sw.js` (sem cache de páginas). Endereços de inscrição só dos serviços oficiais (anti-SSRF, `actions/push.ts`).
+  Precisa de `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` (opcional `VAPID_SUBJECT`); sem elas o cartão avisa e nada é enviado.
+  iPhone: só com o app na tela de início (iOS 16.4+). Ícones PNG em `public/` e `src/app/apple-icon.png`.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

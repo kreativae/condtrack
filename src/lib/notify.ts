@@ -6,6 +6,7 @@ import type { Role } from "./roles";
 import { emailConfig, renderEmail, sendEmail } from "./email";
 import { appUrl } from "./url";
 import { renderTemplate } from "./messages-server";
+import { pushEnabled, sendPush } from "./push";
 
 type Target = { condominiumId: string; roles?: Role[]; userIds?: (string | null | undefined)[]; exclude?: string };
 type Vars = Record<string, string | number | null | undefined>;
@@ -21,7 +22,7 @@ function linkFor(n: Payload, layout: (k: string) => string) {
   return { path: "/notificacoes", label: layout("ctaDefault") };
 }
 
-/** Notificação in-app + e-mail, conforme o modelo e os canais ligados em Mensagens. */
+/** Notificação in-app (+ celular, se inscrito) + e-mail, conforme o modelo e os canais ligados em Mensagens. */
 export async function notify(target: Target, n: Payload) {
   const condo = await db.condominium.findUnique({ where: { id: target.condominiumId }, select: { name: true } });
   const msg = await renderTemplate(n.type, { condominio: condo?.name, ...n.vars });
@@ -40,13 +41,23 @@ export async function notify(target: Target, n: Payload) {
   const row = { type: n.type, title: msg.title, message: msg.message, referenceType: n.referenceType, referenceId: n.referenceId };
   if (msg.app) await db.notification.createMany({ data: [...ids].map((userId) => ({ userId, ...row })) });
 
+  const base = await appUrl(); // precisa do request — calcular antes do after()
+  const layout = await renderTemplate("email_layout", {});
+  const link = linkFor(n, layout.get);
+
+  // Celular/computador: acompanha a notificação do app (mesmo título, texto e link)
+  if (msg.app && pushEnabled()) {
+    const userIds = [...ids];
+    after(() =>
+      sendPush(userIds, { title: msg.title, body: msg.message, url: link.path, tag: n.referenceId ? `${n.referenceType}:${n.referenceId}` : n.type }, base)
+        .catch((e) => console.error("[push]", e)),
+    );
+  }
+
   if (!msg.email) return;
   const cfg = await emailConfig();
   if (!cfg.active || !cfg.notifyByEmail) return;
-  const base = await appUrl(); // precisa do request — calcular antes do after()
   const recipients = await db.user.findMany({ where: { id: { in: [...ids] }, status: "active" }, select: { email: true, name: true, _count: { select: { memberships: true } } } });
-  const layout = await renderTemplate("email_layout", {});
-  const link = linkFor(n, layout.get);
 
   // Envia depois da resposta para não atrasar a ação do usuário
   after(async () => {

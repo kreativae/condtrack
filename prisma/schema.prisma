@@ -140,6 +140,7 @@ model User {
   passwordResets     PasswordReset[]
   memberships        Membership[]
   maintenancePlans   MaintenancePlan[]
+  pushDevices        PushDevice[]
 }
 
 /// role: owner | tenant | dependent
@@ -670,4 +671,20 @@ model FinanceBudget {
   condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
 
   @@unique([condominiumId, year, type, category])
+}
+
+/// Aparelho inscrito nas notificações do celular/computador (Web Push). Some sozinho quando o navegador revoga a inscrição.
+model PushDevice {
+  id         String    @id @default(cuid())
+  userId     String
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  /// Nome amigável do aparelho (ex.: "iPhone", "Chrome no Mac")
+  name       String    @default("")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

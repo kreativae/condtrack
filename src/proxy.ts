@@ -29,5 +29,5 @@ export const config = {
   // /api/branding: imagens públicas da tela de login (e upload, que confere o superadmin).
   // /api/checklist (upload de foto, confere a sessão) e /api/cron (CRON_SECRET) também se autenticam sozinhos.
   // /api/financeiro (anexos e exportação) confere a sessão e o acesso ao Financeiro em cada rota.
-  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/financeiro|api/cron|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/financeiro|api/cron|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico|sw.js|icon-192.png|icon-512.png|apple-icon.png|badge-96.png).*)"],
 };

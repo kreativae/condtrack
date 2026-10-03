@@ -7,6 +7,8 @@ import { Avatar, Card, CardHeader, PageHeader, buttonClass } from "@/components/
 import { EmailForm, PasswordForm, ProfileForm } from "./forms";
 import { PasskeysCard } from "./passkeys";
 import { TwoFactorCard } from "./two-factor";
+import { PushCard } from "./push";
+import { pushPublicKey } from "@/lib/push";
 import { recoveryCount } from "@/lib/totp";
 import { db } from "@/lib/db";
 import { passkeyConfig } from "@/lib/passkeys";
@@ -16,10 +18,11 @@ export const metadata: Metadata = { title: "Meu perfil" };
 
 export default async function ProfilePage() {
   const user = await requireUser();
-  const [passkeys, pk, tf] = await Promise.all([
+  const [passkeys, pk, tf, devices] = await Promise.all([
     db.passkey.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
     passkeyConfig(),
     db.user.findUnique({ where: { id: user.id }, select: { recoveryCodes: true } }),
+    db.pushDevice.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
   ]);
   return (
     <div className="mx-auto max-w-3xl animate-in">
@@ -47,6 +50,16 @@ export default async function ProfilePage() {
           <div className="p-5 md:max-w-md"><EmailForm email={user.email} /></div>
         </Card>
       </div>
+      <Card className="mt-6" id="notificacoes">
+        <CardHeader title="Notificações no celular" subtitle="Avisos do Condtrack direto na tela do celular ou do computador" />
+        <div className="p-5">
+          <PushCard
+            publicKey={pushPublicKey()}
+            devices={devices.map((d) => ({ id: d.id, name: d.name, endpoint: d.endpoint, createdAt: d.createdAt.toISOString(), lastUsedAt: d.lastUsedAt?.toISOString() ?? null }))}
+            disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
+          />
+        </div>
+      </Card>
       <Card className="mt-6" id="duas-etapas">
         <CardHeader title="Verificação em duas etapas" subtitle="Código do app autenticador do celular a cada login com senha" />
         <div className="p-5">
