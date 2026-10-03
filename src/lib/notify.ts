@@ -17,6 +17,7 @@ function linkFor(n: Payload, layout: (k: string) => string) {
   if (n.referenceType === "announcement") return { path: "/comunicados", label: layout("ctaAnnouncement") };
   if (n.referenceType === "billing") return { path: "/assinatura", label: layout("ctaBilling") };
   if (n.referenceType === "checklist") return { path: "/checklist", label: layout("ctaChecklist") };
+  if (n.referenceType === "maintenance") return { path: "/manutencao", label: layout("ctaDefault") };
   return { path: "/notificacoes", label: layout("ctaDefault") };
 }
 

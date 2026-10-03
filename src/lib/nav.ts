@@ -12,6 +12,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/admin/assinaturas", label: "Assinaturas", icon: "card", mobile: true },
     { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/checklist", label: "Checklist", icon: "checklist" },
+    { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/admin/auditoria", label: "Auditoria", icon: "shield" },
     { href: "/admin/configuracoes", label: "Configurações", icon: "settings" },
@@ -23,6 +24,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
     { href: "/usuarios", label: "Pessoas", icon: "users", mobile: true },
     { href: "/checklist", label: "Checklist", icon: "checklist" },
+    { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
     { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/estrutura", label: "Estrutura", icon: "building" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
@@ -37,6 +39,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/os/nova", label: "Nova ocorrência", short: "Nova", icon: "plus", mobile: true },
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
     { href: "/checklist", label: "Checklist", icon: "checklist", mobile: true },
+    { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
   ],
   provider: [

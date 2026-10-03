@@ -32,7 +32,7 @@ const OS_VARS = [V.protocolo, V.titulo, V.condominio, V.autor];
 
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -74,6 +74,23 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "pendentes", desc: "Itens não conferidos", sample: "3" },
     { name: "total", desc: "Itens do dia", sample: "7" },
     { name: "prazo", desc: "Horário limite", sample: "10:00" },
+    V.condominio,
+  ]),
+  notification("maint_order", "OS de manutenção preventiva aberta", "Síndico e zelador", "Manutenção preventiva: {titulo}", "{protocolo} · prevista para {vencimento}.", [
+    V.protocolo,
+    V.titulo,
+    V.condominio,
+    { name: "vencimento", desc: "Data prevista do serviço", sample: "15/10/2026" },
+  ]),
+  notification("maint_doc_expiring", "Documento perto de vencer", "Síndico (na antecedência do plano)", "{documento} vence em {dias} dias", "{condominio}: {documento} vence em {vencimento}. Providencie a renovação.", [
+    { name: "documento", desc: "Documento ou laudo", sample: "AVCB" },
+    { name: "vencimento", desc: "Data de vencimento", sample: "15/10/2026" },
+    { name: "dias", desc: "Dias que faltam", sample: "30" },
+    V.condominio,
+  ]),
+  notification("maint_doc_expired", "Documento vencido", "Síndico (no dia do vencimento)", "{documento} venceu", "{condominio}: {documento} venceu em {vencimento}. Depois de renovar, marque como renovado em Manutenção preventiva.", [
+    { name: "documento", desc: "Documento ou laudo", sample: "AVCB" },
+    { name: "vencimento", desc: "Data de vencimento", sample: "15/10/2026" },
     V.condominio,
   ]),
   notification("billing_payment_failed", "Falha no pagamento", "Síndico e superadmins", "Falha no pagamento da assinatura", "{condominio}: não conseguimos cobrar {valor}. Atualize a forma de pagamento.", [

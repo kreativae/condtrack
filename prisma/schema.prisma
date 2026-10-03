@@ -55,6 +55,7 @@ model Condominium {
   checklistNotes ChecklistNote[]
   billingDeal    BillingDeal?
   memberships    Membership[]
+  maintenancePlans MaintenancePlan[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -137,6 +138,7 @@ model User {
   checklistNotes     ChecklistNote[]
   passwordResets     PasswordReset[]
   memberships        Membership[]
+  maintenancePlans   MaintenancePlan[]
 }
 
 /// role: owner | tenant | dependent
@@ -158,6 +160,7 @@ model ServiceCategory {
   color         String         @default("#5B5BD6")
   condominium   Condominium    @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   orders        ServiceOrder[]
+  maintenancePlans MaintenancePlan[]
 }
 
 model CommonArea {
@@ -170,6 +173,7 @@ model CommonArea {
   condominium    Condominium     @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   orders         ServiceOrder[]
   checklistItems ChecklistItem[]
+  maintenancePlans MaintenancePlan[]
 }
 
 /// priority: urgent | high | medium | low
@@ -616,4 +620,37 @@ model Membership {
 
   @@unique([userId, condominiumId])
   @@index([condominiumId, role])
+}
+
+/// Manutenção preventiva. kind: service (abre a OS sozinho, `leadDays` antes de `nextDue`, e agenda o próximo ciclo)
+/// | document (AVCB, seguro, laudos: avisa antes e no vencimento, até ser marcado como renovado).
+/// Periodicidade: a cada `every` `unit` (week | month | year). Datas YYYY-MM-DD (Brasília).
+model MaintenancePlan {
+  id            String           @id @default(cuid())
+  condominiumId String
+  kind          String           @default("service")
+  title         String
+  description   String           @default("")
+  categoryId    String?
+  commonAreaId  String?
+  providerId    String?
+  priority      String           @default("medium")
+  every         Int              @default(1)
+  unit          String           @default("month")
+  nextDue       String
+  leadDays      Int              @default(7)
+  /// Documentos: último aviso enviado ("<data>" antes de vencer, "<data>!" no vencimento)
+  alertedFor    String?
+  lastOrderId   String?
+  active        Boolean          @default(true)
+  createdById   String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  condominium   Condominium      @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  category      ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  commonArea    CommonArea?      @relation(fields: [commonAreaId], references: [id], onDelete: SetNull)
+  provider      User?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([condominiumId, active])
+  @@index([active, nextDue])
 }

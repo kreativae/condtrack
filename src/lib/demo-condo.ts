@@ -270,6 +270,18 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
     }
   }
 
+  // ───── Manutenção preventiva (um documento perto de vencer, para o aviso aparecer)
+  await db.maintenancePlan.createMany({
+    data: [
+      { condominiumId: cid, kind: "service", title: "Limpeza da caixa d’água", description: "Limpeza e desinfecção dos reservatórios, com certificado.", categoryId: cats["Hidráulica"], providerId: plumber.id, every: 6, unit: "month", nextDue: addDays(today, 40), leadDays: 15, createdById: syndic.id },
+      { condominiumId: cid, kind: "service", title: "Manutenção dos elevadores", description: "Visita mensal da conservadora.", categoryId: cats["Elevadores"], providerId: electrician.id, every: 1, unit: "month", nextDue: addDays(today, 18), leadDays: 5, createdById: syndic.id },
+      { condominiumId: cid, kind: "service", title: "Dedetização e desratização", description: "Controle de pragas nas áreas comuns.", categoryId: cats["Limpeza"], every: 6, unit: "month", nextDue: addDays(today, 95), leadDays: 15, createdById: syndic.id },
+      { condominiumId: cid, kind: "document", title: "AVCB (Auto de Vistoria do Corpo de Bombeiros)", description: "Renovação exige vistoria.", every: 3, unit: "year", nextDue: addDays(today, 24), leadDays: 90, alertedFor: addDays(today, 24), createdById: syndic.id },
+      { condominiumId: cid, kind: "document", title: "Seguro predial obrigatório", description: "Apólice contra incêndio.", every: 1, unit: "year", nextDue: addDays(today, 210), leadDays: 30, createdById: syndic.id },
+      { condominiumId: cid, kind: "document", title: "Laudo do SPDA (para-raios)", every: 1, unit: "year", nextDue: addDays(today, 150), leadDays: 30, createdById: syndic.id },
+    ],
+  });
+
   // ───── Comunicados
   await db.announcement.createMany({
     data: [

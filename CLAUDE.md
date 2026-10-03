@@ -69,6 +69,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Condomínio de demonstração**: botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
   todas as áreas), vinculado como síndico ao e-mail digitado na janela. Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
+- **Manutenção preventiva** (`/manutencao`; superadmin e síndico editam, zelador vê): `MaintenancePlan`, regras de data em
+  `src/lib/maintenance.ts` e motor em `maintenance-server.ts` (`runMaintenance`, chamado pelo cron a cada 15 min e ao abrir a
+  página). Serviço: abre a OS `leadDays` antes de `nextDue` (atribuída ao prestador do plano) e já avança `nextDue` com
+  `updateMany` condicional (nunca abre duas vezes; ciclos atrasados viram uma OS só). Documento: aviso antes (`alertedFor =
+  data`) e no vencimento (`data!`) até "Renovado". Sugestões entram pausadas. Modelos `maint_*` em Mensagens.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,
