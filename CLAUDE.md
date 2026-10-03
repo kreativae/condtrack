@@ -12,7 +12,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - Um commit por ajuste, com push logo em seguida, para nada ficar preso numa máquina só.
 - Se um build falhar na Vercel, o site continua na versão anterior; corrija na `main`.
 - Pontos de restauração: tags `v1-estavel` (2026-09-28, aba Aparência) e `v2-estavel` (2026-10-04, antes dos vínculos com vários condomínios). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.
-- O GitHub confere tipos e lint a cada push (`.github/workflows/verificacao.yml`); veja a aba Actions se algo falhar.
+- O GitHub confere tipos, lint (bloqueia erro) e testes a cada push (`.github/workflows/verificacao.yml`); veja a aba
+  Actions se algo falhar. Testes das regras de negócio em `src/lib/__tests__` (Vitest, `npm test`): permissões da OS,
+  valores do financeiro, datas da manutenção, apuração das assembleias, duas etapas, demonstração. Regra nova = teste novo.
 - O Mac principal tem Node pelo nvm (desde 2026-10-03). Antes de commitar: `npx tsc --noEmit` e, em mudanças maiores,
   `npx next build` (com `AUTH_SECRET`, `DATABASE_URL` e `DATABASE_URL_UNPOOLED` fictícios; o `npm run build` roda as
   migrações e precisa do banco de verdade). Em outra máquina sem Node, o build da Vercel continua sendo a verificação.

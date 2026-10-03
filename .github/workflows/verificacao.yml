@@ -29,3 +29,5 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         run: npx eslint .
+      - name: Testes das regras de negócio
+        run: npm test
