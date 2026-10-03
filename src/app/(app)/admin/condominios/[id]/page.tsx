@@ -6,10 +6,11 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { orderMetrics, fmtHours } from "@/lib/metrics";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
-import { saveCondominium, toggleCondominium } from "@/app/actions/admin";
+import { saveCondominium } from "@/app/actions/admin";
 import { CondoForm } from "@/components/admin/condo-form";
 import { DeleteDemoButton } from "@/components/admin/delete-demo-button";
-import { Card, CardHeader, LinkButton, PageHeader, Stat, buttonClass } from "@/components/ui";
+import { SyndicsCard } from "@/components/admin/syndics-card";
+import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { LAYOUTS, type Layout } from "@/lib/units";
 
 export const metadata: Metadata = { title: "Condomínio" };
@@ -24,9 +25,10 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
     include: { buildings: { include: { _count: { select: { units: true } } } }, categories: true, commonAreas: true },
   });
   if (!c) notFound();
-  const [m, staff] = await Promise.all([
+  const [m, staff, syndics] = await Promise.all([
     orderMetrics({ condominiumId: id }),
     db.membership.groupBy({ by: ["role"], where: { condominiumId: id, user: { status: "active" } }, _count: true }),
+    db.user.findMany({ where: { memberships: { some: { condominiumId: id, role: "syndic" } } }, select: { id: true, name: true, email: true, avatarUrl: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -37,14 +39,8 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
         description={c.address}
         actions={
           <>
-            <LinkButton variant="outline" href={`/admin/usuarios/novo?role=syndic`}><UserPlus className="size-4" />Atribuir síndico</LinkButton>
-            {c.demo ? (
-              <DeleteDemoButton id={c.id} name={c.name} />
-            ) : (
-              <form action={toggleCondominium.bind(null, c.id)}>
-                <button className={buttonClass(c.active ? "danger" : "success")}>{c.active ? "Desativar" : "Reativar"}</button>
-              </form>
-            )}
+            <LinkButton variant="outline" href={`/admin/usuarios/novo?role=syndic`}><UserPlus className="size-4" />Cadastrar síndico</LinkButton>
+            {c.demo && <DeleteDemoButton id={c.id} name={c.name} />}
           </>
         }
       />
@@ -57,6 +53,10 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <Card><CardHeader title="Dados e identidade visual" /><div className="p-6"><CondoForm action={saveCondominium.bind(null, c.id)} initial={c} /></div></Card>
         <div className="space-y-6">
+          <Card>
+            <CardHeader title="Síndicos" subtitle="Quem administra e aprova os pedidos do superadmin" />
+            <SyndicsCard condoId={c.id} syndics={syndics} />
+          </Card>
           <Card>
             <CardHeader title="Pessoas" action={<Link href={`/admin/usuarios`} className="text-xs text-brand">Gerenciar</Link>} />
             <ul className="divide-y divide-line text-sm">

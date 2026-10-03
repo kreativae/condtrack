@@ -17,7 +17,9 @@ import { sendEmailChangedNotice } from "@/lib/account-email";
 import { HOUSE_NOUNS, aptNumber, houseNumbers, isHouseNoun, isLayout, type HouseNoun, type Layout } from "@/lib/units";
 import { DEFAULT_CHECKLIST } from "@/lib/checklist";
 import { PERMISSION_KEYS, type Permission } from "@/lib/permissions";
-import { inCondo, setMemberships } from "@/lib/memberships";
+import { deleteFile, saveFile } from "@/lib/storage";
+import { financeLog } from "@/lib/finance-server";
+import { activateMembership, inCondo, setMemberships } from "@/lib/memberships";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
 async function emailAccess(user: { name: string; email: string; role: string }, secret: string, kind: "invite" | "reset") {
@@ -152,9 +154,42 @@ export async function saveCondominium(id: string | null, _: AdminState, form: Fo
   if (id) {
     const old = await db.condominium.findUnique({ where: { id } });
     if (!old) return { error: "Condomínio não encontrado." };
-    await db.condominium.update({ where: { id }, data: { ...d, address: d.address ?? null, cnpj: d.cnpj ?? null, phone: d.phone ?? null, email: d.email ?? null } });
-    await audit(me, "update", "condominium", id, { old, new: d, condominiumId: id });
-    revalidatePath(`/admin/condominios/${id}`);
+
+    // Edição completa (superadmin): tipo, nomenclatura, logo, checklist, conselho e situação
+    const layout = isLayout(form.get("layout")) ? (form.get("layout") as Layout) : (old.layout as Layout);
+    const houseNoun = isHouseNoun(form.get("houseNoun")) ? (form.get("houseNoun") as HouseNoun) : (old.houseNoun as HouseNoun);
+    const deadline = String(form.get("checklistDeadline") ?? "").trim();
+    if (deadline && !/^([01]\d|2[0-3]):[0-5]\d$/.test(deadline)) return { error: "Horário limite inválido (use HH:MM)." };
+    const councilFinanceAccess = form.get("councilFinanceAccess") === "on";
+    const active = form.get("active") === "on";
+
+    let logoUrl = old.logoUrl;
+    const logo = form.get("logo");
+    if (logo instanceof File && logo.size > 0) {
+      if (!["image/png", "image/jpeg", "image/webp"].includes(logo.type)) return { error: "Logo: use PNG, JPG ou WebP." };
+      if (logo.size > 1024 * 1024) return { error: "Logo: até 1 MB." };
+      logoUrl = await saveFile(logo, "brand");
+    } else if (form.get("removeLogo") === "on") {
+      logoUrl = null;
+    }
+
+    const data = {
+      ...d, address: d.address ?? null, cnpj: d.cnpj ?? null, phone: d.phone ?? null, email: d.email ?? null,
+      layout, houseNoun, logoUrl, checklistDeadline: deadline || null, councilFinanceAccess, active,
+    };
+    await db.$transaction(async (tx) => {
+      await tx.condominium.update({ where: { id }, data });
+      // Casas ↔ lotes: as unidades das quadras acompanham a nova nomenclatura
+      if (houseNoun !== old.houseNoun) {
+        await tx.unit.updateMany({ where: { building: { condominiumId: id }, type: { in: ["house", "lot"] } }, data: { type: houseNoun } });
+      }
+    });
+    if (old.logoUrl && old.logoUrl !== logoUrl) await deleteFile(old.logoUrl).catch(() => null);
+    if (councilFinanceAccess !== old.councilFinanceAccess) {
+      await financeLog(me, { condominiumId: id, action: "council_access", changes: { acesso: councilFinanceAccess ? "liberado" : "retirado", via: "cadastro do condomínio" } });
+    }
+    await audit(me, "update", "condominium", id, { old, new: data, condominiumId: id });
+    revalidatePath("/", "layout");
     return { ok: true, message: "Alterações salvas." };
   }
 
@@ -361,4 +396,44 @@ export async function updateUser(id: string, _prev: AdminState, form: FormData):
   revalidatePath("/usuarios");
   revalidatePath("/admin/usuarios");
   return { ok: true, message: changed.length ? "Alterações salvas." : "Nenhuma alteração." };
+}
+
+// ───── Síndicos do condomínio (superadmin)
+
+/** Torna síndico deste condomínio a pessoa do e-mail (cria o vínculo ou troca o perfil do vínculo existente). */
+export async function assignSyndic(condominiumId: string, _: AdminState, form: FormData): Promise<AdminState> {
+  const me = await requireUser("superadmin");
+  const parsed = z.string().trim().toLowerCase().email().safeParse(form.get("email"));
+  if (!parsed.success) return { error: "Informe um e-mail válido." };
+  const u = await db.user.findUnique({ where: { email: parsed.data }, include: { memberships: { where: { condominiumId } } } });
+  if (!u) return { error: "Nenhum usuário com esse e-mail. Cadastre a pessoa antes em Usuários." };
+  if (u.role === "superadmin") return { error: "O superadmin já vê todos os condomínios." };
+  const before = u.memberships[0]?.role ?? null;
+  if (before === "syndic") return { error: `${u.name} já é síndico deste condomínio.` };
+  await db.membership.upsert({
+    where: { userId_condominiumId: { userId: u.id, condominiumId } },
+    create: { userId: u.id, condominiumId, role: "syndic" },
+    update: { role: "syndic" },
+  });
+  // Sem condomínio ativo (ou com este ativo): passa a usar o vínculo de síndico
+  if (!u.condominiumId || u.condominiumId === condominiumId) await activateMembership(u.id, condominiumId);
+  await audit(me, "assign_syndic", "user", u.id, { old: { perfil: before }, new: { perfil: "syndic" }, condominiumId });
+  revalidatePath(`/admin/condominios/${condominiumId}`);
+  return { ok: true, message: `${u.name} agora é síndico deste condomínio.` };
+}
+
+/** Tira o vínculo de síndico deste condomínio (a conta continua; se era o condomínio ativo, passa para outro vínculo). */
+export async function removeSyndic(condominiumId: string, userId: string) {
+  const me = await requireUser("superadmin");
+  const m = await db.membership.findUnique({ where: { userId_condominiumId: { userId, condominiumId } } });
+  if (!m || m.role !== "syndic") return;
+  await db.membership.delete({ where: { id: m.id } });
+  const u = await db.user.findUnique({ where: { id: userId }, select: { condominiumId: true } });
+  if (u?.condominiumId === condominiumId) {
+    const other = await db.membership.findFirst({ where: { userId, condominiumId: { not: condominiumId } }, orderBy: { createdAt: "asc" } });
+    if (other) await activateMembership(userId, other.condominiumId);
+    else await db.user.update({ where: { id: userId }, data: { condominiumId: null, permissions: "" } });
+  }
+  await audit(me, "remove_syndic", "user", userId, { old: { perfil: "syndic" }, condominiumId });
+  revalidatePath(`/admin/condominios/${condominiumId}`);
 }
