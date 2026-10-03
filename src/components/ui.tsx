@@ -114,6 +114,44 @@ export function Field({ label, hint, children, className }: { label: string; hin
   );
 }
 
+export type StatItem = { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone; trend?: { text: string; good: boolean }; spark?: number[] };
+
+/**
+ * Números do painel sem cartão: soltos sobre o fundo, separados por linhas finas, com tendência
+ * opcional (texto verde/vermelho) e mini gráfico. Para destacar o que importa, cartão só onde separa algo.
+ */
+export function StatStrip({ items }: { items: StatItem[] }) {
+  return (
+    <div className="mb-6 grid grid-cols-2 border-y border-line lg:grid-cols-4">
+      {items.map((s, i) => (
+        <div key={s.label} className={cx("@container flex flex-col gap-1 px-1 py-4 sm:px-5", i % 2 === 1 && "border-l border-line", i >= 2 && "border-t border-line lg:border-t-0", i === 2 && "lg:border-l")}>
+          <p className="text-xs font-medium text-muted sm:text-[13px]">{s.label}</p>
+          <div className="flex items-end justify-between gap-2">
+            <p className={cx("font-num font-bold tracking-tight tabular-nums text-[26px] @[14rem]:text-[30px]", s.tone ? toneText[s.tone] : "text-fg")}>{s.value}</p>
+            {s.spark && s.spark.length > 1 && <Sparkline values={s.spark} />}
+          </div>
+          {s.trend ? (
+            <p className={cx("text-xs font-semibold", s.trend.good ? "text-ok" : "text-bad")}>{s.trend.text}</p>
+          ) : (
+            s.hint && <p className="text-xs text-muted">{s.hint}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Mini gráfico de linha (cor da marca), escalado aos próprios valores. */
+export function Sparkline({ values }: { values: number[] }) {
+  const w = 76, h = 26, max = Math.max(...values, 1), min = Math.min(...values, 0);
+  const pts = values.map((v, i) => `${((i / (values.length - 1)) * (w - 4) + 2).toFixed(1)},${(h - 2 - ((v - min) / (max - min || 1)) * (h - 4)).toFixed(1)}`).join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="hidden shrink-0 text-brand @[12rem]:block">
+      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
   return (
     <Card className="@container p-4 sm:p-5">
