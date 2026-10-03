@@ -80,7 +80,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Edição completa do condomínio** (superadmin, página do condomínio): tipo e nomenclatura (casas/lotes acompanham),
   logo (`brand/`), horário do checklist, acesso do conselho (registrado no FinanceLog), ativo e síndicos (`assignSyndic`,
   `removeSyndic`).
-- **Condomínio de demonstração**: botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
+- **Condomínio de demonstração**: cada geração sai diferente (nome que ainda não existe, cidade, CNPJ válido fictício,
+  torres, pessoas, empresas, OS, valores, pautas): bancos e sorteio com semente em `src/lib/demo-data.ts`.
+  Botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
   todas as áreas), vinculado como síndico ao e-mail digitado na janela. Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
 - **Manutenção preventiva** (`/manutencao`; superadmin e síndico editam, zelador vê): `MaintenancePlan`, regras de data em

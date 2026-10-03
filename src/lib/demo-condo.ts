@@ -9,10 +9,15 @@ import { dayToDate } from "./finance";
 import { nextProtocol } from "./orders";
 import { loadAssembly, minutesDraft } from "./assembly-server";
 import { DEFAULT_OPTIONS } from "./assembly";
+import {
+  ACCENTS, ANNOUNCEMENTS, ASSEMBLY_NEXT, ASSEMBLY_PAST, CHECKLIST_ISSUES, CHECKLIST_NOTES, CITIES, CONDO_NAMES, FIRST_F, FIRST_M,
+  ONE_OFF_EXPENSES, ORDER_POOL, ORDER_STATUSES, PROVIDER_KINDS, RATING_COMMENTS, SURNAMES, TOWER_PAIRS, VENDORS,
+  fakeCnpj, rng, slugifyName, type ProviderKind,
+} from "./demo-data";
 
-// Condomínio de demonstração com dados fictícios em todas as áreas (OS com antes/depois,
-// 4 meses de financeiro, 3 semanas de checklist, anotações, comunicados). Ninguém dos
-// usuários fictícios consegue entrar: a senha é aleatória e descartada.
+// Condomínio de demonstração com dados fictícios em todas as áreas (OS com antes/depois, financeiro do
+// ano, 3 semanas de checklist, manutenção, orçamento, assembleias, comunicados). Cada geração sai diferente
+// (sorteio em demo-data.ts). Ninguém dos usuários fictícios consegue entrar: a senha é aleatória e descartada.
 
 const DAY = 86_400_000;
 
@@ -37,54 +42,83 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   const now = Date.now();
   const today = spNow(now).date;
   const tag = randomBytes(3).toString("hex");
+  const r = rng(randomBytes(4).readUInt32BE(0));
   const passwordHash = await bcrypt.hash(randomBytes(24).toString("hex"), 10);
   const syndic = await db.user.findUnique({ where: { email: opts.syndicEmail } });
   if (!syndic) throw new Error(`Usuário ${opts.syndicEmail} não encontrado.`);
 
+  // ───── Sorteio do perfil: nome que ainda não existe, cidade, torres, porte
+  const taken = new Set((await db.condominium.findMany({ select: { name: true } })).map((c) => c.name));
+  const name = r.shuffle(CONDO_NAMES).find((n) => !taken.has(n)) ?? `${r.pick(CONDO_NAMES)} ${tag.slice(0, 2).toUpperCase()}`;
+  const place = r.pick(CITIES);
+  const [T1, T2] = r.pick(TOWER_PAIRS);
+  const floors = r.int(6, 12);
+  const perFloor = r.int(2, 4);
+  const towers = (s: string) => s.replaceAll("{T1}", T1).replaceAll("{T2}", T2);
+
   // ───── Condomínio e estrutura
   const condo = await db.condominium.create({
     data: {
-      name: "Residencial Vila das Acácias",
-      slug: `vila-das-acacias-${tag}`,
-      address: "Rua das Acácias, 350 — Curitiba, PR (fictício)",
-      cnpj: "98.765.432/0001-10",
-      phone: "(41) 3000-0350",
-      email: "administracao@viladasacacias.demo",
-      accentColor: "#0E9384",
-      checklistDeadline: "09:00",
+      name,
+      slug: `${slugifyName(name)}-${tag}`,
+      address: `${r.pick(place.streets)}, ${r.int(80, 2400)} — ${place.city}, ${place.uf} (fictício)`,
+      cnpj: fakeCnpj(r),
+      phone: `(${place.ddd}) 3${r.int(100, 999)}-${String(r.int(0, 9999)).padStart(4, "0")}`,
+      email: `administracao@${slugifyName(name).replace(/-/g, "")}.demo`,
+      accentColor: r.pick(ACCENTS),
+      checklistDeadline: r.pick(["08:30", "09:00", "09:30", "10:00"]),
       demo: true,
-      buildings: { create: [{ name: "Torre Ipê" }, { name: "Torre Jacarandá" }] },
+      buildings: { create: [{ name: T1 }, { name: T2 }] },
     },
     include: { buildings: true },
   });
   const cid = condo.id;
   await db.unit.createMany({
-    data: condo.buildings.flatMap((b) => Array.from({ length: 32 }, (_, i) => ({ buildingId: b.id, number: `${Math.floor(i / 4) + 1}0${(i % 4) + 1}`, floor: Math.floor(i / 4) + 1 }))),
+    data: condo.buildings.flatMap((b) =>
+      Array.from({ length: floors * perFloor }, (_, i) => ({ buildingId: b.id, number: `${Math.floor(i / perFloor) + 1}0${(i % perFloor) + 1}`, floor: Math.floor(i / perFloor) + 1 })),
+    ),
   });
-  const units = await db.unit.findMany({ where: { building: { condominiumId: cid } }, select: { id: true }, orderBy: [{ building: { name: "asc" } }, { floor: "asc" }, { number: "asc" }] });
+  const units = await db.unit.findMany({ where: { building: { condominiumId: cid } }, select: { id: true, number: true }, orderBy: [{ building: { name: "asc" } }, { floor: "asc" }, { number: "asc" }] });
+  const U = units.length;
 
-  // ───── Pessoas fictícias (com vínculo) + síndico de verdade vinculado
-  const mk = async (name: string, slug: string, role: string, extra: { company?: string; specialty?: string } = {}) => {
-    const u = await db.user.create({ data: { name, email: `${slug}.${tag}@demo.condtrack.app`, role, condominiumId: cid, passwordHash, ...extra } });
+  // ───── Pessoas fictícias (nomes sorteados, sem repetir) + síndico de verdade vinculado
+  const used = new Set<string>();
+  const person = (female: boolean) => {
+    for (;;) {
+      const n = `${r.pick(female ? FIRST_F : FIRST_M)} ${r.pick(SURNAMES)}`;
+      if (!used.has(n)) {
+        used.add(n);
+        return n;
+      }
+    }
+  };
+  const mk = async (fullName: string, slug: string, role: string, extra: { company?: string; specialty?: string } = {}) => {
+    const u = await db.user.create({ data: { name: fullName, email: `${slug}.${tag}@demo.condtrack.app`, role, condominiumId: cid, passwordHash, ...extra } });
     await db.membership.create({ data: { userId: u.id, condominiumId: cid, role } });
     return u;
   };
-  const caretaker = await mk("Sebastião Rocha", "zelador", "caretaker");
-  const painter = await mk("Fernanda Prado", "pintura", "provider", { company: "Prado Pinturas", specialty: "Pintura" });
-  const electrician = await mk("Diego Martins", "eletrica", "provider", { company: "Martins Elétrica", specialty: "Elétrica" });
-  const plumber = await mk("Rogério Batista", "hidraulica", "provider", { company: "Batista Hidráulica", specialty: "Hidráulica" });
-  const council1 = await mk("Juliana Ferraz", "conselho1", "council");
-  const council2 = await mk("Marcelo Antunes", "conselho2", "council");
-  const res1 = await mk("Patrícia Lemos", "morador1", "resident");
-  const res2 = await mk("Henrique Sales", "morador2", "resident");
+  const caretaker = await mk(person(r.next() < 0.3), "zelador", "caretaker");
+  const providers = {} as Record<ProviderKind, Awaited<ReturnType<typeof mk>>>;
+  for (const kind of Object.keys(PROVIDER_KINDS) as ProviderKind[]) {
+    const n = person(r.next() < 0.4);
+    const k = PROVIDER_KINDS[kind];
+    providers[kind] = await mk(n, kind, "provider", { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty });
+  }
+  const providerFor = (cat: string) => (Object.keys(PROVIDER_KINDS) as ProviderKind[]).map((k) => (PROVIDER_KINDS[k].cats as readonly string[]).includes(cat) ? providers[k] : null).find(Boolean) ?? providers.geral;
+  const council1 = await mk(person(true), "conselho1", "council");
+  const council2 = await mk(person(false), "conselho2", "council");
+  const res1 = await mk(person(true), "morador1", "resident");
+  const res2 = await mk(person(false), "morador2", "resident");
+  const [uC1, uC2, uR1, uR2] = r.shuffle(units.map((_, i) => i)).slice(0, 4);
   await db.userUnit.createMany({
     data: [
-      { userId: council1.id, unitId: units[5].id, role: "owner" },
-      { userId: council2.id, unitId: units[22].id, role: "owner" },
-      { userId: res1.id, unitId: units[11].id, role: "tenant" },
-      { userId: res2.id, unitId: units[40].id, role: "owner" },
+      { userId: council1.id, unitId: units[uC1].id, role: "owner" },
+      { userId: council2.id, unitId: units[uC2].id, role: "owner" },
+      { userId: res1.id, unitId: units[uR1].id, role: "tenant" },
+      { userId: res2.id, unitId: units[uR2].id, role: "owner" },
     ],
   });
+  const owners = new Map([[units[uC1].id, council1.id], [units[uC2].id, council2.id], [units[uR2].id, res2.id]]);
 
   // Vínculo como síndico (com as permissões extras); o condomínio ativo dele não muda
   await db.membership.upsert({
@@ -99,23 +133,23 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
     ["Jardinagem", "leaf", "#27AE60"], ["Serralheria", "hammer", "#8A8A8A"], ["Elevadores", "arrow-up-down", "#9B59B6"],
   ];
   const cats: Record<string, string> = {};
-  for (const [name, icon, color] of catDefs) cats[name] = (await db.serviceCategory.create({ data: { condominiumId: cid, name, icon, color } })).id;
+  for (const [catName, icon, color] of catDefs) cats[catName] = (await db.serviceCategory.create({ data: { condominiumId: cid, name: catName, icon, color } })).id;
   const areaDefs: [string, number | null, boolean][] = [
-    ["Hall de entrada", 40, false], ["Salão de festas", 90, true], ["Piscina", 35, true], ["Academia", 18, false],
-    ["Garagem", null, false], ["Churrasqueira", 25, true], ["Playground", 20, false],
+    ["Hall de entrada", r.int(20, 50), false], ["Salão de festas", r.int(60, 120), true], ["Piscina", r.int(20, 45), true], ["Academia", r.int(10, 25), false],
+    ["Garagem", null, false], ["Churrasqueira", r.int(15, 35), true], ["Playground", r.int(15, 30), false],
   ];
   const areas: Record<string, string> = {};
-  for (const [name, capacity, reservable] of areaDefs) areas[name] = (await db.commonArea.create({ data: { condominiumId: cid, name, capacity, reservable } })).id;
+  for (const [areaName, capacity, reservable] of areaDefs) areas[areaName] = (await db.commonArea.create({ data: { condominiumId: cid, name: areaName, capacity, reservable } })).id;
 
   const itemDefs: [string, string | null, string | null, string][] = [
     ["Iluminação das áreas comuns", null, null, ""],
     ["Portões e interfones", "Hall de entrada", null, ""],
     ["Bombas d’água e reservatórios", null, "Pressão, ruídos e nível da caixa", ""],
     ["Limpeza do hall e elevadores", "Hall de entrada", null, ""],
-    ["Piscina — cloro e pH", "Piscina", null, "1,3,5"],
+    ["Piscina: cloro e pH", "Piscina", null, "1,3,5"],
     ["Extintores e rotas de fuga", null, "Validade e acesso livre", ""],
-    ["Garagem — vazamentos e lâmpadas", "Garagem", null, ""],
-    ["Playground — brinquedos e piso", "Playground", null, "2,4"],
+    ["Garagem: vazamentos e lâmpadas", "Garagem", null, ""],
+    ["Playground: brinquedos e piso", "Playground", null, "2,4"],
   ];
   const items = [];
   for (const [i, [title, area, description, weekdays]] of itemDefs.entries()) {
@@ -126,148 +160,148 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
     );
   }
 
-  // ───── Ordens de serviço dos últimos 4 meses (todas as etapas)
-  type Spec = { title: string; desc: string; cat: string; area?: string; unit?: number; priority: string; status: string; by: string; to?: string; daysAgo: number; dueIn?: number; hue?: number; report?: string; rating?: number; comment?: string };
-  const S: Spec[] = [
-    { title: "Pintura da garagem — faixas e pilares", desc: "Faixas apagadas e pilares com marcas de batidas.", cat: "Pintura", area: "Garagem", priority: "medium", status: "approved", by: caretaker.id, to: painter.id, daysAgo: 118, dueIn: -100, hue: 220, report: "Pilares lixados e pintados; faixas refeitas com tinta de demarcação.", rating: 5, comment: "Garagem ficou outra." },
-    { title: "Troca do quadro de comando da bomba", desc: "Bomba de recalque desarmando à noite.", cat: "Elétrica", priority: "urgent", status: "approved", by: caretaker.id, to: electrician.id, daysAgo: 104, dueIn: -102, hue: 30, report: "Quadro substituído e relé térmico ajustado." },
-    { title: "Vazamento na prumada da Torre Ipê", desc: "Infiltração no 3º andar, próximo ao shaft.", cat: "Hidráulica", priority: "high", status: "approved", by: council1.id, to: plumber.id, daysAgo: 96, dueIn: -90, hue: 200, report: "Trecho de tubulação trocado e parede recomposta.", rating: 4, comment: "Resolvido, mas demorou um pouco." },
-    { title: "Poda das árvores do estacionamento", desc: "Galhos encostando nos carros.", cat: "Jardinagem", priority: "low", status: "approved", by: caretaker.id, to: painter.id, daysAgo: 82, dueIn: -70, hue: 110, report: "Poda de condução nas 6 árvores e limpeza do local." },
-    { title: "Revisão do portão social", desc: "Fechadura eletromagnética falhando.", cat: "Serralheria", area: "Hall de entrada", priority: "high", status: "approved", by: res1.id, to: electrician.id, daysAgo: 70, dueIn: -66, hue: 0, report: "Eletroímã substituído e fonte revisada." },
-    { title: "Repintura do salão de festas", desc: "Paredes manchadas após eventos.", cat: "Pintura", area: "Salão de festas", priority: "medium", status: "approved", by: council2.id, to: painter.id, daysAgo: 58, dueIn: -45, hue: 40, report: "Duas demãos de tinta acrílica acetinada.", rating: 5, comment: "Excelente acabamento." },
-    { title: "Limpeza das calhas", desc: "Calhas entupidas antes do período de chuvas.", cat: "Limpeza", priority: "medium", status: "approved", by: caretaker.id, to: plumber.id, daysAgo: 47, dueIn: -40, hue: 190, report: "Calhas e condutores desobstruídos." },
-    { title: "Luminárias do playground", desc: "Três postes sem iluminação.", cat: "Elétrica", area: "Playground", priority: "medium", status: "approved", by: council1.id, to: electrician.id, daysAgo: 35, dueIn: -28, hue: 260, report: "Reatores trocados por drivers LED." },
-    { title: "Rejunte da piscina", desc: "Rejunte soltando na borda.", cat: "Limpeza", area: "Piscina", priority: "high", status: "approved", by: caretaker.id, to: painter.id, daysAgo: 24, dueIn: -15, hue: 185, report: "Rejunte epóxi refeito em toda a borda." },
-    { title: "Pintura do muro frontal", desc: "Pichação no muro da entrada.", cat: "Pintura", priority: "high", status: "validated", by: caretaker.id, to: painter.id, daysAgo: 9, dueIn: 2, hue: 15, report: "Limpeza e repintura do muro." },
-    { title: "Torneira da churrasqueira pingando", desc: "Torneira com vazamento constante.", cat: "Hidráulica", area: "Churrasqueira", priority: "low", status: "completed", by: res2.id, to: plumber.id, daysAgo: 6, dueIn: 3, hue: 205, report: "Reparo trocado e vedação refeita." },
-    { title: "Elevador da Torre Jacarandá com ruído", desc: "Ruído metálico entre o 5º e o 6º andar.", cat: "Elevadores", priority: "urgent", status: "in_progress", by: council2.id, to: electrician.id, daysAgo: 4, dueIn: 1, hue: 280 },
-    { title: "Tomadas da academia sem energia", desc: "Bancada das esteiras sem energia.", cat: "Elétrica", area: "Academia", priority: "high", status: "assigned", by: res1.id, to: electrician.id, daysAgo: 3, dueIn: -1 },
-    { title: "Cerca viva do playground", desc: "Cerca viva alta, tampando a visão.", cat: "Jardinagem", area: "Playground", priority: "low", status: "assigned", by: caretaker.id, to: painter.id, daysAgo: 2, dueIn: 6 },
-    { title: "Infiltração no teto do banheiro", desc: "Mancha crescendo no teto do banheiro social.", cat: "Hidráulica", unit: 11, priority: "medium", status: "open", by: res1.id, daysAgo: 1 },
-    { title: "Lâmpadas queimadas no hall da Torre Ipê", desc: "Duas lâmpadas do hall apagadas.", cat: "Elétrica", area: "Hall de entrada", priority: "low", status: "open", by: caretaker.id, daysAgo: 0 },
-    { title: "Grade da piscina enferrujada", desc: "Ferrugem na grade de proteção.", cat: "Serralheria", area: "Piscina", priority: "medium", status: "rejected", by: caretaker.id, to: painter.id, daysAgo: 12, dueIn: 4, hue: 25, report: "Lixamento e pintura com zarcão." },
-    { title: "Limpeza dos vidros da fachada", desc: "Vidros do hall muito sujos.", cat: "Limpeza", area: "Hall de entrada", priority: "low", status: "cancelled", by: council1.id, daysAgo: 30 },
-  ];
+  // ───── Ordens de serviço dos últimos 4 meses (sorteadas do banco; todas as etapas)
+  const requesters = [caretaker, caretaker, council1, council2, res1, res2];
+  const picked = r.shuffle(ORDER_POOL).slice(0, ORDER_STATUSES.length);
+  // Datas: aprovadas espalhadas nos últimos 4 meses (mais antigas primeiro); as demais, recentes
+  const approvedDays = Array.from({ length: 9 }, () => r.int(15, 120)).sort((a, b) => b - a);
   const flow = ["open", "assigned", "in_progress", "completed", "validated", "approved"];
-  let counter = 0;
-  for (const s of S) {
-    counter++;
-    const created = new Date(now - s.daysAgo * DAY - 3 * 3600_000);
-    const end = s.status === "approved" ? new Date(Math.min(now - DAY, created.getTime() + 9 * DAY)) : new Date(now - 3600_000);
-    const step = (i: number) => new Date(created.getTime() + (i * (end.getTime() - created.getTime())) / 6);
-    const idx = s.status === "rejected" ? 4 : s.status === "cancelled" ? 0 : flow.indexOf(s.status);
+  for (const [i, tpl] of picked.entries()) {
+    const status = ORDER_STATUSES[i];
+    const title = towers(tpl.title);
+    const desc = towers(tpl.desc);
+    const daysAgo = status === "approved" ? approvedDays[i] : status === "cancelled" ? r.int(20, 50) : status === "open" ? r.int(0, 2) : r.int(2, 12);
+    const by = tpl.unit ? (r.next() < 0.5 ? res1 : council1) : r.pick(requesters);
+    const to = status === "open" || status === "cancelled" ? null : providerFor(tpl.cat);
+    const priority = r.pick(["low", "medium", "medium", "high", "urgent"]);
+    const hue = r.int(0, 359);
+    const rating = status === "approved" && r.next() < 0.45 ? r.weighted([0.55, 0.35, 0.1]) : null;
+    const stars = rating == null ? null : [5, 4, 3][rating];
+    const created = new Date(now - daysAgo * DAY - r.int(1, 10) * 3600_000);
+    const end = status === "approved" ? new Date(Math.min(now - DAY, created.getTime() + r.int(3, 14) * DAY)) : new Date(now - 3600_000);
+    const step = (k: number) => new Date(created.getTime() + (k * (end.getTime() - created.getTime())) / 6);
+    const idx = status === "rejected" ? 4 : status === "cancelled" ? 0 : flow.indexOf(status);
+    const dueIn = status === "approved" ? -daysAgo + r.int(5, 15) : status === "open" || status === "cancelled" ? null : r.int(-2, 8);
+    const unitIdx = tpl.unit ? (by.id === res1.id ? uR1 : uC1) : null;
     const o = await db.serviceOrder.create({
       data: {
         protocol: await nextProtocol(cid),
-        condominiumId: cid, title: s.title, description: s.desc, categoryId: cats[s.cat],
-        locationType: s.area ? "common_area" : s.unit != null ? "unit" : "common_area",
-        commonAreaId: s.area ? areas[s.area] : null, unitId: s.unit != null ? units[s.unit].id : null,
-        priority: s.priority, status: s.status, dueDate: s.dueIn != null ? new Date(now + s.dueIn * DAY) : null,
-        requestedById: s.by, assignedToId: s.to ?? null,
+        condominiumId: cid, title, description: desc, categoryId: cats[tpl.cat],
+        locationType: unitIdx != null ? "unit" : "common_area",
+        commonAreaId: tpl.area ? areas[tpl.area] : null, unitId: unitIdx != null ? units[unitIdx].id : null,
+        priority, status, dueDate: dueIn != null ? new Date(now + dueIn * DAY) : null,
+        requestedById: by.id, assignedToId: to?.id ?? null,
         assignedAt: idx >= 1 ? step(1) : null, startedAt: idx >= 2 ? step(2) : null, completedAt: idx >= 3 ? step(3) : null,
-        validatedAt: idx >= 4 && s.status !== "rejected" ? step(4) : null, validatedById: idx >= 4 && s.status !== "rejected" ? caretaker.id : null,
+        validatedAt: idx >= 4 && status !== "rejected" ? step(4) : null, validatedById: idx >= 4 && status !== "rejected" ? caretaker.id : null,
         approvedAt: idx >= 5 ? step(5) : null, approvedById: idx >= 5 ? syndic.id : null,
-        executionMinutes: idx >= 3 ? 60 + counter * 20 : null, serviceReport: idx >= 3 ? s.report : null,
-        rating: s.rating ?? null, ratingComment: s.comment ?? null, createdAt: created,
+        executionMinutes: idx >= 3 ? r.int(45, 480) : null, serviceReport: idx >= 3 ? tpl.report : null,
+        rating: stars, ratingComment: stars ? r.pick(RATING_COMMENTS[stars]) : null, createdAt: created,
       },
     });
-    const ev = (type: string, userId: string, i: number, extra: { fromStatus?: string; toStatus?: string; comment?: string } = {}) =>
-      db.serviceEvent.create({ data: { serviceOrderId: o.id, userId, type, createdAt: step(i), ...extra } });
-    await ev("created", s.by, 0, { toStatus: "open", comment: "Ordem de serviço aberta." });
-    if (s.status === "cancelled") await ev("status_change", syndic.id, 1, { fromStatus: "open", toStatus: "cancelled", comment: "Serviço incluído no contrato de limpeza; OS cancelada." });
-    if (idx >= 1 && s.status !== "cancelled") await ev("assignment", syndic.id, 1, { fromStatus: "open", toStatus: "assigned", comment: "Prestador atribuído." });
-    if (idx >= 2) await ev("status_change", s.to!, 2, { fromStatus: "assigned", toStatus: "in_progress", comment: "Serviço iniciado." });
-    if (idx >= 3) await ev("status_change", s.to!, 3, { fromStatus: "in_progress", toStatus: "completed", comment: s.report });
-    if (s.status === "rejected") await ev("rejection", caretaker.id, 4, { fromStatus: "completed", toStatus: "rejected", comment: "Ainda há pontos de ferrugem na lateral. Favor refazer." });
+    const ev = (type: string, userId: string, k: number, extra: { fromStatus?: string; toStatus?: string; comment?: string | null } = {}) =>
+      db.serviceEvent.create({ data: { serviceOrderId: o.id, userId, type, createdAt: step(k), ...extra } });
+    await ev("created", by.id, 0, { toStatus: "open", comment: "Ordem de serviço aberta." });
+    if (status === "cancelled") await ev("status_change", syndic.id, 1, { fromStatus: "open", toStatus: "cancelled", comment: "Serviço incluído em contrato existente; OS cancelada." });
+    if (idx >= 1 && status !== "cancelled") await ev("assignment", syndic.id, 1, { fromStatus: "open", toStatus: "assigned", comment: "Prestador atribuído." });
+    if (idx >= 2) await ev("status_change", to!.id, 2, { fromStatus: "assigned", toStatus: "in_progress", comment: "Serviço iniciado." });
+    if (idx >= 3) await ev("status_change", to!.id, 3, { fromStatus: "in_progress", toStatus: "completed", comment: tpl.report });
+    if (status === "rejected") await ev("rejection", caretaker.id, 4, { fromStatus: "completed", toStatus: "rejected", comment: "Ainda há pontos a corrigir. Favor refazer." });
     else {
       if (idx >= 4) await ev("validation", caretaker.id, 4, { fromStatus: "completed", toStatus: "validated", comment: "Conferido no local." });
       if (idx >= 5) await ev("approval", syndic.id, 5, { fromStatus: "validated", toStatus: "approved", comment: "Aprovado." });
     }
-    if (s.rating) await ev("rating", s.by, 6, { comment: `Avaliação ${s.rating}/5 — ${s.comment}` });
-    if (s.hue != null && idx >= 2) {
-      const url = await saveGenerated(o.id, "antes-demo.svg", scene("before", s.title, s.hue), "image/svg+xml");
-      await db.serviceMedia.create({ data: { serviceOrderId: o.id, type: "photo", phase: "before", url, mimeType: "image/svg+xml", sizeBytes: 2000, uploadedById: s.to!, uploadedAt: step(2) } });
+    if (stars) await ev("rating", by.id, 6, { comment: `Avaliação ${stars}/5` });
+    if (idx >= 2) {
+      const url = await saveGenerated(o.id, "antes-demo.svg", scene("before", title, hue), "image/svg+xml");
+      await db.serviceMedia.create({ data: { serviceOrderId: o.id, type: "photo", phase: "before", url, mimeType: "image/svg+xml", sizeBytes: 2000, uploadedById: to!.id, uploadedAt: step(2) } });
     }
-    if (s.hue != null && idx >= 3) {
-      const url = await saveGenerated(o.id, "depois-demo.svg", scene("after", s.title, s.hue), "image/svg+xml");
-      await db.serviceMedia.create({ data: { serviceOrderId: o.id, type: "photo", phase: "after", url, mimeType: "image/svg+xml", sizeBytes: 2000, uploadedById: s.to!, uploadedAt: step(3) } });
+    if (idx >= 3) {
+      const url = await saveGenerated(o.id, "depois-demo.svg", scene("after", title, hue), "image/svg+xml");
+      await db.serviceMedia.create({ data: { serviceOrderId: o.id, type: "photo", phase: "after", url, mimeType: "image/svg+xml", sizeBytes: 2000, uploadedById: to!.id, uploadedAt: step(3) } });
     }
   }
 
-  // ───── Checklist: últimas 3 semanas conferidas (com alguns problemas e anotações)
+  // ───── Checklist: últimas 3 semanas conferidas (problemas e anotações sorteados)
   const checks: { itemId: string; condominiumId: string; date: string; status: string; note?: string | null; userId: string; checkedAt: Date }[] = [];
-  const issues: Record<number, [number, string]> = { 3: [6, "Lâmpada queimada perto da vaga 14."], 9: [2, "Bomba 2 com ruído; acompanhando."], 15: [1, "Interfone do bloco B sem áudio."] };
+  const issueNotes = r.shuffle(CHECKLIST_ISSUES);
+  const issues = new Map<number, [number, string]>();
+  for (const [n, d] of r.shuffle(Array.from({ length: 20 }, (_, i) => i + 1)).slice(0, r.int(2, 5)).entries()) issues.set(d, [r.int(0, items.length - 1), issueNotes[n]]);
+  const noteDays = new Set(r.shuffle(Array.from({ length: 21 }, (_, i) => i + 1)).slice(0, r.int(4, 7)));
+  const notes = r.shuffle(CHECKLIST_NOTES);
+  const startMin = r.int(0, 40);
   for (let d = 21; d >= 1; d--) {
     const date = addDays(today, -d);
     for (const [k, it] of items.entries()) {
       if (!isDue(it, date)) continue;
-      const issue = issues[d]?.[0] === k ? issues[d][1] : null;
-      checks.push({ itemId: it.id, condominiumId: cid, date, status: issue ? "issue" : "ok", note: issue, userId: caretaker.id, checkedAt: at(date, `07:${pad(10 + k * 5)}`) });
+      const issue = issues.get(d)?.[0] === k ? issues.get(d)![1] : null;
+      const min = startMin + k * 4 + r.int(0, 3);
+      checks.push({ itemId: it.id, condominiumId: cid, date, status: issue ? "issue" : "ok", note: issue, userId: caretaker.id, checkedAt: at(date, `0${7 + Math.floor(min / 60)}:${pad(min % 60)}`) });
     }
-    if (d % 4 === 0) {
-      await db.checklistNote.create({
-        data: { condominiumId: cid, date, text: ["Entrega de material de limpeza recebida.", "Morador do 304 avisou barulho na casa de máquinas.", "Piscina com movimento alto no fim de semana.", "Portão da garagem revisado pela manhã.", "Coleta seletiva remarcada para quinta."][d % 5], userId: caretaker.id, userName: caretaker.name, createdAt: at(date, "10:30") },
-      });
+    if (noteDays.has(d)) {
+      await db.checklistNote.create({ data: { condominiumId: cid, date, text: notes[d % notes.length], userId: caretaker.id, userName: caretaker.name, createdAt: at(date, `1${r.int(0, 6)}:${pad(r.int(0, 59))}`) } });
     }
   }
   // Hoje: parte conferida
+  const doneToday = r.int(2, 5);
   for (const [k, it] of items.entries()) {
-    if (k > 3 || !isDue(it, today)) continue;
+    if (k >= doneToday || !isDue(it, today)) continue;
     checks.push({ itemId: it.id, condominiumId: cid, date: today, status: "ok", userId: caretaker.id, checkedAt: new Date(Math.min(now, at(today, `07:${pad(10 + k * 5)}`).getTime())) });
   }
   await db.checklistCheck.createMany({ data: checks });
 
-  // ───── Financeiro: do início do ano (mínimo 4 meses) até o mês atual, com pendências
+  // ───── Financeiro: do início do ano (mínimo 4 meses) até o mês atual. Valores proporcionais ao porte.
   const ym = (offset: number) => {
     const [y, m] = today.split("-").map(Number);
     const d = new Date(Date.UTC(y, m - 1 + offset, 1));
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
   };
-  type F = { type: "income" | "expense"; cat: string; desc: string; who: string; cents: number; day: number; doc?: string; pm: string };
+  const size = U / 64;
+  const fee = r.int(42, 89) * 1000; // taxa por unidade (centavos, de R$ 420 a R$ 890)
+  const vendor = (cat: string) => r.pick(VENDORS[cat] ?? ["Fornecedor"]);
+  type F = { type: "income" | "expense"; cat: string; desc: string; who: string; cents: number; day: number; doc?: string; pm: string; monthlyVary?: number };
   const monthly: F[] = [
-    { type: "income", cat: "Taxa condominial", desc: "Taxa condominial", who: "Condôminos (64 unidades)", cents: 4_864_000, day: 10, pm: "Boleto" },
-    { type: "income", cat: "Fundo de reserva", desc: "Fundo de reserva", who: "Condôminos (64 unidades)", cents: 486_400, day: 10, pm: "Boleto" },
-    { type: "expense", cat: "Folha de pagamento", desc: "Folha de pagamento", who: "Funcionários do condomínio", cents: 1_980_000, day: 5, pm: "Transferência" },
-    { type: "expense", cat: "Encargos e impostos", desc: "INSS e FGTS", who: "Guias federais", cents: 642_000, day: 20, pm: "Débito automático" },
-    { type: "expense", cat: "Energia", desc: "Energia das áreas comuns", who: "Distribuidora de energia", cents: 356_000, day: 22, doc: "Fatura", pm: "Débito automático" },
-    { type: "expense", cat: "Água", desc: "Água e esgoto", who: "Companhia de saneamento", cents: 498_000, day: 18, doc: "Conta", pm: "Boleto" },
-    { type: "expense", cat: "Elevadores", desc: "Manutenção dos elevadores", who: "Ascensus Elevadores", cents: 210_000, day: 15, doc: "NF", pm: "Boleto" },
-    { type: "expense", cat: "Limpeza", desc: "Limpeza terceirizada", who: "Clean Max Serviços", cents: 260_000, day: 10, doc: "NF", pm: "Pix" },
-    { type: "expense", cat: "Portaria e segurança", desc: "Portaria e vigilância", who: "Sentinela Segurança", cents: 1_040_000, day: 10, doc: "NF", pm: "Transferência" },
-    { type: "expense", cat: "Administradora", desc: "Taxa da administradora", who: "Gestão Sul Administradora", cents: 220_000, day: 10, doc: "NF", pm: "Boleto" },
+    { type: "income", cat: "Taxa condominial", desc: "Taxa condominial", who: `Condôminos (${U} unidades)`, cents: U * fee, day: 10, pm: "Boleto" },
+    { type: "income", cat: "Fundo de reserva", desc: "Fundo de reserva", who: `Condôminos (${U} unidades)`, cents: Math.round(U * fee * 0.1), day: 10, pm: "Boleto" },
+    { type: "expense", cat: "Folha de pagamento", desc: "Folha de pagamento", who: "Funcionários do condomínio", cents: r.vary(1_980_000 * size, 0.15), day: 5, pm: "Transferência" },
+    { type: "expense", cat: "Encargos e impostos", desc: "INSS e FGTS", who: "Guias federais", cents: r.vary(642_000 * size, 0.15), day: 20, pm: "Débito automático" },
+    { type: "expense", cat: "Energia", desc: "Energia das áreas comuns", who: vendor("Energia"), cents: r.vary(356_000 * size, 0.2), day: 22, doc: "Fatura", pm: "Débito automático", monthlyVary: 0.08 },
+    { type: "expense", cat: "Água", desc: "Água e esgoto", who: vendor("Água"), cents: r.vary(498_000 * size, 0.2), day: 18, doc: "Conta", pm: "Boleto", monthlyVary: 0.08 },
+    { type: "expense", cat: "Elevadores", desc: "Manutenção dos elevadores", who: vendor("Elevadores"), cents: r.vary(210_000, 0.2), day: 15, doc: "NF", pm: "Boleto" },
+    { type: "expense", cat: "Limpeza", desc: "Limpeza terceirizada", who: vendor("Limpeza"), cents: r.vary(260_000 * size, 0.2), day: 10, doc: "NF", pm: "Pix" },
+    { type: "expense", cat: "Portaria e segurança", desc: "Portaria e vigilância", who: vendor("Portaria e segurança"), cents: r.vary(1_040_000, 0.2), day: 10, doc: "NF", pm: "Transferência" },
+    { type: "expense", cat: "Administradora", desc: "Taxa da administradora", who: vendor("Administradora"), cents: r.vary(220_000 * size, 0.15), day: 10, doc: "NF", pm: "Boleto" },
   ];
-  const extras: Record<number, F[]> = {
-    [-3]: [{ type: "expense", cat: "Seguros", desc: "Seguro predial anual", who: "Seguradora Horizonte", cents: 920_000, day: 8, doc: "Apólice", pm: "Boleto" }],
-    [-2]: [
-      { type: "expense", cat: "Obras e reformas", desc: "Repintura do salão de festas", who: "Prado Pinturas", cents: 1_150_000, day: 26, doc: "NF", pm: "Transferência" },
-      { type: "income", cat: "Aluguel de áreas comuns", desc: "Aluguel do salão de festas", who: "Apto 502", cents: 50_000, day: 14, pm: "Pix" },
-    ],
-    [-1]: [
-      { type: "expense", cat: "Piscina", desc: "Rejunte da piscina", who: "Prado Pinturas", cents: 380_000, day: 20, doc: "NF", pm: "Pix" },
-      { type: "income", cat: "Multas e juros", desc: "Multas e juros por atraso", who: "Unidades em atraso", cents: 41_250, day: 28, pm: "Boleto" },
-    ],
-    [0]: [{ type: "expense", cat: "Manutenção", desc: "Reparo do elevador da Torre Jacarandá", who: "Ascensus Elevadores", cents: 640_000, day: 25, doc: "Orçamento aprovado", pm: "Boleto" }],
-  };
-  const todayDay = Number(today.slice(8));
-  let docN = 1200;
-  // Desde janeiro (para o orçamento do ano fazer sentido), sempre com pelo menos os últimos 4 meses
   const monthsBack = Math.max(4, Number(today.slice(5, 7)));
-  for (const offset of Array.from({ length: monthsBack }, (_, i) => i - monthsBack + 1)) {
+  const offsets = Array.from({ length: monthsBack }, (_, i) => i - monthsBack + 1);
+  // Avulsos sorteados: seguro num mês, 2 a 4 despesas e receitas extras espalhadas
+  const extras = new Map<number, F[]>();
+  const addExtra = (off: number, f: F) => extras.set(off, [...(extras.get(off) ?? []), f]);
+  addExtra(r.pick(offsets.slice(0, -1)), { type: "expense", cat: "Seguros", desc: "Seguro predial anual", who: vendor("Seguros"), cents: r.vary(920_000 * size, 0.2), day: 8, doc: "Apólice", pm: "Boleto" });
+  for (const x of r.shuffle(ONE_OFF_EXPENSES).slice(0, r.int(2, 4))) addExtra(r.pick(offsets), { type: "expense", cat: x.cat, desc: x.desc, who: providers.geral.company ?? "Prestador", cents: r.vary(x.cents * Math.max(size, 0.6), 0.25), day: r.int(12, 27), doc: "NF", pm: r.pick(["Pix", "Transferência", "Boleto"]) });
+  for (let i = r.int(1, 3); i > 0; i--) addExtra(r.pick(offsets), { type: "income", cat: "Aluguel de áreas comuns", desc: "Aluguel do salão de festas", who: `Unidade ${r.pick(units).number}`, cents: r.int(25, 60) * 1000, day: r.int(5, 25), pm: "Pix" });
+  addExtra(-1, { type: "income", cat: "Multas e juros", desc: "Multas e juros por atraso", who: "Unidades em atraso", cents: r.int(15, 60) * 1000, day: 28, pm: "Boleto" });
+  const overdueCat = r.pick(["Água", "Energia", "Limpeza", "Administradora"]);
+  const todayDay = Number(today.slice(8));
+  let docN = r.int(1000, 8000);
+  const spent = new Map<string, number>();
+  for (const offset of offsets) {
     const mes = ym(offset);
-    for (const f of [...monthly, ...(extras[offset] ?? [])]) {
+    for (const f of [...monthly, ...(extras.get(offset) ?? [])]) {
       const dueDay = Math.min(f.day, 28);
       const date = `${mes}-01`;
       const due = `${mes}-${pad(dueDay)}`;
+      const cents = f.monthlyVary ? r.vary(f.cents, f.monthlyVary) : f.cents;
       // Meses passados: tudo pago (menos uma conta vencida); mês atual: pago só o que já venceu
-      const overdue = offset === -1 && f.cat === "Água";
+      const overdue = offset === -1 && f.cat === overdueCat;
       const paid = offset < 0 ? !overdue : dueDay < todayDay;
+      spent.set(`${f.type}:${f.cat}`, (spent.get(`${f.type}:${f.cat}`) ?? 0) + cents);
       const e = await db.financeEntry.create({
         data: {
           condominiumId: cid, type: f.type, category: f.cat, description: f.desc,
-          counterparty: f.who, document: f.doc ? `${f.doc} ${docN++}` : null, amountCents: f.cents,
+          counterparty: f.who, document: f.doc ? `${f.doc} ${docN++}` : null, amountCents: cents,
           date: dayToDate(date), dueDate: dayToDate(due), paidAt: paid ? dayToDate(due) : null, status: paid ? "paid" : "pending",
           paymentMethod: f.pm, createdById: syndic.id, updatedById: syndic.id, createdAt: at(date, "09:00"),
-          notes: overdue ? "Conta extraviada; segunda via solicitada à companhia." : null,
+          notes: overdue ? "Conta extraviada; segunda via solicitada." : null,
         },
       });
       await db.financeLog.create({ data: { condominiumId: cid, entryId: e.id, userId: syndic.id, userName: syndic.name, userRole: "syndic", action: "created", createdAt: at(date, "09:00") } });
@@ -275,84 +309,79 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   }
 
   // ───── Manutenção preventiva (um documento perto de vencer, para o aviso aparecer)
+  const avcb = addDays(today, r.int(10, 60));
   await db.maintenancePlan.createMany({
     data: [
-      { condominiumId: cid, kind: "service", title: "Limpeza da caixa d’água", description: "Limpeza e desinfecção dos reservatórios, com certificado.", categoryId: cats["Hidráulica"], providerId: plumber.id, every: 6, unit: "month", nextDue: addDays(today, 40), leadDays: 15, createdById: syndic.id },
-      { condominiumId: cid, kind: "service", title: "Manutenção dos elevadores", description: "Visita mensal da conservadora.", categoryId: cats["Elevadores"], providerId: electrician.id, every: 1, unit: "month", nextDue: addDays(today, 18), leadDays: 5, createdById: syndic.id },
-      { condominiumId: cid, kind: "service", title: "Dedetização e desratização", description: "Controle de pragas nas áreas comuns.", categoryId: cats["Limpeza"], every: 6, unit: "month", nextDue: addDays(today, 95), leadDays: 15, createdById: syndic.id },
-      { condominiumId: cid, kind: "document", title: "AVCB (Auto de Vistoria do Corpo de Bombeiros)", description: "Renovação exige vistoria.", every: 3, unit: "year", nextDue: addDays(today, 24), leadDays: 90, alertedFor: addDays(today, 24), createdById: syndic.id },
-      { condominiumId: cid, kind: "document", title: "Seguro predial obrigatório", description: "Apólice contra incêndio.", every: 1, unit: "year", nextDue: addDays(today, 210), leadDays: 30, createdById: syndic.id },
-      { condominiumId: cid, kind: "document", title: "Laudo do SPDA (para-raios)", every: 1, unit: "year", nextDue: addDays(today, 150), leadDays: 30, createdById: syndic.id },
+      { condominiumId: cid, kind: "service", title: "Limpeza da caixa d’água", description: "Limpeza e desinfecção dos reservatórios, com certificado.", categoryId: cats["Hidráulica"], providerId: providers.hidraulica.id, every: 6, unit: "month", nextDue: addDays(today, r.int(20, 150)), leadDays: 15, createdById: syndic.id },
+      { condominiumId: cid, kind: "service", title: "Manutenção dos elevadores", description: "Visita mensal da conservadora.", categoryId: cats["Elevadores"], providerId: providers.eletrica.id, every: 1, unit: "month", nextDue: addDays(today, r.int(8, 28)), leadDays: 5, createdById: syndic.id },
+      { condominiumId: cid, kind: "service", title: "Dedetização e desratização", description: "Controle de pragas nas áreas comuns.", categoryId: cats["Limpeza"], every: 6, unit: "month", nextDue: addDays(today, r.int(30, 170)), leadDays: 15, createdById: syndic.id },
+      { condominiumId: cid, kind: "document", title: "AVCB (Auto de Vistoria do Corpo de Bombeiros)", description: "Renovação exige vistoria.", every: 3, unit: "year", nextDue: avcb, leadDays: 90, alertedFor: avcb, createdById: syndic.id },
+      { condominiumId: cid, kind: "document", title: "Seguro predial obrigatório", description: "Apólice contra incêndio.", every: 1, unit: "year", nextDue: addDays(today, r.int(90, 330)), leadDays: 30, createdById: syndic.id },
+      { condominiumId: cid, kind: "document", title: "Laudo do SPDA (para-raios)", every: 1, unit: "year", nextDue: addDays(today, r.int(60, 300)), leadDays: 30, createdById: syndic.id },
     ],
   });
 
-  // ───── Orçamento do ano (valores próximos do realizado mensal × 12, com algumas categorias estourando)
+  // ───── Orçamento do ano: a partir do que foi lançado, projetado para 12 meses, com folga ou aperto sorteados
   const budgetYear = Number(today.slice(0, 4));
-  const budgetLines: [string, string, number][] = [
-    ["income", "Taxa condominial", 4_864_000 * 12], ["income", "Fundo de reserva", 486_400 * 12], ["income", "Aluguel de áreas comuns", 600_000],
-    ["expense", "Folha de pagamento", 1_980_000 * 12], ["expense", "Encargos e impostos", 642_000 * 12], ["expense", "Energia", 340_000 * 12],
-    ["expense", "Água", 450_000 * 12], ["expense", "Elevadores", 210_000 * 12], ["expense", "Limpeza", 260_000 * 12],
-    ["expense", "Portaria e segurança", 1_040_000 * 12], ["expense", "Administradora", 220_000 * 12], ["expense", "Seguros", 900_000],
-    ["expense", "Obras e reformas", 800_000], ["expense", "Manutenção", 1_200_000], ["expense", "Piscina", 300_000],
-  ];
-  await db.financeBudget.createMany({
-    data: budgetLines.map(([type, category, amountCents]) => ({ condominiumId: cid, year: budgetYear, type, category, amountCents, updatedById: syndic.id })),
+  const months = Math.max(1, offsets.filter((o) => ym(o).startsWith(String(budgetYear))).length);
+  const budget = [...spent.entries()].map(([k, total]) => {
+    const [type, category] = k.split(":");
+    const recurring = monthly.some((m) => m.cat === category);
+    const yearly = recurring ? (total / Math.max(months, monthsBack)) * 12 : total * r.int(10, 18) / 10;
+    return { type, category, amountCents: Math.round(r.vary(yearly, 0.08) / 1000) * 1000 };
   });
+  await db.financeBudget.createMany({ data: budget.map((b) => ({ ...b, condominiumId: cid, year: budgetYear, updatedById: syndic.id })) });
 
   // ───── Assembleias: uma encerrada (com ata) e uma com votação aberta. Votos de unidades sem dono cadastrado ficam sem autor.
   const voteOpts = JSON.stringify(DEFAULT_OPTIONS);
-  const pick = (i: number, k: number, weights: number[]) => {
-    const r = ((i * 37 + k * 11) % 100) / 100;
-    let acc = 0;
-    return weights.findIndex((w) => (acc += w) > r);
-  };
+  const pastTpl = r.pick(ASSEMBLY_PAST);
+  const pastAgo = r.int(25, 70);
   const past = await db.assembly.create({
     data: {
-      condominiumId: cid, title: "Assembleia geral ordinária", kind: "ordinary", location: "salão de festas",
-      description: "Prestação de contas do semestre e aprovação de obras.",
-      meetingAt: new Date(now - 40 * DAY), votingEndsAt: new Date(now - 39 * DAY), publishedAt: new Date(now - 48 * DAY), closedAt: new Date(now - 39 * DAY),
+      condominiumId: cid, title: pastTpl.title, kind: "ordinary", location: r.pick(["salão de festas", "salão de festas e online", "online"]),
+      description: "Prestação de contas e deliberações do período.",
+      meetingAt: new Date(now - pastAgo * DAY), votingEndsAt: new Date(now - (pastAgo - 1) * DAY), publishedAt: new Date(now - (pastAgo + 8) * DAY), closedAt: new Date(now - (pastAgo - 1) * DAY),
       status: "closed", createdById: syndic.id,
-      items: {
-        create: [
-          { position: 0, title: "Aprovação das contas do 1º semestre", options: voteOpts },
-          { position: 1, title: "Repintura da fachada (orçamento de R$ 180.000 em 6 parcelas)", options: voteOpts },
-          { position: 2, title: "Escolha da empresa de portaria", options: JSON.stringify(["Sentinela Segurança", "Guardião Serviços", "Manter a atual"]) },
-        ],
-      },
+      items: { create: pastTpl.items.map((it, position) => ({ position, title: it.title, options: it.options ? JSON.stringify(it.options) : voteOpts })) },
     },
     include: { items: { orderBy: { position: "asc" } } },
   });
-  const owners = new Map([[units[5].id, council1.id], [units[22].id, council2.id], [units[40].id, res2.id]]);
-  const pastVotes = units.slice(0, 41).flatMap((u, i) => [
-    { itemId: past.items[0].id, option: pick(i, 1, [0.78, 0.12, 0.1]) },
-    { itemId: past.items[1].id, option: pick(i, 2, [0.55, 0.38, 0.07]) },
-    { itemId: past.items[2].id, option: pick(i, 3, [0.5, 0.2, 0.3]) },
-  ].map((v) => ({ ...v, assemblyId: past.id, unitId: u.id, userId: owners.get(u.id) ?? null, createdAt: new Date(now - 42 * DAY) })));
+  const turnout = r.shuffle(units).slice(0, Math.round(U * (r.int(45, 80) / 100)));
+  const pastVotes = turnout.flatMap((u) =>
+    past.items.map((it) => {
+      const n = JSON.parse(it.options).length;
+      const lean = Array.from({ length: n }, (_, i) => (i === 0 ? 0.55 : 0.45 / (n - 1)));
+      return { itemId: it.id, option: r.weighted(lean), assemblyId: past.id, unitId: u.id, userId: owners.get(u.id) ?? null, createdAt: new Date(now - (pastAgo + 2) * DAY) };
+    }),
+  );
   await db.assemblyVote.createMany({ data: pastVotes });
   const full = await loadAssembly(past.id);
-  if (full) await db.assembly.update({ where: { id: past.id }, data: { minutes: minutesDraft(full, units.length, new Date(now - 39 * DAY)), minutesUpdatedAt: new Date(now - 38 * DAY) } });
+  if (full) await db.assembly.update({ where: { id: past.id }, data: { minutes: minutesDraft(full, U, new Date(now - (pastAgo - 1) * DAY)), minutesUpdatedAt: new Date(now - (pastAgo - 2) * DAY) } });
 
+  const nextTpl = r.pick(ASSEMBLY_NEXT);
+  const nextIn = r.int(4, 12);
   const next = await db.assembly.create({
     data: {
-      condominiumId: cid, title: "Assembleia geral extraordinária: elevadores", kind: "extraordinary", location: "salão de festas e online",
-      description: "Modernização dos elevadores da Torre Jacarandá.",
-      meetingAt: new Date(now + 6 * DAY), votingEndsAt: new Date(now + 6 * DAY + 3 * 3600_000), publishedAt: new Date(now - 2 * DAY),
+      condominiumId: cid, title: nextTpl.title, kind: "extraordinary", location: "salão de festas e online",
+      description: towers(nextTpl.desc),
+      meetingAt: new Date(now + nextIn * DAY), votingEndsAt: new Date(now + nextIn * DAY + 3 * 3600_000), publishedAt: new Date(now - r.int(1, 4) * DAY),
       status: "open", createdById: syndic.id,
-      items: { create: [{ position: 0, title: "Modernização dos elevadores da Torre Jacarandá", description: "Proposta da Ascensus: R$ 240.000, com rateio extra em 10 meses.", options: voteOpts }] },
+      items: { create: [{ position: 0, title: towers(nextTpl.item), description: towers(nextTpl.desc), options: voteOpts }] },
     },
     include: { items: true },
   });
+  // Votação em andamento: sem as unidades dos proprietários fictícios (eles podem votar na demonstração)
+  const openVoters = r.shuffle(units.filter((u) => !owners.has(u.id))).slice(0, Math.round(U * (r.int(15, 40) / 100)));
   await db.assemblyVote.createMany({
-    data: units.slice(10, 27).map((u, i) => ({ assemblyId: next.id, itemId: next.items[0].id, unitId: u.id, userId: owners.get(u.id) ?? null, option: pick(i, 4, [0.6, 0.3, 0.1]) })),
+    data: openVoters.map((u) => ({ assemblyId: next.id, itemId: next.items[0].id, unitId: u.id, userId: null, option: r.weighted([0.6, 0.3, 0.1]) })),
   });
 
-  // ───── Comunicados
+  // ───── Comunicados (sorteados)
   await db.announcement.createMany({
-    data: [
-      { condominiumId: cid, authorId: syndic.id, title: "Manutenção dos elevadores", content: "O elevador da Torre Jacarandá ficará parado na quinta-feira, das 9h às 12h, para manutenção.", category: "maintenance", publishedAt: new Date(now - 2 * DAY) },
-      { condominiumId: cid, authorId: syndic.id, title: "Assembleia ordinária", content: "Convocamos todos para a assembleia no salão de festas, dia 20, às 19h30. Pauta: prestação de contas do trimestre.", category: "event", priority: "high", publishedAt: new Date(now - 6 * DAY) },
-      { condominiumId: cid, authorId: syndic.id, title: "Coleta seletiva", content: "A coleta de recicláveis passa a ser às terças e quintas.", category: "general", publishedAt: new Date(now - 15 * DAY) },
-    ],
+    data: r.shuffle(ANNOUNCEMENTS).slice(0, r.int(3, 5)).map((a, i) => ({
+      condominiumId: cid, authorId: syndic.id, title: a.title, content: towers(a.content), category: a.category, priority: a.priority ?? "normal",
+      publishedAt: new Date(now - (i * r.int(3, 9) + r.int(1, 3)) * DAY),
+    })),
   });
 
   return condo;
