@@ -1,0 +1,27 @@
+# Alerta de checklist atrasado: chama /api/cron/checklist a cada 15 minutos.
+# Cada condomínio só é avisado uma vez por dia, depois do próprio prazo (Configurações do checklist).
+# Precisa, em Settings → Secrets and variables → Actions do GitHub:
+#   - secret   CRON_SECRET  (o mesmo valor cadastrado na Vercel)
+#   - variable APP_URL      (ex.: https://condtrack.vercel.app)
+name: Checklist atrasado
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  alerta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verificar checklists
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "CRON_SECRET ou APP_URL não configurados; nada a fazer."
+            exit 0
+          fi
+          curl --fail-with-body -sS -m 60 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/checklist"
