@@ -36,7 +36,7 @@ export function VotePanel({ id, units, items, mine }: { id: string; units: { id:
               {it.options.map((o, i) => (
                 <label key={i} className="cursor-pointer">
                   <input type="radio" name={`item_${it.id}`} value={i} defaultChecked={current[it.id] === i} className="peer sr-only" />
-                  <span className="inline-flex rounded-xl px-3.5 py-2 text-sm ring-1 ring-line-strong transition hover:bg-bg-2 peer-checked:bg-brand peer-checked:text-white peer-checked:ring-brand peer-focus-visible:outline-2 peer-focus-visible:outline-brand">{o}</span>
+                  <span className="inline-flex rounded-xl px-3.5 py-2 text-sm ring-1 ring-line-strong transition hover:bg-bg-2 peer-checked:bg-brand peer-checked:text-white peer-checked:ring-brand peer-checked:hover:bg-brand-2 peer-focus-visible:outline-2 peer-focus-visible:outline-brand">{o}</span>
                 </label>
               ))}
             </div>
