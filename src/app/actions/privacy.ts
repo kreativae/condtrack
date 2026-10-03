@@ -14,6 +14,7 @@ export async function acceptTerms(form: FormData) {
   if (user.impersonator) redirect("/dashboard");
   if (form.get("agree") !== "on") redirect("/aceite?faltou=1");
   const version = await termsVersion();
+  if (!version) redirect("/dashboard");
   await db.user.update({ where: { id: user.id }, data: { termsAcceptedAt: new Date(), termsVersion: version } });
   await audit(user, "terms_accept", "user", user.id, { new: { versao: version } });
   redirect("/dashboard");

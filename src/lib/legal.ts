@@ -22,8 +22,14 @@ export async function getLegal(): Promise<Legal> {
   };
 }
 
-/** Versão vigente dos termos: quem aceitou outra versão aceita de novo. */
+/**
+ * Versão vigente dos termos (quem aceitou outra versão aceita de novo). null enquanto a razão social e o
+ * e-mail do encarregado não forem preenchidos em Configurações: sem eles, o aceite não é pedido.
+ */
 export async function termsVersion() {
+  const v = await getSettings("legal");
+  const filled = (k: string) => typeof v[k] === "string" && (v[k] as string).trim() !== "";
+  if (!filled("companyName") || !filled("dpoEmail")) return null;
   return (await getLegal()).version;
 }
 

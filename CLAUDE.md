@@ -108,7 +108,8 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   O síndico apaga direto só os comunicados que ele mesmo publicou (`deleteOwnAnnouncement`).
   Mesmo padrão das assembleias: um pedido por vez, decisão reservada com `updateMany` condicional.
 - **LGPD**: `/termos` e `/privacidade` (abertas a todos, lista `OPEN` no `proxy.ts`; textos em `src/lib/legal.ts`, dados da
-  empresa em Configurações → Dados legais). Aceite obrigatório da versão vigente (`User.termsVersion`; o layout manda para
+  empresa em Configurações → Dados legais). Aceite obrigatório da versão vigente só depois de preencher razão social e
+  e-mail do encarregado (`termsVersion()` devolve null antes disso) (`User.termsVersion`; o layout manda para
   `/aceite`; mudar a "versão" em Configurações pede novo aceite de todos). Meu perfil → Privacidade: `/api/meus-dados`
   (JSON com os dados da pessoa) e pedido de exclusão (`deletionRequestedAt`, avisa os superadmins). Textos são modelo:
   revisar com advogado.

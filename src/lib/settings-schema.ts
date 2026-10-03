@@ -104,7 +104,7 @@ export const SETTINGS: GroupDef[] = [
   {
     key: "legal",
     title: "Dados legais (LGPD)",
-    description: "Quem responde pela plataforma nos Termos de Uso e na Política de Privacidade. Mudar a data da versão pede um novo aceite de todos.",
+    description: "Quem responde pela plataforma nos Termos de Uso e na Política de Privacidade. O aceite só passa a ser pedido depois de preencher a razão social e o e-mail do encarregado; mudar a data da versão pede um novo aceite de todos.",
     fields: [
       { key: "companyName", label: "Razão social", type: "text", placeholder: "Condtrack Tecnologia Ltda." },
       { key: "cnpj", label: "CNPJ", type: "text", placeholder: "00.000.000/0001-00" },

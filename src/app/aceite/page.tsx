@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { fmtVersion, getLegal } from "@/lib/legal";
+import { fmtVersion, getLegal, termsVersion } from "@/lib/legal";
 import { acceptTerms } from "@/app/actions/privacy";
 import { logout } from "@/app/actions/auth";
 import { Logo } from "@/components/logo";
@@ -12,8 +12,8 @@ export const metadata: Metadata = { title: "Termos e privacidade" };
 
 export default async function AcceptPage({ searchParams }: PageProps<"/aceite">) {
   const user = await requireUser();
-  const l = await getLegal();
-  if (user.impersonator || user.termsVersion === l.version) redirect("/dashboard");
+  const [l, current] = await Promise.all([getLegal(), termsVersion()]);
+  if (!current || user.impersonator || user.termsVersion === current) redirect("/dashboard");
   const missing = (await searchParams).faltou === "1";
   const update = !!user.termsVersion;
   return (
