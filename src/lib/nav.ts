@@ -15,6 +15,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
     { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
+    { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
     { href: "/assembleias", label: "Assembleias", icon: "vote" },
     { href: "/admin/usuarios", label: "Usuários", icon: "users", mobile: true },
     { href: "/admin/assinaturas", label: "Assinaturas", icon: "card", mobile: true },

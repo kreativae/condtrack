@@ -87,6 +87,15 @@ export const TEMPLATES: TemplateDef[] = [
     V.condominio,
     { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
   ]),
+  notification("announcement_delete_request", "Pedido de exclusão de comunicado", "Síndico", "Pedido para excluir: {titulo}", "{autor} pediu para excluir o comunicado.\nMotivo: “{comentario}”\nAprove ou recuse em Comunicados.", [
+    V.condominio, V.autor, V.comentario,
+    { name: "titulo", desc: "Título do comunicado", sample: "Manutenção dos elevadores" },
+  ]),
+  notification("announcement_delete_decided", "Pedido de exclusão de comunicado decidido", "Superadmin que pediu", "Exclusão {decisao}: {titulo}", "{autor} {decisao} o pedido de exclusão.\n“{comentario}”", [
+    V.condominio, V.autor, V.comentario,
+    { name: "titulo", desc: "Título do comunicado", sample: "Manutenção dos elevadores" },
+    { name: "decisao", desc: "aprovado ou recusado", sample: "aprovado" },
+  ]),
   notification("assembly_change_request", "Pedido de alteração de assembleia", "Síndico", "Pedido para {acao}: {titulo}", "{autor} pediu para {acao} a assembleia. Revise e aprove ou recuse.", [
     V.condominio, V.autor,
     { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },

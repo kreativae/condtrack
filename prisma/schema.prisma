@@ -273,6 +273,7 @@ model Announcement {
   publishedAt   DateTime    @default(now())
   condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   author        User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  changes       AnnouncementChange[]
 }
 
 model Notification {
@@ -774,4 +775,24 @@ model AssemblyChange {
   assembly      Assembly  @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
 
   @@index([assemblyId, status])
+}
+
+/// Pedido do superadmin para excluir um comunicado: só vale com a aprovação do síndico (como nas assembleias).
+/// kind: delete. status: pending | rejected | cancelled (aprovado = comunicado apagado; o registro fica na auditoria).
+model AnnouncementChange {
+  id             String       @id @default(cuid())
+  announcementId String
+  kind           String       @default("delete")
+  reason         String       @default("")
+  status         String       @default("pending")
+  requestedById  String?
+  requestedBy    String
+  decidedById    String?
+  decidedBy      String?
+  decisionNote   String?
+  decidedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@index([announcementId, status])
 }

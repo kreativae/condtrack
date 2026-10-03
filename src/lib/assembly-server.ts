@@ -161,7 +161,3 @@ export async function applyAssemblyEdit(id: string, next: ProposedAssembly) {
   });
   return { reset, status: cur.status, condominiumId: cur.condominiumId };
 }
-
-/** Síndicos com vínculo no condomínio (quem aprova os pedidos). */
-export const condoSyndics = (condominiumId: string) =>
-  db.user.findMany({ where: { status: "active", memberships: { some: { condominiumId, role: "syndic" } } }, select: { id: true, name: true } });

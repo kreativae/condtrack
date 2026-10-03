@@ -90,6 +90,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   "owner" no condomínio). Resultado parcial só para quem organiza, a menos que `showPartial`. Regras em `lib/assembly*.ts`.
   Publicada, só muda por pedido do superadmin (`AssemblyChange`: editar ou excluir) aprovado pelo síndico; itens alterados
   perdem os votos (`describeChange`/`applyAssemblyEdit`), encerrada não muda a pauta.
+- **Comunicados**: o superadmin vê os do condomínio em foco e só **pede** a exclusão (`AnnouncementChange`,
+  `app/actions/announcements.ts`); o síndico aprova (apaga, conteúdo guardado na auditoria) ou recusa no próprio card.
+  Mesmo padrão das assembleias: um pedido por vez, decisão reservada com `updateMany` condicional.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

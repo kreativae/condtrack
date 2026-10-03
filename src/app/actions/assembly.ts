@@ -7,7 +7,8 @@ import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
-import { applyAssemblyEdit, assemblyAccess, closeAssembly, condoSyndics, describeChange, voterUnits, type ProposedAssembly } from "@/lib/assembly-server";
+import { applyAssemblyEdit, assemblyAccess, closeAssembly, describeChange, voterUnits, type ProposedAssembly } from "@/lib/assembly-server";
+import { condoSyndics } from "@/lib/memberships";
 import { fmtDateTimeBR, fmtMeeting, fromLocalInput, optionsFromText, parseOptions } from "@/lib/assembly";
 
 export type AssemblyState = { error?: string; ok?: boolean; message?: string } | undefined;

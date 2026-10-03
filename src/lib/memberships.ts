@@ -46,3 +46,7 @@ export async function setMemberships(userId: string, list: { condominiumId: stri
   const active = unique.find((m) => m.condominiumId === activeCondo) ?? unique[0];
   if (active) await db.user.update({ where: { id: userId }, data: { condominiumId: active.condominiumId, role: active.role, permissions: active.permissions } });
 }
+
+/** Síndicos ativos com vínculo no condomínio (quem aprova os pedidos do superadmin). */
+export const condoSyndics = (condominiumId: string) =>
+  db.user.findMany({ where: { status: "active", ...inCondo(condominiumId, ["syndic"]) }, select: { id: true, name: true } });
