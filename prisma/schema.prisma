@@ -57,6 +57,7 @@ model Condominium {
   memberships    Membership[]
   maintenancePlans MaintenancePlan[]
   financeBudgets FinanceBudget[]
+  assemblies     Assembly[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -81,6 +82,7 @@ model Unit {
   building   Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   residents  UserUnit[]
   orders     ServiceOrder[]
+  assemblyVotes AssemblyVote[]
 
   @@unique([buildingId, number])
 }
@@ -141,6 +143,7 @@ model User {
   memberships        Membership[]
   maintenancePlans   MaintenancePlan[]
   pushDevices        PushDevice[]
+  assemblyVotes      AssemblyVote[]
 }
 
 /// role: owner | tenant | dependent
@@ -687,4 +690,66 @@ model PushDevice {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Assembleia do condomínio. kind: ordinary | extraordinary. status: draft (rascunho) | open (convocada, votação
+/// aberta até votingEndsAt) | closed (encerrada; resultado e ata). Um voto por unidade em cada item (proprietários).
+model Assembly {
+  id               String         @id @default(cuid())
+  condominiumId    String
+  title            String
+  kind             String         @default("ordinary")
+  description      String         @default("")
+  meetingAt        DateTime
+  location         String         @default("")
+  status           String         @default("draft")
+  votingEndsAt     DateTime
+  /// Votantes veem o resultado parcial antes do encerramento
+  showPartial      Boolean        @default(false)
+  minutes          String         @default("")
+  minutesUpdatedAt DateTime?
+  publishedAt      DateTime?
+  closedAt         DateTime?
+  createdById      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  condominium      Condominium    @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  items            AssemblyItem[]
+  votes            AssemblyVote[]
+
+  @@index([condominiumId, status])
+  @@index([status, votingEndsAt])
+}
+
+/// Item da pauta. options = JSON com os rótulos (ex.: ["A favor","Contra","Abstenção"]).
+model AssemblyItem {
+  id          String         @id @default(cuid())
+  assemblyId  String
+  position    Int
+  title       String
+  description String         @default("")
+  options     String         @default("[]")
+  assembly    Assembly       @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  votes       AssemblyVote[]
+
+  @@index([assemblyId, position])
+}
+
+/// Voto de uma unidade num item (option = índice em AssemblyItem.options). userId = quem votou pela unidade.
+model AssemblyVote {
+  id         String       @id @default(cuid())
+  assemblyId String
+  itemId     String
+  unitId     String
+  userId     String?
+  option     Int
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  assembly   Assembly     @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  item       AssemblyItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  unit       Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([itemId, unitId])
+  @@index([assemblyId])
 }

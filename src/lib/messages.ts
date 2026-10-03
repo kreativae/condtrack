@@ -32,7 +32,7 @@ const OS_VARS = [V.protocolo, V.titulo, V.condominio, V.autor];
 
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -75,6 +75,17 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "total", desc: "Itens do dia", sample: "7" },
     { name: "prazo", desc: "Horário limite", sample: "10:00" },
     V.condominio,
+  ]),
+  notification("assembly_called", "Convocação de assembleia", "Todos do condomínio (menos prestadores)", "Convocação: {titulo}", "{quando}{local}\nVotação online até {prazo}.", [
+    V.condominio,
+    { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
+    { name: "quando", desc: "Data e hora da assembleia", sample: "segunda-feira, 12 de outubro de 2026, às 19:30" },
+    { name: "local", desc: "Local (com vírgula na frente, quando houver)", sample: ", no salão de festas" },
+    { name: "prazo", desc: "Fim da votação online", sample: "12/10/2026 22:00" },
+  ]),
+  notification("assembly_closed", "Votação encerrada", "Todos do condomínio (menos prestadores)", "Resultado: {titulo}", "A votação foi encerrada. Veja o resultado de cada item da pauta.", [
+    V.condominio,
+    { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
   ]),
   notification("maint_order", "OS de manutenção preventiva aberta", "Síndico e zelador", "Manutenção preventiva: {titulo}", "{protocolo} · prevista para {vencimento}.", [
     V.protocolo,

@@ -13,6 +13,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/checklist", label: "Checklist", icon: "checklist" },
     { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
+    { href: "/assembleias", label: "Assembleias", icon: "vote" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/admin/auditoria", label: "Auditoria", icon: "shield" },
     { href: "/admin/configuracoes", label: "Configurações", icon: "settings" },
@@ -28,6 +29,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/estrutura", label: "Estrutura", icon: "building" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
+    { href: "/assembleias", label: "Assembleias", icon: "vote" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/auditoria", label: "Auditoria", icon: "shield" },
     { href: "/assinatura", label: "Assinatura", icon: "card", mobile: true },
@@ -41,6 +43,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/checklist", label: "Checklist", icon: "checklist", mobile: true },
     { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
+    { href: "/assembleias", label: "Assembleias", icon: "vote" },
   ],
   provider: [
     { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
@@ -54,6 +57,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/os", label: "Minhas solicitações", short: "Solicitações", icon: "clipboard", mobile: true },
     { href: "/os/nova", label: "Nova solicitação", short: "Nova", icon: "plus", mobile: true },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
+    { href: "/assembleias", label: "Assembleias", icon: "vote" },
     { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
   ],
@@ -62,5 +66,6 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
     { href: "/dashboard", label: "Início", icon: "home", mobile: true },
     { href: "/feed", label: "Serviços entregues", short: "Serviços", icon: "sparkles", mobile: true },
+    { href: "/assembleias", label: "Assembleias", icon: "vote", mobile: true },
   ],
 };

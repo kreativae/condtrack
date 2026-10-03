@@ -23,7 +23,8 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   checam de novo com `requireUser(...)`; a UI nunca é a única barreira.
 - **Fluxo da OS**: open → assigned → in_progress (exige ANTES) → completed (exige DEPOIS) → validated (zelador) → approved (síndico, vai ao feed).
   Rejeição volta ao prestador com motivo.
-- **Morador (`resident`) é somente leitura.**
+- **Morador (`resident`) é somente leitura.** Única exceção: votar em assembleia como proprietário da unidade
+  (`castVote`, um voto por unidade em cada item). Inquilino e dependente não votam.
 - **Auditoria**: ações críticas chamam `audit()` (`src/lib/audit.ts`), inclusive no modo "visualizar como".
 - **Mídias**: fotos sem marca d'água; os dados de captura (data, GPS, aparelho) ficam só nos metadados da OS.
 - **Financeiro**: nunca apagar lançamentos, anexos ou logs de verdade; o histórico é a prestação de contas.
@@ -83,6 +84,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   em `public/sw.js` (sem cache de páginas). Endereços de inscrição só dos serviços oficiais (anti-SSRF, `actions/push.ts`).
   Precisa de `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` (opcional `VAPID_SUBJECT`); sem elas o cartão avisa e nada é enviado.
   iPhone: só com o app na tela de início (iOS 16.4+). Ícones PNG em `public/` e `src/app/apple-icon.png`.
+- **Assembleias** (`/assembleias`): `Assembly` → `AssemblyItem` (pauta, opções em JSON) → `AssemblyVote` (único por item e
+  unidade). Rascunho → publicar (abre a votação, cria comunicado e avisa) → encerra no prazo (cron/página) ou pelo síndico
+  → ata gerada da apuração (`minutesDraft`), editável, em PDF em `/relatorio/ata/[id]`. Quem vota: `voterUnits()` (UserUnit
+  "owner" no condomínio). Resultado parcial só para quem organiza, a menos que `showPartial`. Regras em `lib/assembly*.ts`.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

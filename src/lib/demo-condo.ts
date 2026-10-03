@@ -7,6 +7,8 @@ import { activateMembership } from "./memberships";
 import { addDays, isDue, spNow } from "./checklist";
 import { dayToDate } from "./finance";
 import { nextProtocol } from "./orders";
+import { loadAssembly, minutesDraft } from "./assembly-server";
+import { DEFAULT_OPTIONS } from "./assembly";
 
 // Condomínio de demonstração com dados fictícios em todas as áreas (OS com antes/depois,
 // 4 meses de financeiro, 3 semanas de checklist, anotações, comunicados). Ninguém dos
@@ -295,6 +297,53 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   ];
   await db.financeBudget.createMany({
     data: budgetLines.map(([type, category, amountCents]) => ({ condominiumId: cid, year: budgetYear, type, category, amountCents, updatedById: syndic.id })),
+  });
+
+  // ───── Assembleias: uma encerrada (com ata) e uma com votação aberta. Votos de unidades sem dono cadastrado ficam sem autor.
+  const voteOpts = JSON.stringify(DEFAULT_OPTIONS);
+  const pick = (i: number, k: number, weights: number[]) => {
+    const r = ((i * 37 + k * 11) % 100) / 100;
+    let acc = 0;
+    return weights.findIndex((w) => (acc += w) > r);
+  };
+  const past = await db.assembly.create({
+    data: {
+      condominiumId: cid, title: "Assembleia geral ordinária", kind: "ordinary", location: "salão de festas",
+      description: "Prestação de contas do semestre e aprovação de obras.",
+      meetingAt: new Date(now - 40 * DAY), votingEndsAt: new Date(now - 39 * DAY), publishedAt: new Date(now - 48 * DAY), closedAt: new Date(now - 39 * DAY),
+      status: "closed", createdById: syndic.id,
+      items: {
+        create: [
+          { position: 0, title: "Aprovação das contas do 1º semestre", options: voteOpts },
+          { position: 1, title: "Repintura da fachada (orçamento de R$ 180.000 em 6 parcelas)", options: voteOpts },
+          { position: 2, title: "Escolha da empresa de portaria", options: JSON.stringify(["Sentinela Segurança", "Guardião Serviços", "Manter a atual"]) },
+        ],
+      },
+    },
+    include: { items: { orderBy: { position: "asc" } } },
+  });
+  const owners = new Map([[units[5].id, council1.id], [units[22].id, council2.id], [units[40].id, res2.id]]);
+  const pastVotes = units.slice(0, 41).flatMap((u, i) => [
+    { itemId: past.items[0].id, option: pick(i, 1, [0.78, 0.12, 0.1]) },
+    { itemId: past.items[1].id, option: pick(i, 2, [0.55, 0.38, 0.07]) },
+    { itemId: past.items[2].id, option: pick(i, 3, [0.5, 0.2, 0.3]) },
+  ].map((v) => ({ ...v, assemblyId: past.id, unitId: u.id, userId: owners.get(u.id) ?? null, createdAt: new Date(now - 42 * DAY) })));
+  await db.assemblyVote.createMany({ data: pastVotes });
+  const full = await loadAssembly(past.id);
+  if (full) await db.assembly.update({ where: { id: past.id }, data: { minutes: minutesDraft(full, units.length, new Date(now - 39 * DAY)), minutesUpdatedAt: new Date(now - 38 * DAY) } });
+
+  const next = await db.assembly.create({
+    data: {
+      condominiumId: cid, title: "Assembleia geral extraordinária: elevadores", kind: "extraordinary", location: "salão de festas e online",
+      description: "Modernização dos elevadores da Torre Jacarandá.",
+      meetingAt: new Date(now + 6 * DAY), votingEndsAt: new Date(now + 6 * DAY + 3 * 3600_000), publishedAt: new Date(now - 2 * DAY),
+      status: "open", createdById: syndic.id,
+      items: { create: [{ position: 0, title: "Modernização dos elevadores da Torre Jacarandá", description: "Proposta da Ascensus: R$ 240.000, com rateio extra em 10 meses.", options: voteOpts }] },
+    },
+    include: { items: true },
+  });
+  await db.assemblyVote.createMany({
+    data: units.slice(10, 27).map((u, i) => ({ assemblyId: next.id, itemId: next.items[0].id, unitId: u.id, userId: owners.get(u.id) ?? null, option: pick(i, 4, [0.6, 0.3, 0.1]) })),
   });
 
   // ───── Comunicados
