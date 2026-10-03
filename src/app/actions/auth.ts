@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -8,6 +9,7 @@ import { audit } from "@/lib/audit";
 import { getSettings } from "@/lib/settings";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { clearSessionCookie, getCurrentUser, getSession, requireUser, setSessionCookie } from "@/lib/auth";
+import { PENDING_2FA_COOKIE, PENDING_2FA_TTL_SECONDS, signPending2fa } from "@/lib/session-token";
 
 export type LoginState = { error?: string } | undefined;
 
@@ -46,11 +48,25 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
     return generic;
   }
 
+  const next = String(form.get("next") ?? "");
+
+  // Duas etapas: a senha confere, mas a sessão só abre depois do código do app.
+  // O contador de tentativas só zera com o código certo (senão daria para tentar códigos sem fim).
+  if (user.totpEnabledAt) {
+    (await cookies()).set(PENDING_2FA_COOKIE, await signPending2fa(user.id, next), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: PENDING_2FA_TTL_SECONDS,
+    });
+    redirect("/login/duas-etapas");
+  }
+
   await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() } });
   await setSessionCookie({ uid: user.id });
   await audit({ id: user.id, condominiumId: user.condominiumId, impersonator: null }, "login", "user", user.id);
 
-  const next = String(form.get("next") ?? "");
   redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
 }
 

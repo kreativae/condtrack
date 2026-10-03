@@ -29,8 +29,33 @@ export async function signSession(payload: SessionPayload, ttlSeconds = SESSION_
 export async function verifySession(token: string | undefined) {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify<SessionPayload>(token, secret());
+    const { payload } = await jwtVerify<SessionPayload & { p?: string }>(token, secret());
+    // Tokens com finalidade própria (ex.: login aguardando o código das duas etapas) nunca valem como sessão
+    if (payload.p) return null;
     return payload;
+  } catch {
+    return null;
+  }
+}
+
+// ───── Login aguardando o código das duas etapas (senha já conferida)
+
+export const PENDING_2FA_COOKIE = "condtrack_2fa";
+export const PENDING_2FA_TTL_SECONDS = 5 * 60;
+
+export async function signPending2fa(uid: string, next: string) {
+  return new SignJWT({ uid, next, p: "2fa" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${PENDING_2FA_TTL_SECONDS}s`)
+    .sign(secret());
+}
+
+export async function verifyPending2fa(token: string | undefined) {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify<{ uid: string; next: string; p: string }>(token, secret());
+    return payload.p === "2fa" && payload.uid ? { uid: payload.uid, next: payload.next ?? "" } : null;
   } catch {
     return null;
   }

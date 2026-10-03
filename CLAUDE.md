@@ -13,8 +13,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - Se um build falhar na Vercel, o site continua na versão anterior; corrija na `main`.
 - Pontos de restauração: tags `v1-estavel` (2026-09-28, aba Aparência) e `v2-estavel` (2026-10-04, antes dos vínculos com vários condomínios). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.
 - O GitHub confere tipos e lint a cada push (`.github/workflows/verificacao.yml`); veja a aba Actions se algo falhar.
-- O Mac principal pode não ter Node/npm: sem `npm run build` local, o build da Vercel é a verificação. Escreva com cuidado
-  e revise o diff antes de commitar.
+- O Mac principal tem Node pelo nvm (desde 2026-10-03). Antes de commitar: `npx tsc --noEmit` e, em mudanças maiores,
+  `npx next build` (com `AUTH_SECRET`, `DATABASE_URL` e `DATABASE_URL_UNPOOLED` fictícios; o `npm run build` roda as
+  migrações e precisa do banco de verdade). Em outra máquina sem Node, o build da Vercel continua sendo a verificação.
 
 ## Regras que não podem quebrar
 
@@ -82,6 +83,12 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Permissões do síndico** (`src/lib/permissions.ts`, `User.permissions`): o superadmin liga em Editar usuário.
   `checklist_edit` = corrigir autor/horário, conferir dias anteriores e editar anotações (`adminSaveCheck`,
   `updateChecklistNote`); `audit` = página `/auditoria` só do condomínio. Use `hasPermission(user, ...)`.
+
+- **Verificação em duas etapas** (app autenticador, TOTP): `src/lib/totp.ts` (sem biblioteca, testado com os vetores das
+  RFC 6238/4226) e `app/actions/two-factor.ts`. Segredo cifrado em `User.totpSecret` (fica fora do usuário carregado, `omit`
+  em `lib/auth.ts`); 10 códigos de recuperação de uso único (só hashes). Login com senha → cookie `condtrack_2fa` (5 min,
+  JWT com `p: "2fa"`, que `verifySession` recusa) → `/login/duas-etapas`. O contador de tentativas só zera com o código
+  certo. Biometria (passkey) entra direto. Superadmin desliga em Editar usuário; lembrete no dashboard para superadmin e síndico.
 
 - **Vários condomínios por pessoa** (`Membership`, `src/lib/memberships.ts`): cada vínculo tem condomínio, perfil e
   permissões. `User.condominiumId/role/permissions` = vínculo ATIVO (trocado pelo cartão do menu, `switchCondo`, ou ao abrir

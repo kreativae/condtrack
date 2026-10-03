@@ -21,13 +21,18 @@ const DEMO = [
 ];
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { next } = await searchParams;
+  const { next, expirou } = await searchParams;
   const [pk, turnstile, firstAccess, a] = await Promise.all([passkeyConfig(), turnstileSiteKey(), setupAvailable(), getLoginAppearance()]);
   return (
     <LoginScreen
       a={a}
       form={
         <>
+          {expirou && (
+            <p className="mb-6 rounded-2xl bg-warn/10 px-4 py-3 text-sm text-warn ring-1 ring-inset ring-warn/15">
+              O tempo para digitar o código acabou. Entre de novo com e-mail e senha.
+            </p>
+          )}
           {firstAccess && (
             <Link href="/primeiro-acesso" className="mb-6 block rounded-2xl border border-brand/30 bg-brand-soft px-4 py-3 text-sm text-brand hover:bg-brand/10">
               <b>Primeiro acesso?</b> Nenhum administrador cadastrado ainda — crie a conta de superadmin →

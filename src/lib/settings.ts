@@ -26,6 +26,10 @@ function decrypt(payload: string) {
   return Buffer.concat([decipher.update(Buffer.from(data, "base64")), decipher.final()]).toString("utf8");
 }
 
+/** Cifra/decifra segredos fora das configurações (ex.: segredo da verificação em duas etapas). */
+export const encryptSecret = encrypt;
+export const decryptSecret = decrypt;
+
 export type SettingsValues = Record<string, string | number | boolean | undefined>;
 
 const cache = new Map<SettingsGroup, { at: number; values: SettingsValues }>();

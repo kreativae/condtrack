@@ -6,6 +6,8 @@ import { logout } from "@/app/actions/auth";
 import { Avatar, Card, CardHeader, PageHeader, buttonClass } from "@/components/ui";
 import { EmailForm, PasswordForm, ProfileForm } from "./forms";
 import { PasskeysCard } from "./passkeys";
+import { TwoFactorCard } from "./two-factor";
+import { recoveryCount } from "@/lib/totp";
 import { db } from "@/lib/db";
 import { passkeyConfig } from "@/lib/passkeys";
 import { unitLabel } from "@/lib/units";
@@ -14,7 +16,11 @@ export const metadata: Metadata = { title: "Meu perfil" };
 
 export default async function ProfilePage() {
   const user = await requireUser();
-  const [passkeys, pk] = await Promise.all([db.passkey.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }), passkeyConfig()]);
+  const [passkeys, pk, tf] = await Promise.all([
+    db.passkey.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+    passkeyConfig(),
+    db.user.findUnique({ where: { id: user.id }, select: { recoveryCodes: true } }),
+  ]);
   return (
     <div className="mx-auto max-w-3xl animate-in">
       <PageHeader eyebrow="Conta" title="Meu perfil" />
@@ -41,6 +47,16 @@ export default async function ProfilePage() {
           <div className="p-5 md:max-w-md"><EmailForm email={user.email} /></div>
         </Card>
       </div>
+      <Card className="mt-6" id="duas-etapas">
+        <CardHeader title="Verificação em duas etapas" subtitle="Código do app autenticador do celular a cada login com senha" />
+        <div className="p-5">
+          <TwoFactorCard
+            enabledAt={user.totpEnabledAt?.toISOString() ?? null}
+            recoveryLeft={recoveryCount(tf?.recoveryCodes ?? "")}
+            disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
+          />
+        </div>
+      </Card>
       <Card className="mt-6">
         <CardHeader title="Face ID / biometria" subtitle="Login sem senha neste e em outros aparelhos" />
         <div className="p-5">

@@ -36,6 +36,8 @@ export type CurrentUser = NonNullable<Awaited<ReturnType<typeof loadUser>>> & {
 function loadUser(id: string) {
   return db.user.findUnique({
     where: { id },
+    // Segredos das duas etapas nunca saem daqui (o usuário carregado pode chegar a componentes)
+    omit: { totpSecret: true, recoveryCodes: true },
     include: {
       condominium: true,
       units: { include: { unit: { include: { building: true } } } },

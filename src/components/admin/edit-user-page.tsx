@@ -7,6 +7,7 @@ import { MANAGEABLE_ROLES, ROLE_LABEL, type Role } from "@/lib/roles";
 import { fmtDateTime } from "@/lib/format";
 import { Avatar, Badge, Card, PageHeader } from "@/components/ui";
 import { EditUserForm } from "./edit-user-form";
+import { ResetTwoFactorButton } from "./reset-two-factor";
 import { byUnit, unitLabel } from "@/lib/units";
 
 /** Página de edição de usuário (superadmin: qualquer um; síndico: pessoas do condomínio). */
@@ -37,18 +38,20 @@ export async function EditUserPage({ me, id, back }: { me: CurrentUser; id: stri
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
       <PageHeader eyebrow={admin ? "Usuários" : me.condominium?.name} title="Editar usuário" />
-      <Card className="mb-6 flex items-center gap-4 p-5">
+      <Card className="mb-6 flex flex-wrap items-center gap-4 p-5">
         <Avatar name={u.name} src={u.avatarUrl} size={48} />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 font-medium">
             {u.name}
             <Badge tone={u.role === "syndic" || u.role === "superadmin" ? "brand" : "muted"}>{ROLE_LABEL[u.role as Role]}</Badge>
             {u.status !== "active" && <Badge tone="bad">Inativo</Badge>}
+            {u.totpEnabledAt && <Badge tone="ok">Duas etapas</Badge>}
           </p>
           <p className="text-xs text-muted">
             {u.condominium?.name ?? "Plataforma"} · cadastrado em {fmtDateTime(u.createdAt)} · {u.lastLoginAt ? `último acesso ${fmtDateTime(u.lastLoginAt)}` : "nunca acessou"}
           </p>
         </div>
+        {admin && !self && u.totpEnabledAt && <ResetTwoFactorButton id={u.id} name={u.name} />}
       </Card>
       <Card className="p-6 sm:p-8">
         <EditUserForm
