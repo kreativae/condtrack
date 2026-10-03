@@ -1,4 +1,4 @@
-# Verificação a cada push: confere tipos e lint antes de a gente descobrir um erro só no build da Vercel.
+# Verificação a cada push: tipos, lint e testes, antes de a gente descobrir um erro só no build da Vercel.
 name: Verificação
 
 on:
@@ -27,6 +27,5 @@ jobs:
       - run: npx next typegen
       - name: TypeScript
         run: npx tsc --noEmit
-      - name: Lint (só avisa)
-        run: npx eslint . --max-warnings=-1
-        continue-on-error: true
+      - name: Lint
+        run: npx eslint .

@@ -275,6 +275,11 @@ export const NAV_PINS_COOKIE = "nav_pins";
 export const MAX_PINS = 4;
 const MENU_EVENT = "condtrack:menu";
 
+/** Guarda os atalhos fixados neste aparelho (cookie de 1 ano). */
+function savePins(pins: string[]) {
+  document.cookie = `${NAV_PINS_COOKIE}=${encodeURIComponent(pins.join(","))}; path=/; max-age=31536000; samesite=lax`;
+}
+
 /** Atalhos do rodapé: os fixados pelo usuário (cookie) ou, sem escolha, os padrões do perfil. */
 export function defaultPins(items: NavItem[]) {
   return items.filter((i) => i.mobile).slice(0, MAX_PINS).map((i) => i.href);
@@ -305,14 +310,14 @@ export function MobileNav({ items, initialPins, user, customized, condos }: { it
   const [open, setOpen] = useState(false);
   const [pins, setPins] = useState<string[]>(() => initialPins ?? defaultPins(items));
   const [warn, setWarn] = useState(false);
-  const reorder = useReorder(items);
+  const { list: orderList, handlers: orderHandlers, look: orderLook, container: orderContainer } = useReorder(items);
   // No menu, o ref fica na linha inteira (para medir a posição); os eventos, no link
   const rowHandlers = (href: string) => {
-    const { ref: _ref, ...rest } = reorder.handlers(href);
+    const { ref: _ref, ...rest } = orderHandlers(href);
     void _ref;
     return rest;
   };
-  const pinned = reorder.list.filter((i) => pins.includes(i.href));
+  const pinned = orderList.filter((i) => pins.includes(i.href));
 
   useEffect(() => {
     const show = () => setOpen(true);
@@ -342,7 +347,7 @@ export function MobileNav({ items, initialPins, user, customized, condos }: { it
     setWarn(false);
     const next = on ? pins.filter((h) => h !== href) : [...pins, href];
     setPins(next);
-    document.cookie = `${NAV_PINS_COOKIE}=${encodeURIComponent(next.join(","))}; path=/; max-age=31536000; samesite=lax`;
+    savePins(next);
   }
 
   return (
@@ -397,17 +402,17 @@ export function MobileNav({ items, initialPins, user, customized, condos }: { it
           </div>
           )}
 
-          <nav ref={reorder.container} className="flex-1 space-y-0.5 overflow-y-auto px-2 py-1">
-            {reorder.list.map((it) => {
+          <nav ref={orderContainer} className="flex-1 space-y-0.5 overflow-y-auto px-2 py-1">
+            {orderList.map((it) => {
               const Icon = ICONS[it.icon] ?? Gauge;
               const active = isActive(pathname, it.href);
               const on = pins.includes(it.href);
               return (
                 <div
                   key={it.href}
-                  ref={reorder.handlers(it.href).ref}
-                  style={reorder.look(it.href).style}
-                  className={clsx("flex items-center rounded-xl transition-colors", reorder.look(it.href).lifted ? LIFTED : active && "bg-brand-soft")}
+                  ref={orderHandlers(it.href).ref}
+                  style={orderLook(it.href).style}
+                  className={clsx("flex items-center rounded-xl transition-colors", orderLook(it.href).lifted ? LIFTED : active && "bg-brand-soft")}
                 >
                   <Link
                     href={it.href}
@@ -417,7 +422,7 @@ export function MobileNav({ items, initialPins, user, customized, condos }: { it
                   >
                     <Icon className="size-[18px] shrink-0" strokeWidth={active ? 2.1 : 1.8} />
                     <span className="truncate">{it.label}</span>
-                    {reorder.look(it.href).lifted && <GripVertical className="ml-auto size-4 shrink-0 text-muted" />}
+                    {orderLook(it.href).lifted && <GripVertical className="ml-auto size-4 shrink-0 text-muted" />}
                   </Link>
                   <button
                     type="button"

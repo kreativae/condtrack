@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { startTransition, useActionState, useRef, useState, useTransition } from "react";
 import { ImagePlus, Loader2, NotebookPen, Pencil, Trash2, X } from "lucide-react";
 import { addChecklistNote, deleteChecklistNote, updateChecklistNote, type ChecklistState } from "@/app/actions/checklist";
 import type { ChecklistEditor } from "./today";
@@ -37,13 +37,15 @@ function NoteForm({ condominiumId, date }: { condominiumId: string; date: string
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
-  // Salvou: limpa o formulário
-  useEffect(() => {
+  // Salvou: limpa o formulário (comparando com a resposta anterior, sem efeito)
+  const [seen, setSeen] = useState(state);
+  if (state !== seen) {
+    setSeen(state);
     if (state?.ok) {
       setText("");
       setPhotos([]);
     }
-  }, [state]);
+  }
 
   async function upload(files: FileList) {
     setError(null);
