@@ -112,3 +112,35 @@ export async function deleteNotification(id: string): Promise<MessageState> {
   revalidatePath("/admin/configuracoes");
   return { ok: true };
 }
+
+type Channel = "app" | "email";
+const MAX_IDS = 500;
+
+/** Exclui em massa as mensagens marcadas no Histórico (notificações do app ou registros de e-mail). */
+export async function deleteSelectedMessages(canal: Channel, _: MessageState, form: FormData): Promise<MessageState> {
+  const user = await requireUser("superadmin");
+  const ids = [...new Set(form.getAll("ids").map(String).filter(Boolean))].slice(0, MAX_IDS);
+  if (!ids.length) return { error: "Marque pelo menos uma mensagem." };
+  const { count } = canal === "app" ? await db.notification.deleteMany({ where: { id: { in: ids } } }) : await db.emailLog.deleteMany({ where: { id: { in: ids } } });
+  await audit(user, "bulk_delete", canal === "app" ? "notification" : "email_log", null, { old: { quantidade: count, modo: "seleção" } });
+  revalidatePath("/admin/configuracoes");
+  return { ok: true, message: `${count} ${count === 1 ? "mensagem excluída" : "mensagens excluídas"}.` };
+}
+
+/** Limpa o Histórico pelo filtro atual: o tipo escolhido (ou todos) e, opcionalmente, só as mais antigas que N dias. */
+export async function deleteMessagesByFilter(canal: Channel, tipo: string | null, _: MessageState, form: FormData): Promise<MessageState> {
+  const user = await requireUser("superadmin");
+  const days = Number(form.get("olderThan") ?? 0);
+  if (![0, 30, 90, 180].includes(days)) return { error: "Período inválido." };
+  if (form.get("confirm") !== "EXCLUIR") return { error: "Digite EXCLUIR para confirmar." };
+  const where = {
+    ...(tipo ? { type: tipo } : {}),
+    ...(days ? { createdAt: { lt: new Date(Date.now() - days * 86400_000) } } : {}),
+  };
+  const { count } = canal === "app" ? await db.notification.deleteMany({ where }) : await db.emailLog.deleteMany({ where });
+  await audit(user, "bulk_delete", canal === "app" ? "notification" : "email_log", null, {
+    old: { quantidade: count, modo: "filtro", tipo: tipo ?? "todos", maisAntigasQue: days ? `${days} dias` : "todas" },
+  });
+  revalidatePath("/admin/configuracoes");
+  return { ok: true, message: count ? `${count} ${count === 1 ? "mensagem excluída" : "mensagens excluídas"}.` : "Nada para excluir com esse filtro." };
+}

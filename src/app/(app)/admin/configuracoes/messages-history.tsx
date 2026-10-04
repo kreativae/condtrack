@@ -6,6 +6,7 @@ import { TEMPLATES, templateDef } from "@/lib/messages";
 import { Pager, pageParam, withPage } from "@/components/frozen";
 import { Badge, Card, Empty, Select, buttonClass, cx } from "@/components/ui";
 import { DeleteNotificationButton } from "./delete-notification";
+import { BulkDeleteBar, RowCheck } from "./bulk-delete";
 
 const PAGE = 25;
 const OTHER: Record<string, string> = { test: "E-mail de teste", other: "Outro" };
@@ -72,10 +73,12 @@ async function AppLog({ sp, tipo, params }: { sp: SP; tipo?: string; params: SP 
   });
   return (
     <Card className="overflow-hidden">
+      <BulkDeleteBar canal="app" tipo={tipo ?? null} tipoLabel={tipo ? typeLabel(tipo) : ""} total={total} />
       {rows.length ? (
         <ul className="divide-y divide-line">
           {rows.map((n) => (
             <li key={n.id} className="flex items-start gap-3 px-5 py-3.5">
+              <RowCheck id={n.id} label={n.title} />
               <span className={cx("mt-1.5 size-2 shrink-0 rounded-full", n.read ? "bg-line-strong" : "bg-brand")} title={n.read ? "Lida" : "Não lida"} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{n.title}</p>
@@ -106,10 +109,12 @@ async function EmailLogList({ sp, tipo, params }: { sp: SP; tipo?: string; param
   const rows = await db.emailLog.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * PAGE, take: PAGE });
   return (
     <Card className="overflow-hidden">
+      <BulkDeleteBar canal="email" tipo={tipo ?? null} tipoLabel={tipo ? typeLabel(tipo) : ""} total={total} />
       {rows.length ? (
         <ul className="divide-y divide-line">
           {rows.map((e) => (
             <li key={e.id} className="flex items-start gap-3 px-5 py-3.5">
+              <RowCheck id={e.id} label={e.subject} />
               {e.status === "sent" ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-ok" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-bad" />}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{e.subject}</p>
