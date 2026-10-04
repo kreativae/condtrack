@@ -4,10 +4,11 @@ import Link from "next/link";
 import { startTransition, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell, Building, Building2, GripVertical, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Vote, Wallet, Wrench, type LucideIcon,
+  Bell, Building, Building2, GripVertical, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Vote, Wallet, Wrench, ChevronDown, MoreHorizontal, type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import type { NavItem } from "@/lib/nav";
+import { ACCORDION_MIN, MORE_VISIBLE, NAV_GROUPS, groupOf, type MenuStyle } from "@/lib/menu-style";
 import { logout } from "@/app/actions/auth";
 import { saveNavOrder } from "@/app/actions/nav";
 import { Logo } from "./logo";
@@ -37,7 +38,8 @@ type DragState = "pressing" | "dragging" | "dropping" | null;
  * - Soltando: o item assenta no lugar e a ordem é salva na conta do usuário.
  * Um toque/clique rápido continua navegando; mover antes de segurar cancela (deixa rolar).
  */
-function useReorder(items: NavItem[]) {
+/** `onCommit`: como salvar a nova ordem (padrão: a lista inteira). Na sanfona, cada grupo junta a sua ordem às demais. */
+function useReorder(items: NavItem[], onCommit?: (order: string[]) => Promise<void>) {
   const router = useRouter();
   const [list, setList] = useState(items);
   const [active, setActive] = useState<{ href: string; state: DragState } | null>(null);
@@ -119,7 +121,7 @@ function useReorder(items: NavItem[]) {
     if (commit) {
       const order = listRef.current.map((i) => i.href);
       startTransition(async () => {
-        await saveNavOrder(order);
+        await (onCommit ? onCommit(order) : saveNavOrder(order));
         router.refresh();
       });
     }
@@ -238,36 +240,145 @@ function ResetOrder({ className }: { className?: string }) {
 const LIFTED = "bg-surface shadow-[0_12px_32px_-8px_rgb(15_23_42/0.35)] ring-1 ring-brand/40 cursor-grabbing";
 const NO_TOUCH_MENU = "select-none [-webkit-touch-callout:none]";
 
-export function SideNav({ items, customized }: { items: NavItem[]; customized?: boolean }) {
+/** Um item do menu do computador (lista, compacto, "Mais" e dentro dos grupos da sanfona). */
+function SideItem({ it, active, compact, lk, handlers, hidden }: {
+  it: NavItem; active: boolean; compact?: boolean; hidden?: boolean;
+  lk: { style: React.CSSProperties; lifted: boolean };
+  handlers: ReturnType<ReturnType<typeof useReorder>["handlers"]>;
+}) {
+  const Icon = ICONS[it.icon] ?? Gauge;
+  return (
+    <Link
+      href={it.href}
+      {...handlers}
+      style={lk.style}
+      hidden={hidden}
+      className={clsx(
+        "flex items-center rounded-xl transition-colors",
+        compact ? "gap-2.5 px-3 py-1.5 text-[13.5px]" : "gap-3 px-3 py-2 text-sm",
+        NO_TOUCH_MENU,
+        lk.lifted ? LIFTED : active ? "bg-brand-soft" : "hover:bg-bg-2",
+        active ? "font-semibold text-brand" : clsx("font-medium", lk.lifted ? "text-fg" : "text-fg-2 hover:text-fg"),
+      )}
+    >
+      <Icon className={compact ? "size-[17px]" : "size-[18px]"} strokeWidth={active ? 2.1 : 1.8} />
+      {it.label}
+      {lk.lifted && <GripVertical className="ml-auto size-4 text-muted" />}
+    </Link>
+  );
+}
+
+/** Menu lateral do computador, no estilo escolhido em Configurações → Aparência. */
+export function SideNav({ items, customized, menuStyle = "classic" }: { items: NavItem[]; customized?: boolean; menuStyle?: MenuStyle }) {
+  if (menuStyle === "accordion" && items.length >= ACCORDION_MIN) return <AccordionNav items={items} customized={customized} />;
+  if (menuStyle === "more" && items.length > MORE_VISIBLE + 1) return <MoreNav items={items} customized={customized} />;
+  return <ListNav items={items} customized={customized} compact={menuStyle !== "classic"} />;
+}
+
+function ListNav({ items, customized, compact }: { items: NavItem[]; customized?: boolean; compact?: boolean }) {
   const pathname = usePathname();
   const { list, dragging, handlers, container, look } = useReorder(items);
   return (
-    <nav ref={container} className={clsx("space-y-0.5", dragging && "cursor-grabbing")} title="Segure e arraste um item para mudar a ordem">
-      {list.map((it) => {
-        const Icon = ICONS[it.icon] ?? Gauge;
-        const active = isActive(pathname, it.href);
-        const lk = look(it.href);
+    <nav ref={container} className={clsx(compact ? "space-y-px" : "space-y-0.5", dragging && "cursor-grabbing")} title="Segure e arraste um item para mudar a ordem">
+      {list.map((it) => (
+        <SideItem key={it.href} it={it} active={isActive(pathname, it.href)} compact={compact} lk={look(it.href)} handlers={handlers(it.href)} />
+      ))}
+      {customized && <ResetOrder className="px-3 pt-2" />}
+    </nav>
+  );
+}
+
+/** "Mais": os primeiros da ordem à vista, o resto escondido até abrir (aberto sozinho se a página atual estiver lá). */
+function MoreNav({ items, customized }: { items: NavItem[]; customized?: boolean }) {
+  const pathname = usePathname();
+  const { list, dragging, handlers, container, look } = useReorder(items);
+  const [open, setOpen] = useState(false);
+  const activeHidden = list.slice(MORE_VISIBLE).some((it) => isActive(pathname, it.href));
+  const show = open || activeHidden;
+  const hiddenCount = list.length - MORE_VISIBLE;
+  return (
+    <nav ref={container} className={clsx("space-y-px", dragging && "cursor-grabbing")} title="Segure e arraste um item para mudar a ordem">
+      {list.map((it, i) => (
+        <SideItem key={it.href} it={it} active={isActive(pathname, it.href)} compact hidden={i >= MORE_VISIBLE && !show} lk={look(it.href)} handlers={handlers(it.href)} />
+      ))}
+      {!activeHidden && (
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={show} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-1.5 text-[13.5px] font-semibold text-fg-2 hover:bg-bg-2 hover:text-fg">
+          <MoreHorizontal className="size-[17px]" />
+          <span className="flex-1 text-left">{show ? "Menos" : `Mais (${hiddenCount})`}</span>
+          <ChevronDown className={clsx("size-4 transition-transform", show && "rotate-180")} />
+        </button>
+      )}
+      {customized && <ResetOrder className="px-3 pt-2" />}
+    </nav>
+  );
+}
+
+const GROUPS_KEY = "nav_groups";
+
+/** Sanfona: grupos por assunto que abrem e fecham (lembrados neste navegador); o grupo da página atual abre sozinho. */
+function AccordionNav({ items, customized }: { items: NavItem[]; customized?: boolean }) {
+  const pathname = usePathname();
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: items.filter((it) => groupOf(it.href) === g.key) })).filter((g) => g.items.length);
+  const activeGroup = groups.find((g) => g.items.some((it) => isActive(pathname, it.href)))?.key;
+  const [open, setOpen] = useState<Record<string, boolean>>({ dia: true });
+
+  // Grupos abertos/fechados salvos neste navegador (lidos depois da hidratação)
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(GROUPS_KEY) ?? "null");
+        if (saved && typeof saved === "object") setOpen(saved);
+      } catch {
+        /* sem armazenamento: fica o padrão */
+      }
+    });
+  }, []);
+  const toggle = (key: string) =>
+    setOpen((o) => {
+      const next = { ...o, [key]: !(o[key] || key === activeGroup) };
+      try {
+        localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignora */
+      }
+      return next;
+    });
+
+  // Arrastar dentro de um grupo: a ordem completa junta esse grupo (novo) com os outros (como estão)
+  const commitGroup = (key: string) => async (order: string[]) => {
+    const full = groups.flatMap((g) => (g.key === key ? order : g.items.map((it) => it.href)));
+    await saveNavOrder(full);
+  };
+
+  return (
+    <nav className="space-y-1" aria-label="Menu">
+      {groups.map((g) => {
+        const isOpen = !!open[g.key] || g.key === activeGroup;
         return (
-          <Link
-            key={it.href}
-            href={it.href}
-            {...handlers(it.href)}
-            style={lk.style}
-            className={clsx(
-              "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
-              NO_TOUCH_MENU,
-              lk.lifted ? LIFTED : active ? "bg-brand-soft" : "hover:bg-bg-2",
-              active ? "font-semibold text-brand" : clsx("font-medium", lk.lifted ? "text-fg" : "text-fg-2 hover:text-fg"),
-            )}
-          >
-            <Icon className="size-[18px]" strokeWidth={active ? 2.1 : 1.8} />
-            {it.label}
-            {lk.lifted && <GripVertical className="ml-auto size-4 text-muted" />}
-          </Link>
+          <div key={g.key}>
+            <button type="button" onClick={() => toggle(g.key)} aria-expanded={isOpen} className="flex w-full items-center gap-2 rounded-lg px-3 pb-1 pt-2 text-muted hover:text-fg">
+              <span className="flex-1 text-left text-[10.5px] font-bold uppercase tracking-[0.09em]">{g.label}</span>
+              {!isOpen && <span className="rounded-full bg-bg-2 px-1.5 text-[10.5px] font-semibold">{g.items.length}</span>}
+              <ChevronDown className={clsx("size-3.5 transition-transform", !isOpen && "-rotate-90")} />
+            </button>
+            {isOpen && <GroupItems items={g.items} onCommit={commitGroup(g.key)} />}
+          </div>
         );
       })}
       {customized && <ResetOrder className="px-3 pt-2" />}
     </nav>
+  );
+}
+
+function GroupItems({ items, onCommit }: { items: NavItem[]; onCommit: (order: string[]) => Promise<void> }) {
+  const pathname = usePathname();
+  const { list, dragging, handlers, container, look } = useReorder(items, onCommit);
+  return (
+    <div ref={container as React.RefObject<HTMLDivElement>} className={clsx("space-y-px", dragging && "cursor-grabbing")} title="Segure e arraste um item para mudar a ordem dentro do grupo">
+      {list.map((it) => (
+        <SideItem key={it.href} it={it} active={isActive(pathname, it.href)} compact lk={look(it.href)} handlers={handlers(it.href)} />
+      ))}
+    </div>
   );
 }
 

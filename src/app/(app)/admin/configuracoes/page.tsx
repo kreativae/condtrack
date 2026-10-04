@@ -17,6 +17,8 @@ import { NeonPanel } from "@/components/integrations/neon-panel";
 import { Badge, Card, CardHeader, PageHeader, cx } from "@/components/ui";
 import { CopyField, SettingsForm, type ClientField } from "./settings-form";
 import { LoginAppearanceForm } from "./login-appearance-form";
+import { MenuStyleForm } from "./menu-style-form";
+import { getMenuStyle } from "@/lib/menu-style-server";
 import { ThemeAppearanceForm } from "./theme-appearance-form";
 import { getThemeAppearance } from "@/lib/theme-appearance-server";
 import { getLoginAppearance } from "@/lib/login-appearance-server";
@@ -46,9 +48,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
   const { aba } = sp;
   // "aparencia": cores de todas as páginas (claro e escuro), com prévia
   if (aba === "aparencia") {
-    const [t, jar] = await Promise.all([getThemeAppearance(), cookies()]);
+    const [t, jar, menuStyle] = await Promise.all([getThemeAppearance(), cookies(), getMenuStyle()]);
     return (
       <SettingsShell current="aparencia">
+        <MenuStyleForm initial={menuStyle} />
         <ThemeAppearanceForm initial={t} current={jar.get("theme")?.value === "dark" ? "dark" : "light"} />
       </SettingsShell>
     );

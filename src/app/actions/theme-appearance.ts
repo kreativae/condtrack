@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { HEX_RE, THEME_KEYS, THEME_SETTING_KEY, emptyTheme } from "@/lib/theme-appearance";
 import { getThemeAppearance } from "@/lib/theme-appearance-server";
+import { MENU_SETTING_KEY, MENU_STYLES, isMenuStyle } from "@/lib/menu-style";
+import { getMenuStyle } from "@/lib/menu-style-server";
 
 export type ThemeAppearanceState = { error?: string; ok?: boolean; message?: string } | undefined;
 
@@ -42,4 +44,20 @@ export async function saveThemeAppearance(_prev: ThemeAppearanceState, form: For
   // As cores vão no layout raiz: vale para todas as páginas
   revalidatePath("/", "layout");
   return { ok: true, message: "Cores atualizadas em todas as páginas." };
+}
+
+/** Estilo do menu lateral (vale para toda a plataforma, no computador). */
+export async function saveMenuStyle(_prev: ThemeAppearanceState, form: FormData): Promise<ThemeAppearanceState> {
+  const user = await requireUser("superadmin");
+  const style = String(form.get("style") ?? "");
+  if (!isMenuStyle(style)) return { error: "Escolha um estilo de menu." };
+  const before = await getMenuStyle();
+  await db.setting.upsert({
+    where: { key: MENU_SETTING_KEY },
+    create: { key: MENU_SETTING_KEY, value: JSON.stringify({ style }), updatedById: user.id },
+    update: { value: JSON.stringify({ style }), updatedById: user.id },
+  });
+  await audit(user, "update", "setting", MENU_SETTING_KEY, { old: { estilo: before }, new: { estilo: style } });
+  revalidatePath("/", "layout");
+  return { ok: true, message: `Menu “${MENU_STYLES[style].label}” aplicado para todos.` };
 }

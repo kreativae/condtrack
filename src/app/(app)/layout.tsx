@@ -22,6 +22,7 @@ import { Avatar } from "@/components/ui";
 import { unitLabel } from "@/lib/units";
 import { redirect } from "next/navigation";
 import { termsVersion } from "@/lib/legal";
+import { getMenuStyle } from "@/lib/menu-style-server";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -40,6 +41,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const base = NAV[user.role].filter((i) => i.href !== "/meus-condominios" || ms.length > 1).filter((i) => (i.href !== "/financeiro" || showFinanceNav(user)) && (i.href !== "/auditoria" || hasPermission(user, "audit")));
   // Ordem escolhida pelo usuário (segurar e arrastar no menu); páginas novas entram no lugar padrão, no fim
   const saved = user.navOrder ? user.navOrder.split(",") : [];
+  // Estilo do menu do computador (Configurações → Aparência)
+  const menuStyle = await getMenuStyle();
   const rank = (href: string, i: number) => (saved.includes(href) ? saved.indexOf(href) : 1000 + i);
   const items = base.map((it, i) => ({ it, r: rank(it.href, i) })).sort((a, b) => a.r - b.r).map((x) => x.it);
   const customized = saved.length > 0;
@@ -100,7 +103,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
         )}
 
-        <SideNav items={items} customized={customized} />
+        <SideNav items={items} customized={customized} menuStyle={menuStyle} />
 
         <div className="mt-auto space-y-1 border-t border-line pt-3">
           <Link href="/perfil" className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-bg-2">
