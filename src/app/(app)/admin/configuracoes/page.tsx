@@ -51,8 +51,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
     const [t, jar, menuStyle] = await Promise.all([getThemeAppearance(), cookies(), getMenuStyle()]);
     return (
       <SettingsShell current="aparencia">
-        <MenuStyleForm initial={menuStyle} />
-        <ThemeAppearanceForm initial={t} current={jar.get("theme")?.value === "dark" ? "dark" : "light"} />
+        <div className="min-w-0 space-y-6">
+          <MenuStyleForm initial={menuStyle} />
+          <ThemeAppearanceForm initial={t} current={jar.get("theme")?.value === "dark" ? "dark" : "light"} />
+        </div>
       </SettingsShell>
     );
   }
