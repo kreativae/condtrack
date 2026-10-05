@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDateTime, nowMs } from "@/lib/format";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
-import { financeAccess, financeCondo, financePeriod, shiftMonth } from "@/lib/finance-server";
+import { currentMonthKey, financeAccess, financeCondo, financePeriod, shiftMonth } from "@/lib/finance-server";
 import { FIN_STATUS, FIN_TYPES, LOG_LABEL, dateToDay, fmtBRL, fmtDayBR, type FinStatus } from "@/lib/finance";
 import { setCouncilFinanceAccess } from "@/app/actions/finance";
 import { ExportButton } from "./export-button";
@@ -55,6 +55,8 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
   if (!access.view) redirect("/dashboard");
 
   const p = financePeriod({ ...sp, de: undefined, ate: undefined }) as Exclude<ReturnType<typeof financePeriod>, { kind: "range" }>;
+  // "Ver por mês" volta ao mês atual quando o ano exibido é o de agora; em outros anos, a janeiro
+  const thisMonth = currentMonthKey();
   const now = nowMs();
   const tipo = str(sp.tipo);
   const status = str(sp.status);
@@ -144,7 +146,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
             <Link href={href({ ano: String(Number(p.key) - 1) })} className={buttonClass("outline", "sm")} aria-label="Ano anterior"><ChevronLeft className="size-4" /></Link>
             <p className="min-w-40 text-center font-display text-lg font-semibold">{periodLabel}</p>
             <Link href={href({ ano: String(Number(p.key) + 1) })} className={buttonClass("outline", "sm")} aria-label="Próximo ano"><ChevronRight className="size-4" /></Link>
-            <Link href={href({ ano: undefined, mes: `${p.key}-01` })} className={cx(buttonClass("ghost", "sm"), "ml-1")}>Ver por mês</Link>
+            <Link href={href({ ano: undefined, mes: thisMonth.startsWith(p.key) ? thisMonth : `${p.key}-01` })} className={cx(buttonClass("ghost", "sm"), "ml-1")}>Ver por mês</Link>
           </>
         )}
       </div>

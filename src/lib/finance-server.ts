@@ -82,6 +82,11 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const validDay = (v: unknown): v is string => typeof v === "string" && DAY.test(v) && !Number.isNaN(new Date(`${v}T12:00:00-03:00`).getTime());
 
 /** Intervalo livre (de/até YYYY-MM-DD), de um mês (YYYY-MM) ou de um ano (YYYY), no fuso de Brasília. */
+/** Mês atual (AAAA-MM) no fuso de Brasília. */
+export function currentMonthKey() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
+}
+
 export function financePeriod(sp: Record<string, string | string[] | undefined>) {
   if (validDay(sp.de) && validDay(sp.ate)) {
     const [a, b] = sp.de <= sp.ate ? [sp.de, sp.ate] : [sp.ate, sp.de];
@@ -89,7 +94,7 @@ export function financePeriod(sp: Record<string, string | string[] | undefined>)
     end.setUTCDate(end.getUTCDate() + 1);
     return { kind: "range" as const, key: `${a}_${b}`, label: `${fmtDayBR(`${a}T12:00:00-03:00`)} a ${fmtDayBR(`${b}T12:00:00-03:00`)}`, from: new Date(`${a}T00:00:00-03:00`), to: end };
   }
-  const now = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
+  const now = currentMonthKey();
   const ano = typeof sp.ano === "string" && /^\d{4}$/.test(sp.ano) ? sp.ano : null;
   if (ano) {
     return { kind: "year" as const, key: ano, label: `Ano de ${ano}`, from: new Date(`${ano}-01-01T00:00:00-03:00`), to: new Date(`${Number(ano) + 1}-01-01T00:00:00-03:00`) };
