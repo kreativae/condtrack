@@ -123,7 +123,7 @@ export async function verifyPasskeyLogin(response: AuthenticationResponseJSON, n
   }
 
   await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lastLoginAt: new Date() } });
-  await setSessionCookie({ uid: user.id });
+  await setSessionCookie({ uid: user.id }, { login: true });
   await audit({ id: user.id, condominiumId: user.condominiumId, impersonator: null }, "login_passkey", "user", user.id);
   return { ok: true, data: { redirect: next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard" } };
 }

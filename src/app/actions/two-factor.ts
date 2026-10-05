@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requireUser, setSessionCookie } from "@/lib/auth";
+import { HIDE_2FA_TIP_COOKIE, requireUser, setSessionCookie } from "@/lib/auth";
 import { decryptSecret, encryptSecret, getSettings } from "@/lib/settings";
 import { PENDING_2FA_COOKIE, verifyPending2fa } from "@/lib/session-token";
 import { consumeRecoveryCode, newRecoveryCodes, newTotpSecret, otpauthUri, verifyTotp } from "@/lib/totp";
@@ -129,7 +129,14 @@ export async function verifyLoginCode(_: LoginCodeState, form: FormData): Promis
 
   await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() } });
   jar.delete(PENDING_2FA_COOKIE);
-  await setSessionCookie({ uid: user.id });
+  await setSessionCookie({ uid: user.id }, { login: true });
   await audit(actor, "login", "user", user.id, { new: { duasEtapas: how === "app" ? "app" : "código de recuperação" } });
   redirect(pending.next.startsWith("/") && !pending.next.startsWith("//") ? pending.next : "/dashboard");
+}
+
+/** Oculta o lembrete das duas etapas até o próximo login (cookie de sessão, apagado ao entrar de novo). */
+export async function hideTwoFactorReminder() {
+  await requireUser();
+  (await cookies()).set(HIDE_2FA_TIP_COOKIE, "1", { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
+  revalidatePath("/dashboard");
 }

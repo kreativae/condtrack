@@ -7,10 +7,16 @@ import { SESSION_COOKIE, signSession, verifySession, type SessionPayload } from 
 import { getSettings } from "./settings";
 import type { Role } from "./roles";
 
-export async function setSessionCookie(payload: SessionPayload) {
+/** Avisos que a pessoa ocultou até o próximo login (ex.: lembrete das duas etapas). */
+export const HIDE_2FA_TIP_COOKIE = "hide_2fa_tip";
+
+/** `login: true` = novo acesso (senha, biometria, duas etapas): os avisos ocultados voltam a aparecer. */
+export async function setSessionCookie(payload: SessionPayload, opts?: { login?: boolean }) {
   const ttl = Number((await getSettings("security")).sessionHours ?? 12) * 3600;
   const token = await signSession(payload, ttl);
-  (await cookies()).set(SESSION_COOKIE, token, {
+  const jar = await cookies();
+  if (opts?.login) jar.delete(HIDE_2FA_TIP_COOKIE);
+  jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

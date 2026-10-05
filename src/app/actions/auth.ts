@@ -71,7 +71,7 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   }
 
   await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() } });
-  await setSessionCookie({ uid: user.id });
+  await setSessionCookie({ uid: user.id }, { login: true });
   await audit({ id: user.id, condominiumId: user.condominiumId, impersonator: null }, "login", "user", user.id);
 
   redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");

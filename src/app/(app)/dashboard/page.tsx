@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { HIDE_2FA_TIP_COOKIE, requireUser } from "@/lib/auth";
+import { TwoFactorReminder } from "./two-factor-reminder";
 import { adminScope } from "@/lib/admin-scope-server";
 import { SuperadminDashboard } from "./superadmin";
 import { SyndicDashboard } from "./syndic";
@@ -16,16 +16,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const user = await requireUser();
   const welcome = (await searchParams)["bem-vindo"] === "1";
   // Quem mexe no financeiro e nas permissões: lembrete até ativar as duas etapas
-  const remind = (user.role === "superadmin" || user.role === "syndic") && !user.totpEnabledAt && !user.impersonator;
+  // (o X oculta até o próximo login)
+  const remind = (user.role === "superadmin" || user.role === "syndic") && !user.totpEnabledAt && !user.impersonator && !(await cookies()).has(HIDE_2FA_TIP_COOKIE);
   return (
     <>
-      {remind && (
-        <Link href="/perfil#duas-etapas" className="mb-6 flex items-center gap-3 rounded-2xl bg-warn/10 px-4 py-3 text-sm text-fg-2 ring-1 ring-inset ring-warn/15 hover:bg-warn/15">
-          <ShieldCheck className="size-5 shrink-0 text-warn" />
-          <span className="min-w-0 flex-1"><b className="text-fg">Proteja sua conta:</b> ative a verificação em duas etapas. Leva 1 minuto.</span>
-          <span className="shrink-0 text-xs font-medium text-brand">Ativar →</span>
-        </Link>
-      )}
+      {remind && <TwoFactorReminder />}
       {await board(user, welcome)}
     </>
   );

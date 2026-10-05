@@ -61,7 +61,7 @@ export async function createFirstAdmin(_prev: SetupState, form: FormData): Promi
     throw e;
   }
 
-  await setSessionCookie({ uid: userId });
+  await setSessionCookie({ uid: userId }, { login: true });
   await audit({ id: userId, condominiumId: null, impersonator: null }, "setup_completed", "user", userId, { new: { name: d.name, email: d.email } });
   redirect("/dashboard?bem-vindo=1");
 }
