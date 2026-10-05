@@ -9,7 +9,7 @@ import { audit } from "@/lib/audit";
 import { financeAccess, financeLog, loadEntryFor } from "@/lib/finance-server";
 import { DAY_RE, FIN_STATUS, FIN_TYPES, dateToDay, dayToDate, fmtBRL, parseBRL } from "@/lib/finance";
 
-export type FinanceState = { error?: string; ok?: boolean; message?: string } | undefined;
+export type FinanceState = { error?: string; ok?: boolean; message?: string; id?: string } | undefined;
 
 const fail = (e: unknown): FinanceState => ({ error: e instanceof z.ZodError ? e.issues[0].message : e instanceof Error ? e.message : "Erro inesperado." });
 
@@ -108,6 +108,8 @@ export async function createFinanceEntry(_prev: FinanceState, form: FormData): P
     return fail(e);
   }
   refresh();
+  // "stay": o formulário ainda vai enviar os anexos escolhidos e abre o lançamento depois
+  if (form.get("stay") === "1") return { ok: true, id };
   redirect(`/financeiro/${id}`);
 }
 
