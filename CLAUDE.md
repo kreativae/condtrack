@@ -29,7 +29,8 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   (`castVote`, um voto por unidade em cada item). Inquilino e dependente não votam.
 - **Auditoria**: ações críticas chamam `audit()` (`src/lib/audit.ts`), inclusive no modo "visualizar como".
 - **Mídias**: fotos sem marca d'água; os dados de captura (data, GPS, aparelho) ficam só nos metadados da OS.
-- **Financeiro**: nunca apagar lançamentos, anexos ou logs de verdade; o histórico é a prestação de contas.
+- **Financeiro**: nunca apagar lançamentos, anexos ou logs de verdade; o histórico é a prestação de contas Única exceção: a exclusão
+  definitiva de um condomínio arquivado, que exige o backup baixado (ver “Excluir condomínio real”).
 - **Segredos** em `Setting` são cifrados (AES-256-GCM). Conteúdo público (login, aparência) é JSON puro.
 
 ## Onde mora cada coisa (além do README)
@@ -81,7 +82,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `actions/admin.ts`): some de todas as listas, do seletor e dos vínculos (filtro `deletedAt: null` em cada consulta de
   condomínios, em `adminScope`, `financeCondo`, `userMemberships` e nas listas globais de OS/feed), mas nada é apagado.
   Quem só tinha esse condomínio fica `inactive` (ids em `archivedUserIds`, reativados ao restaurar). Exige assinatura
-  cancelada e digitar o nome. **Lista nova de condomínios precisa do filtro `deletedAt: null`.** Sessão que não vale
+  cancelada e digitar o nome. **Lista nova de condomínios precisa do filtro `deletedAt: null`.**
+  Arquivado → **Excluir de vez** (`purgeCondominium` em `actions/admin.ts`, `lib/condo-purge.ts`): exige backup baixado nas
+  últimas 24 h (`/api/admin/condominios/[id]/backup`, .zip com `dados.json` + anexos do Financeiro, gerado por `lib/zip.ts`;
+  registrado na auditoria como `backup`) e o nome digitado. Apaga dados, arquivos e as contas só desse condomínio
+  (se alguma estiver presa a outros registros, fica desativada). Sessão que não vale
   mais (conta desativada, condomínio arquivado) passa por `/api/sair`, que limpa o cookie (evita laço login ↔ dashboard).
 - **Edição completa do condomínio** (superadmin, página do condomínio): tipo e nomenclatura (casas/lotes acompanham),
   logo (`brand/`), horário do checklist, acesso do conselho (registrado no FinanceLog), ativo e síndicos (`assignSyndic`,

@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { BACKUP_VALID_HOURS, purgeCondominiumData } from "@/lib/condo-purge";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { slugify } from "@/lib/format";
@@ -476,6 +477,30 @@ export async function archiveCondominium(id: string, _: AdminState, form: FormDa
 
   const jar = await cookies();
   if (jar.get(ADMIN_CONDO_COOKIE)?.value === id) jar.delete(ADMIN_CONDO_COOKIE);
+  revalidatePath("/", "layout");
+  redirect("/admin/condominios");
+}
+
+/**
+ * Exclusão definitiva de um condomínio já arquivado. Exige o backup baixado nas últimas 24 h e o nome digitado.
+ * Apaga os dados, os arquivos e as contas que só tinham vínculo com ele; a auditoria guarda o resumo.
+ */
+export async function purgeCondominium(id: string, _prev: AdminState, form: FormData): Promise<AdminState> {
+  const me = await requireUser("superadmin");
+  if (me.impersonator) return { error: "Indisponível em modo de visualização." };
+  const c = await db.condominium.findUnique({ where: { id }, select: { name: true, deletedAt: true, demo: true } });
+  if (!c) return { error: "Condomínio não encontrado." };
+  if (!c.deletedAt) return { error: "Exclua (arquive) o condomínio antes da exclusão definitiva." };
+  if (String(form.get("confirm") ?? "").trim().toLowerCase() !== c.name.trim().toLowerCase()) return { error: `Digite ${c.name} para confirmar.` };
+  const since = new Date(Date.now() - BACKUP_VALID_HOURS * 3600_000);
+  const backup = await db.auditLog.findFirst({ where: { action: "backup", entityType: "condominium", entityId: id, createdAt: { gte: since } } });
+  if (!backup) return { error: "Baixe o backup antes de excluir de vez." };
+  const r = await purgeCondominiumData(id);
+  if (!r) return { error: "Condomínio não encontrado." };
+  await audit(me, "purge", "condominium", id, {
+    old: { condominio: r.name, ordensDeServico: r.orders, contasApagadas: r.deleted, contasDesativadas: r.deactivated, backupEm: backup.createdAt },
+    condominiumId: null,
+  });
   revalidatePath("/", "layout");
   redirect("/admin/condominios");
 }

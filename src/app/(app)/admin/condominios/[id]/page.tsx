@@ -10,7 +10,7 @@ import { saveCondominium } from "@/app/actions/admin";
 import { CondoForm } from "@/components/admin/condo-form";
 import { DeleteDemoButton } from "@/components/admin/delete-demo-button";
 import { SyndicsCard } from "@/components/admin/syndics-card";
-import { ArchiveCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
+import { ArchiveCondoButton, PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
 import { fmtDateTime } from "@/lib/format";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { LAYOUTS, type Layout } from "@/lib/units";
@@ -42,7 +42,7 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
         actions={
           <>
             <LinkButton variant="outline" href={`/admin/usuarios/novo?role=syndic`}><UserPlus className="size-4" />Cadastrar síndico</LinkButton>
-            {c.demo ? <DeleteDemoButton id={c.id} name={c.name} /> : c.deletedAt ? <RestoreCondoButton id={c.id} /> : <ArchiveCondoButton id={c.id} name={c.name} />}
+            {c.demo ? <DeleteDemoButton id={c.id} name={c.name} /> : c.deletedAt ? <><RestoreCondoButton id={c.id} /><PurgeCondoButton id={c.id} name={c.name} /></> : <ArchiveCondoButton id={c.id} name={c.name} />}
           </>
         }
       />

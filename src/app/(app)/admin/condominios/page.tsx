@@ -7,7 +7,7 @@ import { orderMetrics, fmtHours } from "@/lib/metrics";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { SubscriptionBadge } from "@/components/billing/shared";
 import { DemoCondoButton } from "@/components/admin/demo-condo-button";
-import { RestoreCondoButton } from "@/components/admin/archive-condo";
+import { PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
 import { fmtDateTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Condomínios" };
@@ -71,7 +71,10 @@ export default async function CondosPage() {
                   <Link href={`/admin/condominios/${a.id}`} className="font-medium hover:text-brand">{a.name}</Link>
                   <p className="text-xs text-muted">Excluído em {fmtDateTime(a.deletedAt)}{a.deletedBy && ` por ${a.deletedBy}`} · dados guardados</p>
                 </div>
-                <RestoreCondoButton id={a.id} size="sm" />
+                <div className="flex gap-2">
+                  <RestoreCondoButton id={a.id} size="sm" />
+                  <PurgeCondoButton id={a.id} name={a.name} size="sm" />
+                </div>
               </li>
             ))}
           </ul>
