@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/roles";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDate, fmtDateTime } from "@/lib/format";
+import { legalMessages } from "@/lib/legal";
 import { logout } from "@/app/actions/auth";
 import { Avatar, Card, CardHeader, PageHeader, buttonClass } from "@/components/ui";
 import { EmailForm, PasswordForm, ProfileForm } from "./forms";
@@ -19,11 +20,12 @@ export const metadata: Metadata = { title: "Meu perfil" };
 
 export default async function ProfilePage() {
   const user = await requireUser();
-  const [passkeys, pk, tf, devices] = await Promise.all([
+  const [passkeys, pk, tf, devices, lm] = await Promise.all([
     db.passkey.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
     passkeyConfig(),
     db.user.findUnique({ where: { id: user.id }, select: { recoveryCodes: true } }),
     db.pushDevice.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+    legalMessages({ data: user.deletionRequestedAt ? fmtDate(user.deletionRequestedAt) : "" }),
   ]);
   return (
     <div className="mx-auto max-w-6xl animate-in">
@@ -60,6 +62,7 @@ export default async function ProfilePage() {
                 version={user.termsVersion}
                 deletionRequestedAt={user.deletionRequestedAt?.toISOString() ?? null}
                 superadmin={user.role === "superadmin"}
+                texts={{ intro: lm.profileIntro, warning: lm.deletionWarning, pending: lm.deletionPending }}
                 disabledReason={user.impersonator ? "Indisponível em modo de visualização." : undefined}
               />
             </div>

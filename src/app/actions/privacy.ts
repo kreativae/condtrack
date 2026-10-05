@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { termsVersion } from "@/lib/legal";
+import { legalMessages, termsVersion } from "@/lib/legal";
 
 // LGPD: aceite dos termos e pedidos do titular (exclusão da conta).
 
@@ -42,7 +42,7 @@ export async function requestAccountDeletion(_: PrivacyState, form: FormData): P
     });
   }
   revalidatePath("/perfil");
-  return { ok: true, message: "Pedido registrado. A administração vai concluir a exclusão e avisar você." };
+  return { ok: true, message: (await legalMessages()).deletionDone };
 }
 
 /** Desiste do pedido de exclusão. */

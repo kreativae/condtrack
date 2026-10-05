@@ -9,8 +9,10 @@ import { SubmitButton } from "@/components/submit-button";
 import { Alert, Button, Field, Textarea, buttonClass } from "@/components/ui";
 
 /** LGPD em Meu perfil: documentos, aceite, cópia dos dados e pedido de exclusão. */
-export function PrivacyCard({ acceptedAt, version, deletionRequestedAt, superadmin, disabledReason }: {
+export function PrivacyCard({ acceptedAt, version, deletionRequestedAt, superadmin, disabledReason, texts }: {
   acceptedAt: string | null; version: string | null; deletionRequestedAt: string | null; superadmin: boolean; disabledReason?: string;
+  /** Textos editáveis em Configurações → Dados legais, já com as variáveis preenchidas. */
+  texts: { intro: string; warning: string; pending: string };
 }) {
   const [asking, setAsking] = useState(false);
   const [state, form, pending] = useFormSubmit(requestAccountDeletion);
@@ -19,6 +21,7 @@ export function PrivacyCard({ acceptedAt, version, deletionRequestedAt, superadm
 
   return (
     <div className="space-y-4 text-sm">
+      {texts.intro && <p className="whitespace-pre-line text-fg-2">{texts.intro}</p>}
       <p className="text-fg-2">
         Leia os <Link href="/termos" target="_blank" className="font-medium text-brand hover:underline">Termos de Uso</Link> e a{" "}
         <Link href="/privacidade" target="_blank" className="font-medium text-brand hover:underline">Política de Privacidade</Link>.
@@ -36,7 +39,7 @@ export function PrivacyCard({ acceptedAt, version, deletionRequestedAt, superadm
           </div>
           {deletionRequestedAt && (
             <div className="space-y-2 rounded-xl bg-warn/10 p-4 ring-1 ring-inset ring-warn/20">
-              <p className="text-fg-2">Você pediu a exclusão da conta em {day(deletionRequestedAt)}. A administração vai concluir e avisar você.</p>
+              <p className="whitespace-pre-line text-fg-2">{texts.pending}</p>
               <Button variant="ghost" size="sm" disabled={cancelling} onClick={() => start(() => cancelAccountDeletion())}>
                 {cancelling && <Loader2 className="size-4 animate-spin" />}Desistir do pedido
               </Button>
@@ -44,7 +47,7 @@ export function PrivacyCard({ acceptedAt, version, deletionRequestedAt, superadm
           )}
           {asking && !deletionRequestedAt && (
             <form {...form} className="space-y-3">
-              <p className="text-fg-2">A conta deixa de existir e você perde o acesso. Registros necessários à prestação de contas do condomínio (por exemplo, quem aprovou um serviço ou um lançamento) podem ser mantidos, como a lei permite.</p>
+              <p className="whitespace-pre-line text-fg-2">{texts.warning}</p>
               <Field label="Motivo (opcional)"><Textarea name="reason" rows={2} maxLength={500} /></Field>
               <div className="flex gap-2">
                 <SubmitButton pending={pending} pendingText="Enviando…" variant="danger">Confirmar pedido</SubmitButton>

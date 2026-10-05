@@ -115,8 +115,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   empresa em Configurações → Dados legais). Aceite obrigatório da versão vigente só depois de preencher razão social e
   e-mail do encarregado (`termsVersion()` devolve null antes disso) (`User.termsVersion`; o layout manda para
   `/aceite`; mudar a "versão" em Configurações pede novo aceite de todos). Meu perfil → Privacidade: `/api/meus-dados`
-  (JSON com os dados da pessoa) e pedido de exclusão (`deletionRequestedAt`, avisa os superadmins). Textos são modelo:
-  revisar com advogado.
+  (JSON com os dados da pessoa) e pedido de exclusão (`deletionRequestedAt`, avisa os superadmins). Textos editáveis na
+  mesma aba, abaixo dos dados (Setting público `legal_texts`, guarda só o que difere do padrão; padrões e variáveis
+  `{empresa}`, `{cnpj}`… em `src/lib/legal-texts.ts`; leitura por `legalDocument()`/`legalMessages()` em `lib/legal.ts`).
+  Textos são modelo: revisar com advogado.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

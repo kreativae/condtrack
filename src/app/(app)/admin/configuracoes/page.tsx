@@ -23,6 +23,8 @@ import { ThemeAppearanceForm } from "./theme-appearance-form";
 import { getThemeAppearance } from "@/lib/theme-appearance-server";
 import { getLoginAppearance } from "@/lib/login-appearance-server";
 import { MessagesEditor } from "./messages-editor";
+import { LegalTextsEditor } from "./legal-texts-editor";
+import { getLegalTexts } from "@/lib/legal";
 import { MessagesHistory } from "./messages-history";
 import { getAllTemplates, getTemplateOverrides } from "@/lib/messages-server";
 
@@ -174,6 +176,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
               <p className="border-t border-line px-5 py-4 text-xs text-muted sm:px-6">Cada usuário ativa a biometria em <b>Meu perfil → Face ID / biometria</b>. Face ID exige HTTPS em produção (localhost funciona em desenvolvimento). Trocar o domínio invalida os aparelhos já cadastrados.</p>
             </Card>
           )}
+
+          {current === "legal" && <LegalTextsEditor initial={await getLegalTexts()} />}
 
           {current === "security" && (
             <Card>
