@@ -12,7 +12,7 @@ type Current = Record<"requestedById" | "assignedToId" | "validatedById" | "appr
   Record<"createdAt" | "assignedAt" | "startedAt" | "completedAt" | "validatedAt" | "approvedAt", string | null>;
 
 /** ISO → valor do <input type="datetime-local"> no fuso do navegador. */
-function toLocal(iso: string | null) {
+export function toLocal(iso: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");

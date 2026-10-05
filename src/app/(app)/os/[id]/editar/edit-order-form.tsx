@@ -1,12 +1,24 @@
 "use client";
 
 import { useFormSubmit } from "@/components/use-form-submit";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Star } from "lucide-react";
 import { adminUpdateOrder } from "@/app/actions/orders";
 import { Alert, Field, Input, Select, Textarea, cx } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { PRIORITY_META, STATUSES, STATUS_META } from "@/lib/workflow";
+import { toLocal } from "../responsibles-card";
+
+const DATE_FIELDS = [
+  ["createdAt", "Aberta em"],
+  ["assignedAt", "Atribuída em"],
+  ["startedAt", "Iniciada em"],
+  ["completedAt", "Concluída em"],
+  ["validatedAt", "Validada em"],
+  ["approvedAt", "Aprovada em"],
+] as const;
+type DateKey = (typeof DATE_FIELDS)[number][0];
 
 type Opt = { id: string; label: string };
 type Order = {
@@ -24,20 +36,38 @@ type Order = {
   status: string;
   serviceReport: string | null;
   executionMinutes: number | null;
-};
+  requestedById: string | null;
+  validatedById: string | null;
+  approvedById: string | null;
+  materials: string;
+  rating: number | null;
+  ratingComment: string | null;
+} & Record<DateKey, string | null>;
 
-export function EditOrderForm({ order, categories, areas, units, providers }: { order: Order; categories: Opt[]; areas: Opt[]; units: Opt[]; providers: Opt[] }) {
+export function EditOrderForm({ order, categories, areas, units, providers, people }: { order: Order; categories: Opt[]; areas: Opt[]; units: Opt[]; providers: Opt[]; people: Opt[] }) {
   const router = useRouter();
   const [state, form, pending] = useFormSubmit(adminUpdateOrder.bind(null, order.id));
   const [loc, setLoc] = useState(order.locationType);
   const [status, setStatus] = useState(order.status);
+  const [rating, setRating] = useState(order.rating ?? 0);
+
+  // datetime-local vem no fuso do navegador: envia em ISO (UTC) para o servidor
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    for (const [k] of DATE_FIELDS) {
+      const v = String(fd.get(k) ?? "");
+      fd.set(k, v ? new Date(v).toISOString() : "");
+    }
+    startTransition(() => form.action(fd));
+  }
 
   useEffect(() => {
     if (state?.ok) router.push(`/os/${order.id}`);
   }, [state, order.id, router]);
 
   return (
-    <form {...form} className="space-y-8">
+    <form action={form.action} onSubmit={onSubmit} className="space-y-8">
       <section className="space-y-5">
         <h2 className="font-display text-base font-semibold">Informações</h2>
         <Field label="Título"><Input name="title" defaultValue={order.title} required minLength={4} maxLength={120} /></Field>
@@ -92,6 +122,53 @@ export function EditOrderForm({ order, categories, areas, units, providers }: { 
           <Field label="Tempo de execução (min)"><Input type="number" name="executionMinutes" min={0} defaultValue={order.executionMinutes ?? ""} /></Field>
         </div>
         <Field label="Relatório do serviço"><Textarea name="serviceReport" defaultValue={order.serviceReport ?? ""} rows={3} /></Field>
+        <Field label="Materiais usados" hint="Um por linha; quantidade depois de ponto e vírgula (ex.: Parafuso; 4 un)."><Textarea name="materials" defaultValue={order.materials} rows={3} /></Field>
+      </section>
+
+      <section className="space-y-5 border-t border-line pt-6">
+        <h2 className="font-display text-base font-semibold">Pessoas e datas</h2>
+        <div className="grid gap-5 sm:grid-cols-3">
+          <Field label="Aberta por">
+            <Select name="requestedById" required defaultValue={order.requestedById ?? ""}>
+              <option value="" disabled>Selecione…</option>
+              {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </Select>
+          </Field>
+          <Field label="Validada por">
+            <Select name="validatedById" defaultValue={order.validatedById ?? ""}>
+              <option value="">Ninguém</option>
+              {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </Select>
+          </Field>
+          <Field label="Aprovada por">
+            <Select name="approvedById" defaultValue={order.approvedById ?? ""}>
+              <option value="">Ninguém</option>
+              {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </Select>
+          </Field>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-3">
+          {DATE_FIELDS.map(([k, label]) => (
+            <Field key={k} label={label}>
+              <Input type="datetime-local" name={k} required={k === "createdAt"} defaultValue={toLocal(order[k])} />
+            </Field>
+          ))}
+        </div>
+        <p className="text-xs text-muted">Datas vazias de etapas exigidas pelo status são preenchidas com o momento atual ao trocar o status.</p>
+      </section>
+
+      <section className="space-y-5 border-t border-line pt-6">
+        <h2 className="font-display text-base font-semibold">Avaliação do solicitante</h2>
+        <input type="hidden" name="rating" value={rating || ""} />
+        <div className="flex flex-wrap items-center gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} type="button" onClick={() => setRating(n === rating ? 0 : n)} aria-label={`${n} estrela(s)`} className="rounded-lg p-1 hover:bg-bg-2">
+              <Star className={cx("size-6", n <= rating ? "fill-brand text-brand" : "text-muted")} strokeWidth={1.4} />
+            </button>
+          ))}
+          <span className="ml-2 text-xs text-muted">{rating ? "Clique na mesma estrela para remover." : "Sem avaliação."}</span>
+        </div>
+        {rating > 0 && <Field label="Comentário da avaliação"><Textarea name="ratingComment" defaultValue={order.ratingComment ?? ""} rows={2} maxLength={1000} /></Field>}
       </section>
 
       <section className="space-y-5 border-t border-line pt-6">

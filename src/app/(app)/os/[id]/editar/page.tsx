@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { Card, PageHeader } from "@/components/ui";
 import { EditOrderForm } from "./edit-order-form";
 import { byUnit, unitLabel } from "@/lib/units";
+import { ROLE_LABEL, type Role } from "@/lib/roles";
 
 export const metadata: Metadata = { title: "Editar OS" };
 
@@ -17,13 +18,17 @@ export default async function EditOrderPage({ params }: PageProps<"/os/[id]/edit
   const o = await db.serviceOrder.findUnique({ where: { id }, include: { condominium: { select: { name: true } } } });
   if (!o) notFound();
   const cid = o.condominiumId;
-  const [categories, areas, units, providers] = await Promise.all([
+  const [categories, areas, units, providers, people] = await Promise.all([
     db.serviceCategory.findMany({ where: { condominiumId: cid }, orderBy: { name: "asc" } }),
     db.commonArea.findMany({ where: { condominiumId: cid }, orderBy: { name: "asc" } }),
     db.unit.findMany({ where: { building: { condominiumId: cid } }, include: { building: true }, orderBy: [{ building: { name: "asc" } }, { number: "asc" }] }),
     // Só prestadores ativos — mais o atual da OS, para a seleção não perder o valor
     db.user.findMany({ where: { ...inCondo(cid, ["provider"]), OR: [{ status: "active" }, { id: o.assignedToId ?? "__none__" }] }, orderBy: { name: "asc" } }),
+    // Quem pode constar como solicitante, validador ou aprovador: pessoas do condomínio e superadmins
+    db.user.findMany({ where: { OR: [inCondo(cid), { role: "superadmin" }] }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } }),
   ]);
+  const iso = (d: Date | null) => d?.toISOString() ?? null;
+  const materials: { item: string; qty: string }[] = JSON.parse(o.materialsUsed || "[]");
 
   return (
     <div className="mx-auto max-w-3xl animate-in">
@@ -37,7 +42,13 @@ export default async function EditOrderPage({ params }: PageProps<"/os/[id]/edit
             id: o.id, title: o.title, description: o.description, categoryId: o.categoryId, priority: o.priority, locationType: o.locationType,
             commonAreaId: o.commonAreaId, unitId: o.unitId, locationNote: o.locationNote, dueDate: o.dueDate?.toISOString().slice(0, 10) ?? null,
             assignedToId: o.assignedToId, status: o.status, serviceReport: o.serviceReport, executionMinutes: o.executionMinutes,
+            requestedById: o.requestedById, validatedById: o.validatedById, approvedById: o.approvedById,
+            createdAt: o.createdAt.toISOString(), assignedAt: iso(o.assignedAt), startedAt: iso(o.startedAt), completedAt: iso(o.completedAt),
+            validatedAt: iso(o.validatedAt), approvedAt: iso(o.approvedAt),
+            materials: materials.map((m) => (m.qty ? `${m.item}; ${m.qty}` : m.item)).join("\n"),
+            rating: o.rating, ratingComment: o.ratingComment,
           }}
+          people={people.map((p) => ({ id: p.id, label: `${p.name} · ${ROLE_LABEL[p.role as Role] ?? p.role}` }))}
           categories={categories.map((c) => ({ id: c.id, label: c.name }))}
           areas={areas.map((a) => ({ id: a.id, label: a.name }))}
           units={units.sort(byUnit).map((u) => ({ id: u.id, label: unitLabel(u, true) }))}

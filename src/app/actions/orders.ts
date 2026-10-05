@@ -318,6 +318,17 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
   if (provider && provider.id !== o.assignedToId && provider.status !== "active") return fail("Este prestador está inativo. Escolha um prestador ativo.");
 
   const now = new Date();
+  // Página de edição completa: datas de cada etapa, pessoas, materiais e avaliação vêm junto
+  const full = form.has("createdAt");
+  let extra: Awaited<ReturnType<typeof parseFullEdit>> | null = null;
+  try {
+    if (full) extra = await parseFullEdit(o, form);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Dados inválidos.");
+  }
+  const dates = extra?.dates;
+  const providerChanged = (provider?.id ?? null) !== o.assignedToId;
+  const statusChanged = d.status !== o.status;
   const data = {
     title: d.title,
     description: d.description,
@@ -330,18 +341,37 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
     // O campo só tem o dia: mantém o horário original se o dia não mudou
     dueDate: !d.dueDate ? null : o.dueDate?.toISOString().slice(0, 10) === d.dueDate ? o.dueDate : new Date(`${d.dueDate}T18:00:00`),
     assignedToId: provider?.id ?? null,
-    assignedAt: provider && provider.id !== o.assignedToId ? now : provider ? o.assignedAt : null,
+    // Data de atribuição digitada vale; sem ela, troca de prestador marca agora
+    assignedAt: !provider ? null : dates && !sameTime(dates.assignedAt, o.assignedAt) ? dates.assignedAt : providerChanged ? now : o.assignedAt,
     serviceReport: d.serviceReport ?? null,
     executionMinutes: d.executionMinutes ?? null,
     status: d.status,
-    // Ao forçar um status, preenche os marcos que ainda estiverem vazios
-    ...(d.status !== o.status && {
-      ...(["in_progress", "completed", "validated", "approved"].includes(d.status) && { startedAt: o.startedAt ?? now }),
-      ...(["completed", "validated", "approved"].includes(d.status) && { completedAt: o.completedAt ?? now }),
-      ...(["validated", "approved"].includes(d.status) && { validatedAt: o.validatedAt ?? now, validatedById: o.validatedById ?? user.id }),
-      ...(d.status === "approved" && { approvedAt: o.approvedAt ?? now, approvedById: o.approvedById ?? user.id }),
+    ...(extra && {
+      createdAt: extra.dates.createdAt!,
+      startedAt: extra.dates.startedAt,
+      completedAt: extra.dates.completedAt,
+      validatedAt: extra.dates.validatedAt,
+      approvedAt: extra.dates.approvedAt,
+      requestedById: extra.people.requestedById,
+      validatedById: extra.people.validatedById,
+      approvedById: extra.people.approvedById,
+      materialsUsed: extra.materialsUsed,
+      rating: extra.rating,
+      ratingComment: extra.ratingComment,
     }),
   };
+  // Ao forçar um status, preenche os marcos que ainda estiverem vazios
+  if (statusChanged) {
+    const base = { ...o, ...data };
+    if (["in_progress", "completed", "validated", "approved"].includes(d.status)) data.startedAt = base.startedAt ?? now;
+    if (["completed", "validated", "approved"].includes(d.status)) data.completedAt = base.completedAt ?? now;
+    if (["validated", "approved"].includes(d.status)) Object.assign(data, { validatedAt: base.validatedAt ?? now, validatedById: base.validatedById ?? user.id });
+    if (d.status === "approved") Object.assign(data, { approvedAt: base.approvedAt ?? now, approvedById: base.approvedById ?? user.id });
+  } else if (extra) {
+    for (const k of REQUIRED_BY_STATUS[d.status] ?? []) {
+      if (!data[k]) return fail(`Com o status “${STATUS_META[d.status].label}”, a data de ${DATE_LABEL[k]} é obrigatória.`);
+    }
+  }
 
   const changed = (Object.keys(data) as (keyof typeof data)[]).filter((k) => {
     const before = o[k as keyof typeof o];
@@ -353,6 +383,9 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
   const LABEL: Partial<Record<keyof typeof data, string>> = {
     title: "título", description: "descrição", categoryId: "categoria", priority: "prioridade", locationType: "local", commonAreaId: "local", unitId: "local",
     locationNote: "complemento", dueDate: "prazo", assignedToId: "prestador", serviceReport: "relatório", executionMinutes: "tempo de execução", status: "status",
+    createdAt: "data de abertura", assignedAt: "data de atribuição", startedAt: "data de início", completedAt: "data de conclusão", validatedAt: "data de validação",
+    approvedAt: "data de aprovação", requestedById: "aberta por", validatedById: "validada por", approvedById: "aprovada por", materialsUsed: "materiais",
+    rating: "avaliação", ratingComment: "comentário da avaliação",
   };
   const fieldsChanged = [...new Set(changed.map((k) => LABEL[k]).filter(Boolean))];
   const reason = d.reason ? ` Motivo: ${d.reason}` : "";
@@ -400,6 +433,52 @@ const REQUIRED_BY_STATUS: Partial<Record<Status, (typeof DATES)[number][]>> = {
   validated: ["startedAt", "completedAt", "validatedAt"],
   approved: ["startedAt", "completedAt", "validatedAt", "approvedAt"],
 };
+
+const sameTime = (a: Date | null | undefined, b: Date | null | undefined) => (a?.getTime() ?? null) === (b?.getTime() ?? null);
+
+/** Campos extras da edição completa (superadmin): pessoas, datas de cada etapa, materiais e avaliação. Erro = throw. */
+async function parseFullEdit(o: { condominiumId: string }, form: FormData) {
+  const people: Record<"requestedById" | "validatedById" | "approvedById", string | null> = {
+    requestedById: String(form.get("requestedById") ?? "") || null,
+    validatedById: String(form.get("validatedById") ?? "") || null,
+    approvedById: String(form.get("approvedById") ?? "") || null,
+  };
+  if (!people.requestedById) throw new Error("Informe quem abriu a OS.");
+  const ids = Object.values(people).filter((x): x is string => !!x);
+  const users = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, role: true, memberships: { where: { condominiumId: o.condominiumId }, select: { id: true } } } });
+  for (const uid of ids) {
+    const u = users.find((x) => x.id === uid);
+    if (!u || (u.role !== "superadmin" && !u.memberships.length)) throw new Error("Pessoa inválida para este condomínio.");
+  }
+
+  const dates = {} as Record<(typeof DATES)[number], Date | null>;
+  const limit = Date.now() + 5 * 60_000;
+  for (const k of DATES) {
+    const raw = String(form.get(k) ?? "");
+    const v = raw ? new Date(raw) : null;
+    if (v && Number.isNaN(v.getTime())) throw new Error(`Data de ${DATE_LABEL[k]} inválida.`);
+    if (v && v.getTime() > limit) throw new Error(`A data de ${DATE_LABEL[k]} está no futuro.`);
+    dates[k] = v;
+  }
+  if (!dates.createdAt) throw new Error("Informe a data de abertura.");
+  for (const k of DATES) {
+    if (dates[k] && dates[k]! < dates.createdAt) throw new Error(`A data de ${DATE_LABEL[k]} é anterior à abertura.`);
+  }
+
+  const materials = String(form.get("materials") ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 100)
+    .map((l) => {
+      const [item, qty] = l.split(/\s*[;|]\s*/);
+      return { item: item.slice(0, 200), qty: (qty ?? "").slice(0, 60) };
+    });
+  const r = Number(form.get("rating") ?? 0);
+  const rating = Number.isInteger(r) && r >= 1 && r <= 5 ? r : null;
+  const ratingComment = rating ? String(form.get("ratingComment") ?? "").trim().slice(0, 1000) || null : null;
+  return { people, dates, materialsUsed: JSON.stringify(materials), rating, ratingComment };
+}
 
 export async function adminUpdateResponsibles(id: string, _prev: ActionState, form: FormData): Promise<ActionState> {
   const user = await requireUser("superadmin");
