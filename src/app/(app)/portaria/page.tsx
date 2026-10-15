@@ -10,6 +10,7 @@ import { byUnit, unitLabel } from "@/lib/units";
 import { Badge, Card, CardHeader, Empty, Input, PageHeader, Select, Stat, buttonClass, cx, type Tone } from "@/components/ui";
 import { ExitButton, GateQuickActions, QuickEntryButton } from "@/components/portaria/people";
 import { ArrivalButton } from "../reservas/booking-ui";
+import { ContactAgenda } from "./agenda";
 
 export const metadata: Metadata = { title: "Portaria" };
 
@@ -37,7 +38,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 80) : "";
   const unitFilter = typeof sp.unidade === "string" ? sp.unidade : "";
   const kindFilter = typeof sp.tipo === "string" && sp.tipo in PERSON_KINDS ? (sp.tipo as PersonKind) : null;
-  const tab = sp.aba === "pessoas" ? "pessoas" : "hoje";
+  const tab = sp.aba === "pessoas" ? "pessoas" : sp.aba === "agenda" ? "agenda" : "hoje";
   const now = new Date();
   const today = brtParts(now).day;
   const dayStart = brt(today, "00:00");
@@ -138,7 +139,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 
       <div className="mb-5 flex flex-wrap items-start gap-2">
         <form action="/portaria" className="flex min-w-60 flex-1 gap-2">
-          {tab === "pessoas" && <input type="hidden" name="aba" value="pessoas" />}
+          {tab !== "hoje" && <input type="hidden" name="aba" value={tab} />}
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
             <Input name="q" defaultValue={q} placeholder="Nome, documento, empresa ou unidade" className="pl-9" />
@@ -160,7 +161,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
           <CardHeader
             title={`Resultado para “${q}”`}
             subtitle={foundTotal > found.length ? `Mostrando ${found.length} de ${foundTotal}. Refine com sobrenome, documento ou unidade.` : undefined}
-            action={<Link href={tab === "pessoas" ? "/portaria?aba=pessoas" : "/portaria"} className="text-xs font-medium text-brand hover:underline">Limpar</Link>}
+            action={<Link href={tab === "hoje" ? "/portaria" : `/portaria?aba=${tab}`} className="text-xs font-medium text-brand hover:underline">Limpar</Link>}
           />
           <ul className="divide-y divide-line">
             {guests.map((g) => (
@@ -200,12 +201,21 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
       )}
 
       <nav className="mb-5 flex gap-1 border-b border-line">
-        {([["hoje", "Hoje"], ["pessoas", "Pessoas por unidade"]] as const).map(([k, l]) => (
-          <Link key={k} href={k === "pessoas" ? "/portaria?aba=pessoas" : "/portaria"} className={cx("-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>{l}</Link>
+        {([["hoje", "Hoje"], ["agenda", "Agenda"], ["pessoas", "Pessoas por unidade"]] as const).map(([k, l]) => (
+          <Link key={k} href={k === "hoje" ? "/portaria" : `/portaria?aba=${k}`} className={cx("-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>{l}</Link>
         ))}
       </nav>
 
-      {tab === "hoje" ? (
+      {tab === "agenda" ? (
+        <Card>
+          <ContactAgenda
+            condoId={condoId}
+            sp={sp}
+            buildings={[...new Map(sorted.map((u) => [u.building.id, { id: u.building.id, name: u.building.name }])).values()]}
+            units={units}
+          />
+        </Card>
+      ) : tab === "hoje" ? (
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader title="Esperados hoje" subtitle="Convidados das reservas e quem tem autorização para hoje." />
@@ -297,14 +307,14 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
         </div>
       ) : (
         <Card>
-          <form className="flex flex-wrap gap-2 border-b border-line p-4" action="/portaria">
+          <form className="grid gap-2 border-b border-line p-4 sm:grid-cols-[repeat(2,minmax(0,1fr))_auto]" action="/portaria">
             <input type="hidden" name="aba" value="pessoas" />
-            <Select name="unidade" defaultValue={unitFilter} className="w-auto">
+            <Select name="unidade" defaultValue={unitFilter}>
               <option value="">Todas as unidades</option>
               <option value="condominio">Condomínio</option>
               {units.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
             </Select>
-            <Select name="tipo" defaultValue={kindFilter ?? ""} className="w-auto">
+            <Select name="tipo" defaultValue={kindFilter ?? ""}>
               <option value="">Todos os tipos</option>
               {(Object.keys(PERSON_KINDS) as PersonKind[]).map((k) => <option key={k} value={k}>{PERSON_KINDS[k].plural}</option>)}
             </Select>

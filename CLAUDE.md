@@ -144,7 +144,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   (`AccessEntry`) tem vários destinos (`AccessEntryUnit`; `unitId` = o primeiro); cada destino é avisado e quem não
   estava autorizado hoje vem com o alerta `{aviso}` (linha própria no modelo `gate_entry`: no motor de mensagens, linha
   com variável vazia some). Ficha em `/portaria/pessoa/[id]`. `/minha-unidade`: só as autorizações das unidades do
-  morador. `/portaria`: busca, "Esperados hoje", "No condomínio agora" (botão Saiu), linha do tempo, pessoas por unidade.
+  morador. `/portaria`: busca (só nomes, até 30), abas Hoje ("Esperados hoje", "No condomínio agora" com Saiu, linha do tempo),
+  Agenda (`portaria/agenda.tsx`: todos os contatos A–Z, letra calculada no banco sem acento, filtros de torre, tipo,
+  situação e "moradores com conta", 50 por página) e Pessoas por unidade.
   Datas no fuso de Brasília (`brt()`/`brtParts()`).
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
