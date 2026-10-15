@@ -4,9 +4,8 @@ import { ChevronRight, DoorOpen, Search } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { GRANT_STATUS, PERSON_KINDS, brt, brtParts, expectedToday, grantSchedule, grantStatus, type PersonKind } from "@/lib/booking";
+import { GRANT_STATUS, PERSON_KINDS, brt, brtParts, docKey, expectedToday, grantSchedule, grantStatus, type PersonKind } from "@/lib/booking";
 import { gateCondo } from "@/lib/booking-server";
-import { fmtDateTime } from "@/lib/format";
 import { byUnit, unitLabel } from "@/lib/units";
 import { Badge, Card, CardHeader, Empty, Input, PageHeader, Select, Stat, buttonClass, cx, type Tone } from "@/components/ui";
 import { ExitButton, GateQuickActions, QuickEntryButton } from "@/components/portaria/people";
@@ -88,34 +87,44 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 
   const gateKinds: PersonKind[] = user.role === "syndic" || user.role === "superadmin" ? ["visitor", "provider", "delivery", "resident"] : ["visitor", "provider", "delivery"];
 
-  // Busca e aba Pessoas
-  const showPeople = tab === "pessoas" || !!q;
+  // Aba Pessoas (filtros por unidade e tipo)
+  const showPeople = tab === "pessoas";
   const grantWhere: Prisma.AccessGrantWhereInput = {
     condominiumId: condoId,
-    ...(q && { OR: [{ person: { name: ci } }, { person: { document: ci } }, { person: { company: ci } }, { notes: ci }, ...(unitMatches.length ? [{ unitId: { in: unitMatches } }] : [])] }),
     ...(unitFilter && { unitId: unitFilter === "condominio" ? null : unitFilter }),
     ...(kindFilter && { kind: kindFilter }),
   };
-  const [peopleGrants, accounts, guests, loose, entryHits] = showPeople
+  const [peopleGrants, accounts] = showPeople
     ? await Promise.all([
         db.accessGrant.findMany({ where: grantWhere, include: { person: { select: { id: true, name: true, document: true, company: true, blockedAt: true } } }, orderBy: { person: { name: "asc" } }, take: 400 }),
         (!kindFilter || kindFilter === "resident") && unitFilter !== "condominio"
           ? db.userUnit.findMany({
-              where: {
-                unit: { building: { condominiumId: condoId } }, user: { status: "active" },
-                ...(q && { OR: [{ user: { name: ci } }, ...(unitMatches.length ? [{ unitId: { in: unitMatches } }] : [])] }),
-                ...(unitFilter && { unitId: unitFilter }),
-              },
+              where: { unit: { building: { condominiumId: condoId } }, user: { status: "active" }, ...(unitFilter && { unitId: unitFilter }) },
               include: { user: { select: { name: true, phone: true } } },
               take: 400,
             })
           : [],
-        q ? db.bookingGuest.findMany({ where: { OR: [{ name: ci }, { document: ci }], booking: { condominiumId: condoId, status: "approved", startAt: { lt: dayEnd }, endAt: { gt: dayStart } } }, include: { booking: { include: { commonArea: { select: { name: true } } } } }, take: 30 }) : [],
-        // Cadastradas sem nenhuma autorização (ex.: guardadas na portaria)
-        q ? db.accessPerson.findMany({ where: { condominiumId: condoId, grants: { none: {} }, OR: [{ name: ci }, { document: ci }, { company: ci }] }, take: 20 }) : [],
-        q ? db.accessEntry.findMany({ where: { condominiumId: condoId, createdAt: { gte: new Date(now.getTime() - 30 * 86400_000) }, OR: [{ notes: ci }, { name: ci }, { document: ci }] }, include: { dests: true }, orderBy: { createdAt: "desc" }, take: 15 }) : [],
       ])
-    : [[], [], [], [], []];
+    : [[], []];
+
+  // Busca: só nomes (uma linha por pessoa); o histórico fica na ficha
+  const key = docKey(q);
+  const personSearch: Prisma.AccessPersonWhereInput = {
+    condominiumId: condoId,
+    OR: [{ name: ci }, { document: ci }, { company: ci }, ...(key && key.length >= 3 ? [{ docKey: { contains: key } }] : []), ...(unitMatches.length ? [{ grants: { some: { unitId: { in: unitMatches } } } }] : [])],
+  };
+  const [found, foundTotal, foundResidents, guests] = q
+    ? await Promise.all([
+        db.accessPerson.findMany({ where: personSearch, include: { grants: { select: { unitId: true, kind: true } } }, orderBy: { name: "asc" }, take: 30 }),
+        db.accessPerson.count({ where: personSearch }),
+        db.userUnit.findMany({
+          where: { unit: { building: { condominiumId: condoId } }, user: { status: "active" }, OR: [{ user: { name: ci } }, ...(unitMatches.length ? [{ unitId: { in: unitMatches } }] : [])] },
+          include: { user: { select: { name: true, phone: true } } },
+          take: 10,
+        }),
+        db.bookingGuest.findMany({ where: { OR: [{ name: ci }, { document: ci }], booking: { condominiumId: condoId, status: "approved", startAt: { lt: dayEnd }, endAt: { gt: dayStart } } }, include: { booking: { include: { commonArea: { select: { name: true } } } } }, take: 10 }),
+      ])
+    : [[], 0, [], []];
 
   // Agrupa por unidade (torre e número) e, no fim, o condomínio
   const groups = [
@@ -132,7 +141,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
           {tab === "pessoas" && <input type="hidden" name="aba" value="pessoas" />}
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <Input name="q" defaultValue={q} placeholder="Nome, documento, empresa, unidade ou placa" className="pl-9" />
+            <Input name="q" defaultValue={q} placeholder="Nome, documento, empresa ou unidade" className="pl-9" />
           </div>
           <button className={buttonClass("outline")}>Buscar</button>
         </form>
@@ -148,38 +157,45 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 
       {q && (
         <Card className="mb-6">
-          <CardHeader title={`Resultado para “${q}”`} action={<Link href={tab === "pessoas" ? "/portaria?aba=pessoas" : "/portaria"} className="text-xs font-medium text-brand hover:underline">Limpar</Link>} />
-          {guests.length > 0 && (
-            <ul className="divide-y divide-line border-b border-line">
-              {guests.map((g) => (
-                <li key={g.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-                  <div className="min-w-0 flex-1"><p className="font-medium">{g.name}</p><p className="text-xs text-muted">Convidado · {g.booking.commonArea.name}{g.checkedInAt && ` · chegou ${fmtDateTime(g.checkedInAt)}`}</p></div>
-                  <ArrivalButton guestId={g.id} arrived={!!g.checkedInAt} />
+          <CardHeader
+            title={`Resultado para “${q}”`}
+            subtitle={foundTotal > found.length ? `Mostrando ${found.length} de ${foundTotal}. Refine com sobrenome, documento ou unidade.` : undefined}
+            action={<Link href={tab === "pessoas" ? "/portaria?aba=pessoas" : "/portaria"} className="text-xs font-medium text-brand hover:underline">Limpar</Link>}
+          />
+          <ul className="divide-y divide-line">
+            {guests.map((g) => (
+              <li key={g.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
+                <div className="min-w-0 flex-1"><p className="font-medium">{g.name}</p><p className="text-xs text-muted">Convidado hoje · {g.booking.commonArea.name}</p></div>
+                <ArrivalButton guestId={g.id} arrived={!!g.checkedInAt} />
+              </li>
+            ))}
+            {found.map((p) => {
+              const kinds = [...new Set(p.grants.map((g) => KIND[g.kind]?.label ?? g.kind))].join(", ");
+              const places = [...new Set(p.grants.map((g) => label(g.unitId)))];
+              return (
+                <li key={p.id}>
+                  <Link href={`/portaria/pessoa/${p.id}`} className="flex items-center gap-3 px-5 py-2.5 hover:bg-bg-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{p.name}{p.company && <span className="font-normal text-muted"> · {p.company}</span>}</p>
+                      <p className="truncate text-xs text-muted">{places.length ? `${kinds} · ${places.slice(0, 3).join(" + ")}${places.length > 3 ? ` +${places.length - 3}` : ""}` : "Sem autorização"}</p>
+                    </div>
+                    {p.blockedAt && <Badge tone="bad">Impedida</Badge>}
+                    <ChevronRight className="size-4 shrink-0 text-muted" />
+                  </Link>
                 </li>
-              ))}
-            </ul>
-          )}
-          <PeopleByUnit groups={groups} open />
-          {loose.length > 0 && (
-            <ul className="divide-y divide-line border-t border-line">
-              {loose.map((p) => (
-                <li key={p.id}><Link href={`/portaria/pessoa/${p.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-bg-2"><span className="flex-1 font-medium">{p.name}</span><span className="text-xs text-muted">Sem autorização{p.blockedAt && " · impedida"}</span><ChevronRight className="size-4 text-muted" /></Link></li>
-              ))}
-            </ul>
-          )}
-          {entryHits.length > 0 && (
-            <div className="border-t border-line">
-              <p className="px-5 pt-3 text-xs font-medium text-muted">Entradas nos últimos 30 dias</p>
-              <ul className="divide-y divide-line">
-                {entryHits.map((e) => (
-                  <li key={e.id} className="px-5 py-2 text-sm">
-                    {e.personId ? <Link href={`/portaria/pessoa/${e.personId}`} className="font-medium hover:text-brand">{e.name}</Link> : <span className="font-medium">{e.name}</span>}
-                    <span className="text-xs text-muted"> · {destLabel(e)} · {fmtDateTime(e.createdAt)}{e.notes && !e.notes.startsWith("Convidado: ") && ` · ${e.notes}`}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+              );
+            })}
+            {foundResidents.map((a, i) => (
+              <li key={`r${i}`} className="flex items-center gap-3 px-5 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{a.user.name}</p>
+                  <p className="truncate text-xs text-muted">Morador ({UNIT_ROLE[a.role] ?? a.role}) · {label(a.unitId)}{a.user.phone && ` · ${a.user.phone}`}</p>
+                </div>
+                <Badge tone="info">Morador</Badge>
+              </li>
+            ))}
+          </ul>
+          {!found.length && !foundResidents.length && !guests.length && <p className="px-5 py-6 text-sm text-muted">Ninguém encontrado. Para alguém sem cadastro, use “Registrar entrada”.</p>}
         </Card>
       )}
 
@@ -294,7 +310,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
             </Select>
             <button className={buttonClass("outline")}>Filtrar</button>
           </form>
-          {q ? <p className="px-5 py-4 text-sm text-muted">Veja o resultado da busca acima.</p> : <PeopleByUnit groups={groups} open={!!unitFilter || groups.length <= 3} />}
+          <PeopleByUnit groups={groups} open={!!unitFilter || groups.length <= 3} />
         </Card>
       )}
     </div>

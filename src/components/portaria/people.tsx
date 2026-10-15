@@ -193,7 +193,7 @@ export function EntryForm({ person, units, suggested = [], onDone }: { person?: 
         {person && unauthorized.length > 0 && <p className="mt-2 text-xs text-warn">Sem autorização para hoje em {unauthorized.length} destino(s): a unidade recebe o aviso com esse alerta.</p>}
       </div>
       <Field label="Observação (opcional)"><Input name="notes" maxLength={300} placeholder="Placa do carro, volume, motivo" /></Field>
-      {!person && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="save" className="size-4 accent-[var(--brand)]" /> Guardar o cadastro para as próximas visitas</label>}
+      {!person && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="save" defaultChecked className="size-4 accent-[var(--brand)]" /> Guardar o cadastro (a visita entra no histórico da pessoa)</label>}
       {state?.error && <Alert>{state.error}</Alert>}
       <div className="flex gap-2">
         <SubmitButton pending={pending} pendingText="Registrando…" size="sm"><DoorOpen className="size-4" />Confirmar entrada</SubmitButton>
