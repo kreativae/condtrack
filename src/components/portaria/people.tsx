@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Ban, DoorOpen, Loader2, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
-import { createGrant, deleteGrant, markExit, registerEntry, setBlocked, updateGrant, updatePerson, type PortariaState } from "@/app/actions/portaria";
+import { createGrant, deleteGrant, deletePerson, markExit, registerEntry, setBlocked, updateGrant, updatePerson, type PortariaState } from "@/app/actions/portaria";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Badge, Button, Field, Input, Select, Textarea, cx } from "@/components/ui";
@@ -280,12 +280,21 @@ export function PersonEditForm({ person, notes, onDone }: { person: PersonBasics
 export function PersonActions({ person, notes, blocked, units, suggested }: { person: PersonBasics; notes: string | null; blocked: boolean; units: Opt[]; suggested: { unitId: string | null; label: string; ok: boolean }[] }) {
   const [open, setOpen] = useState<"entry" | "edit" | "block" | null>(null);
   const [state, form, pending] = useFormSubmit((p: PortariaState, f: FormData) => setBlocked(person.id, !blocked, p, f));
+  const [removing, startRemove] = useTransition();
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         {!blocked && <Button variant={open === "entry" ? "brand" : "outline"} onClick={() => setOpen(open === "entry" ? null : "entry")}><DoorOpen className="size-4" />Registrar entrada</Button>}
         <Button variant="outline" onClick={() => setOpen(open === "edit" ? null : "edit")}><Pencil className="size-4" />Editar dados</Button>
         <Button variant={blocked ? "outline" : "ghost"} className={blocked ? "" : "text-bad"} onClick={() => setOpen(open === "block" ? null : "block")}><Ban className="size-4" />{blocked ? "Liberar entrada" : "Impedir entrada"}</Button>
+        <Button
+          variant="ghost"
+          className="text-bad sm:ml-auto"
+          disabled={removing}
+          onClick={() => confirm(`Excluir o contato ${person.name}?\n\nAs autorizações dele saem do sistema. As entradas já registradas continuam no histórico da portaria, com o nome.`) && startRemove(() => deletePerson(person.id))}
+        >
+          {removing ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}Excluir contato
+        </Button>
       </div>
       {open === "entry" && <div className="rounded-2xl border border-line p-4"><EntryForm person={person} units={units} suggested={suggested} onDone={() => setOpen(null)} /></div>}
       {open === "edit" && <div className="rounded-2xl border border-line p-4"><PersonEditForm person={person} notes={notes} onDone={() => setOpen(null)} /></div>}

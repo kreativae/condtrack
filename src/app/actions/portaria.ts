@@ -257,3 +257,19 @@ export async function markExit(entryId: string) {
   await db.accessEntry.updateMany({ where: { id: entryId, condominiumId: condoId, exitedAt: null }, data: { exitedAt: new Date(), exitedById: user.id } });
   refresh();
 }
+
+/**
+ * Exclui o contato e as autorizações dele. As entradas já registradas ficam no histórico (com o nome gravado),
+ * só deixam de estar ligadas à ficha.
+ */
+export async function deletePerson(id: string) {
+  const user = await requireUser(...GATE);
+  if (user.impersonator) return;
+  const condoId = await gateCondo(user);
+  const p = condoId ? await db.accessPerson.findFirst({ where: { id, condominiumId: condoId }, include: { _count: { select: { grants: true, entries: true } } } }) : null;
+  if (!p || !condoId) return;
+  await db.accessPerson.delete({ where: { id } });
+  await audit(user, "delete", "access_person", id, { old: { nome: p.name, documento: p.document, autorizacoes: p._count.grants, entradas: p._count.entries }, condominiumId: condoId });
+  refresh();
+  redirect("/portaria?aba=agenda");
+}
