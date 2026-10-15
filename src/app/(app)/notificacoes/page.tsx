@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Notificações" };
 const PAGE = 30;
 
 export default async function NotificationsPage({ searchParams }: PageProps<"/notificacoes">) {
-  const user = await requireUser("superadmin", "syndic", "caretaker", "provider", "council");
+  const user = await requireUser(); // todos os perfis recebem avisos (morador e porteiro: reservas e portaria)
   const sp = await searchParams;
   const [total, unread] = await Promise.all([
     db.notification.count({ where: { userId: user.id } }),
