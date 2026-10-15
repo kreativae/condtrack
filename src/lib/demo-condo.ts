@@ -84,8 +84,9 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   // ───── Pessoas fictícias (nomes sorteados, sem repetir) + síndico de verdade vinculado
   const used = new Set<string>();
   const person = (female: boolean) => {
-    for (;;) {
-      const n = `${r.pick(female ? FIRST_F : FIRST_M)} ${r.pick(SURNAMES)}`;
+    // Com muitos convidados as combinações podem acabar: depois de várias tentativas, entra um segundo sobrenome
+    for (let tries = 0; ; tries++) {
+      const n = `${r.pick(female ? FIRST_F : FIRST_M)} ${tries > 60 ? `${r.pick(SURNAMES)} ` : ""}${r.pick(SURNAMES)}`;
       if (!used.has(n)) {
         used.add(n);
         return n;
@@ -139,7 +140,15 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
     ["Garagem", null, false], ["Churrasqueira", r.int(15, 35), true], ["Playground", r.int(15, 30), false],
   ];
   const areas: Record<string, string> = {};
-  for (const [areaName, capacity, reservable] of areaDefs) areas[areaName] = (await db.commonArea.create({ data: { condominiumId: cid, name: areaName, capacity, reservable } })).id;
+  // Áreas reserváveis com horário e regras (a piscina não precisa de aprovação)
+  const areaRules: Record<string, { openTime: string; closeTime: string; bookingRules: string; requiresApproval: boolean }> = {
+    "Salão de festas": { openTime: r.pick(["09:00", "10:00"]), closeTime: r.pick(["23:00", "00:00", "01:00"]), bookingRules: "Som até as 22h. Entregar o salão limpo e conferido pela portaria. Taxa de uso lançada na próxima cota.", requiresApproval: true },
+    Piscina: { openTime: "08:00", closeTime: "20:00", bookingRules: "Reserva de uso exclusivo por até 4 horas. Proibido vidro na área da piscina.", requiresApproval: false },
+    Churrasqueira: { openTime: "10:00", closeTime: r.pick(["22:00", "23:00"]), bookingRules: "Trazer o próprio carvão. Limpar a grelha ao final. Máximo de uma reserva por unidade no fim de semana.", requiresApproval: true },
+  };
+  for (const [areaName, capacity, reservable] of areaDefs) {
+    areas[areaName] = (await db.commonArea.create({ data: { condominiumId: cid, name: areaName, capacity, reservable, ...(reservable && areaRules[areaName]) } })).id;
+  }
 
   const itemDefs: [string, string | null, string | null, string][] = [
     ["Iluminação das áreas comuns", null, null, ""],
@@ -383,6 +392,92 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
       publishedAt: new Date(now - (i * r.int(3, 9) + r.int(1, 3)) * DAY),
     })),
   });
+
+  // ───── Portaria: porteiro, pessoas cadastradas nas unidades, reservas (passadas, de hoje e futuras) e entradas
+  const doorman = await mk(person(r.next() < 0.3), "porteiro", "doorman");
+  const doc = () => `${r.int(100, 999)}.${r.int(100, 999)}.${r.int(100, 999)}-${pad(r.int(0, 99))}`;
+  const homes = [
+    { unitId: units[uC1].id, userId: council1.id },
+    { unitId: units[uC2].id, userId: council2.id },
+    { unitId: units[uR1].id, userId: res1.id },
+    { unitId: units[uR2].id, userId: res2.id },
+  ];
+  const peopleRows = homes.flatMap((h) => [
+    ...Array.from({ length: r.int(0, 2) }, () => ({ kind: "resident", name: person(r.next() < 0.5), notes: r.pick([null, "Filho(a)", "Cônjuge", "Mãe"]) })),
+    ...Array.from({ length: r.int(1, 2) }, () => ({ kind: "visitor", name: person(r.next() < 0.5), notes: r.pick([null, "Pode subir sem interfonar.", "Avó, visita aos domingos."]) })),
+    { kind: "provider", name: person(r.next() < 0.7), company: r.pick(["Diarista", "Babá", "Personal trainer", "Cuidadora", "Passeador de cães"]), notes: r.pick(["Vem às terças e sextas, das 8h às 17h.", "Segunda a sexta, manhã.", null]) },
+  ].map((p) => ({
+    condominiumId: cid, unitId: h.unitId, createdById: h.userId, document: r.next() < 0.6 ? doc() : null, company: null, ...p,
+    // Um visitante vencido por unidade, de vez em quando
+    validUntil: p.kind === "visitor" && r.next() < 0.3 ? at(addDays(today, -r.int(3, 20)), "00:00") : null,
+  })));
+  await db.unitPerson.createMany({ data: peopleRows });
+
+  const bookable = Object.keys(areaRules);
+  const usedSlots = new Set<string>();
+  const occasions = ["Aniversário", "Confraternização da família", "Churrasco com amigos", "Chá de bebê", "Aniversário infantil", "Encontro da turma", ""];
+  const plan = [
+    ...Array.from({ length: r.int(5, 8) }, () => ({ offset: -r.int(1, 60), status: r.next() < 0.85 ? "approved" : r.pick(["rejected", "cancelled"]) })),
+    { offset: 0, status: "approved" },
+    ...Array.from({ length: r.int(2, 4) }, () => ({ offset: r.int(1, 40), status: "approved" })),
+    ...Array.from({ length: r.int(2, 3) }, () => ({ offset: r.int(2, 30), status: "pending" })),
+  ];
+  for (const p of plan) {
+    const areaName = r.pick(bookable);
+    const day = addDays(today, p.offset);
+    if (usedSlots.has(`${areaName}|${day}`)) continue;
+    usedSlots.add(`${areaName}|${day}`);
+    const rule = areaRules[areaName];
+    const [start, end] = areaName === "Piscina" ? [r.pick(["09:00", "10:00", "14:00"]), r.pick(["13:00", "18:00"])] : [r.pick(["12:00", "18:00", "19:00"]), rule.closeTime];
+    const startAt = at(day, start);
+    const endAt = at(day, end);
+    if (endAt <= startAt) endAt.setUTCDate(endAt.getUTCDate() + 1);
+    const home = r.pick(homes);
+    const status = rule.requiresApproval ? p.status : p.status === "pending" ? "approved" : p.status;
+    const past = endAt.getTime() < now;
+    const guestCount = r.int(4, areaName === "Piscina" ? 10 : 20);
+    const guests = Array.from({ length: guestCount }, () => ({ name: person(r.next() < 0.5), document: r.next() < 0.4 ? doc() : null }));
+    const decided = status === "approved" || status === "rejected";
+    const b = await db.booking.create({
+      data: {
+        condominiumId: cid, commonAreaId: areas[areaName], unitId: home.unitId, requestedById: home.userId, startAt, endAt, status,
+        notes: r.pick(occasions),
+        createdAt: new Date(Math.min(startAt.getTime(), now) - r.int(3, 20) * DAY),
+        ...(decided && { decidedById: rule.requiresApproval ? r.pick([doorman.id, caretaker.id, syndic.id]) : null, decidedAt: new Date(Math.min(startAt.getTime(), now) - r.int(1, 2) * DAY) }),
+        ...(status === "rejected" && { decisionNote: r.pick(["Área em manutenção nesse dia.", "Já existe evento do condomínio nesse horário."]) }),
+        ...(status === "cancelled" && { cancelledAt: new Date(startAt.getTime() - r.int(1, 3) * DAY), decisionNote: "Mudança de planos." }),
+        guests: { create: guests },
+      },
+      include: { guests: true },
+    });
+    // Reservas que já aconteceram: a maioria dos convidados chegou, registrada pelo porteiro
+    if (past && status === "approved") {
+      const came = b.guests.filter(() => r.next() < 0.85);
+      for (const g of came) {
+        const when = new Date(startAt.getTime() + r.int(0, 90) * 60_000);
+        await db.bookingGuest.update({ where: { id: g.id }, data: { checkedInAt: when, checkedInById: doorman.id } });
+        await db.accessEntry.create({ data: { condominiumId: cid, unitId: home.unitId, guestId: g.id, kind: "guest", name: g.name, document: g.document, notes: `Convidado: ${areaName}`, createdById: doorman.id, createdBy: doorman.name, createdAt: when } });
+      }
+    }
+  }
+
+  // Entradas avulsas dos últimos 7 dias (visitantes, entregas e prestadores)
+  const entries = [];
+  for (let d = 6; d >= 0; d--) {
+    const day = addDays(today, -d);
+    for (let i = 0; i < r.int(2, 6); i++) {
+      const when = at(day, `${pad(r.int(8, 20))}:${pad(r.int(0, 59))}`);
+      if (when.getTime() > now) continue;
+      const kind = r.next() < 0.6 ? "visitor" : "provider";
+      entries.push({
+        condominiumId: cid, unitId: r.next() < 0.6 ? r.pick(homes).unitId : units[r.int(0, U - 1)].id, kind, name: person(r.next() < 0.5),
+        document: r.next() < 0.5 ? doc() : null,
+        notes: kind === "provider" ? r.pick(["Entrega de móveis", "Técnico de internet", "Manutenção do ar-condicionado", "Entrega de mercado"]) : r.pick([null, null, "Placa ABC1D23", "Visita rápida"]),
+        createdById: doorman.id, createdBy: doorman.name, createdAt: when,
+      });
+    }
+  }
+  await db.accessEntry.createMany({ data: entries });
 
   return condo;
 }
