@@ -10,6 +10,7 @@ import { saveCondominium } from "@/app/actions/admin";
 import { CondoForm } from "@/components/admin/condo-form";
 import { DeleteDemoButton } from "@/components/admin/delete-demo-button";
 import { SyndicsCard } from "@/components/admin/syndics-card";
+import { GateDemoButton } from "@/components/admin/gate-demo-button";
 import { ArchiveCondoButton, PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
 import { fmtDateTime } from "@/lib/format";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
@@ -27,10 +28,11 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
     include: { buildings: { include: { _count: { select: { units: true } } } }, categories: true, commonAreas: true },
   });
   if (!c) notFound();
-  const [m, staff, syndics] = await Promise.all([
+  const [m, staff, syndics, bookings] = await Promise.all([
     orderMetrics({ condominiumId: id }),
     db.membership.groupBy({ by: ["role"], where: { condominiumId: id, user: { status: "active" } }, _count: true }),
     db.user.findMany({ where: { memberships: { some: { condominiumId: id, role: "syndic" } } }, select: { id: true, name: true, email: true, avatarUrl: true }, orderBy: { name: "asc" } }),
+    db.booking.count({ where: { condominiumId: id } }),
   ]);
 
   return (
@@ -64,6 +66,12 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
             <CardHeader title="Síndicos" subtitle="Quem administra e aprova os pedidos do superadmin" />
             <SyndicsCard condoId={c.id} syndics={syndics} />
           </Card>
+          {!c.deletedAt && bookings === 0 && (
+            <Card>
+              <CardHeader title="Dados de apresentação" subtitle="Portaria e reservas fictícias, para mostrar o sistema. Só aparece enquanto não houver reservas." />
+              <div className="p-5"><GateDemoButton id={c.id} name={c.name} /></div>
+            </Card>
+          )}
           <Card>
             <CardHeader title="Pessoas" action={<Link href={`/admin/usuarios`} className="text-xs text-brand">Gerenciar</Link>} />
             <ul className="divide-y divide-line text-sm">

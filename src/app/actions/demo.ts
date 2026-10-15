@@ -7,7 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { createDemoCondominium, deleteDemoCondominium } from "@/lib/demo-condo";
+import { addGateDemo, createDemoCondominium, deleteDemoCondominium } from "@/lib/demo-condo";
 import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 
 export type DemoState = { error?: string } | null;
@@ -38,4 +38,22 @@ export async function deleteDemoCondo(id: string) {
   if (jar.get(ADMIN_CONDO_COOKIE)?.value === id) jar.delete(ADMIN_CONDO_COOKIE);
   revalidatePath("/", "layout");
   redirect("/admin/condominios");
+}
+
+export type GateDemoState = { error?: string; message?: string } | null;
+
+/** Acrescenta porteiro, pessoas nas unidades, reservas e entradas fictícias a um condomínio que já existe. */
+export async function addGateDemoAction(id: string, _prev: GateDemoState): Promise<GateDemoState> {
+  const me = await requireUser("superadmin");
+  if (me.impersonator) return { error: "Indisponível em modo de visualização." };
+  try {
+    const r = await addGateDemo(id);
+    await audit(me, "demo_gate", "condominium", id, { new: { porteiro: r.doorman, reservas: r.bookings, pessoas: r.people, entradas: r.entries }, condominiumId: id });
+    revalidatePath(`/admin/condominios/${id}`);
+    revalidatePath("/reservas");
+    revalidatePath("/portaria");
+    return { message: `Pronto: porteiro ${r.doorman}, ${r.bookings} reservas em ${r.areas} área(s), ${r.people} pessoas nas unidades e ${r.entries} entradas na portaria.` };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível gerar os dados." };
+  }
 }
