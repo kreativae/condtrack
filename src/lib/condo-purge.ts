@@ -12,7 +12,7 @@ const USER_SELECT = { id: true, name: true, email: true, phone: true, cpf: true,
 /** Todos os dados do condomínio, sem senhas nem segredos. */
 export async function condoBackupData(id: string) {
   const where = { condominiumId: id };
-  const [condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, unitPeople, accessEntries] = await Promise.all([
+  const [condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, accessPeople, accessEntries] = await Promise.all([
     db.condominium.findUnique({ where: { id } }),
     db.building.findMany({ where, include: { units: { include: { residents: true } } } }),
     db.membership.findMany({ where, include: { user: { select: USER_SELECT } } }),
@@ -30,10 +30,10 @@ export async function condoBackupData(id: string) {
     db.payment.findMany({ where }),
     db.auditLog.findMany({ where, orderBy: { createdAt: "asc" } }),
     db.booking.findMany({ where, include: { guests: true } }),
-    db.unitPerson.findMany({ where }),
-    db.accessEntry.findMany({ where, orderBy: { createdAt: "asc" } }),
+    db.accessPerson.findMany({ where, include: { grants: true } }),
+    db.accessEntry.findMany({ where, include: { dests: true }, orderBy: { createdAt: "asc" } }),
   ]);
-  return { condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, unitPeople, accessEntries };
+  return { condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, accessPeople, accessEntries };
 }
 
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").slice(0, 120);

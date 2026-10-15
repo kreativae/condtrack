@@ -17,6 +17,7 @@ export const PERSON_KINDS = {
   resident: { label: "Morador", plural: "Moradores" },
   visitor: { label: "Visitante", plural: "Visitantes" },
   provider: { label: "Prestador de serviço", plural: "Prestadores de serviço" },
+  delivery: { label: "Entrega", plural: "Entregas" },
 } as const;
 export type PersonKind = keyof typeof PERSON_KINDS;
 export const isPersonKind = (v: unknown): v is PersonKind => typeof v === "string" && v in PERSON_KINDS;
@@ -98,10 +99,58 @@ export function parseGuests(text: string) {
 
 export const guestsToText = (g: { name: string; document: string | null }[]) => g.map((x) => (x.document ? `${x.name}; ${x.document}` : x.name)).join("\n");
 
-/** A pessoa cadastrada ainda vale? Morador não vence; visitante e prestador vencem no fim do dia de `validUntil`. */
-export function personValid(p: { kind: string; validUntil: Date | null }, now = new Date()) {
-  if (p.kind === "resident" || !p.validUntil) return true;
-  return now.getTime() < p.validUntil.getTime() + 24 * 3600_000;
+// ───── Pessoas e autorizações da portaria
+
+/** Documento só com letras e números, em maiúsculas: "123.456.789-00" e "12345678900" são a mesma pessoa. */
+export const docKey = (doc: string | null | undefined) => (doc ?? "").replace(/[^0-9a-z]/gi, "").toUpperCase() || null;
+
+export const WEEKDAY_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
+const WEEKDAY_PLURAL = ["Domingos", "Segundas", "Terças", "Quartas", "Quintas", "Sextas", "Sábados"] as const;
+export const parseWeekdays = (s: string) => [...new Set(s.split(",").filter(Boolean).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort();
+
+type GrantLike = { kind: string; validFrom: Date | null; validUntil: Date | null; weekdays: string; timeFrom: string | null; timeTo: string | null };
+
+/** "Terças e sextas · 08:00–17:00 · até 31/12/2026" */
+export function grantSchedule(g: GrantLike) {
+  const days = parseWeekdays(g.weekdays);
+  const dd = (d: Date) => brtParts(d).day.split("-").reverse().join("/");
+  const parts = [
+    days.length && days.length < 7 ? (days.length === 1 ? WEEKDAY_PLURAL[days[0]] : days.length <= 3 ? days.map((d) => WEEKDAY_PLURAL[d]).join(", ").replace(/, ([^,]*)$/, " e $1") : days.map((d) => WEEKDAY_SHORT[d]).join(", ")) : null,
+    isHM(g.timeFrom) && isHM(g.timeTo) ? `${g.timeFrom}–${g.timeTo}` : null,
+    g.validFrom && g.validUntil && brtParts(g.validFrom).day === brtParts(g.validUntil).day ? `só em ${dd(g.validFrom)}` : [g.validFrom && `a partir de ${dd(g.validFrom)}`, g.validUntil && `até ${dd(g.validUntil)}`].filter(Boolean).join(" ") || null,
+  ].filter(Boolean);
+  return parts.join(" · ") || (g.kind === "resident" ? "Mora na unidade" : "Sempre liberado");
+}
+
+/**
+ * Situação da autorização num momento: `today` = vale hoje (dia da semana e prazo); `off_day` = dentro do prazo,
+ * mas não neste dia; `future` = ainda não começou; `expired` = venceu. Prazos valem o dia inteiro (Brasília).
+ */
+export function grantStatus(g: GrantLike, now = new Date()): "today" | "off_day" | "future" | "expired" {
+  const today = brtParts(now).day;
+  if (g.validUntil && brtParts(g.validUntil).day < today) return "expired";
+  if (g.validFrom && brtParts(g.validFrom).day > today) return "future";
+  const days = parseWeekdays(g.weekdays);
+  if (days.length && !days.includes(new Date(`${today}T12:00:00Z`).getUTCDay())) return "off_day";
+  return "today";
+}
+
+export const GRANT_STATUS = {
+  today: { label: "Vale hoje", tone: "ok" },
+  off_day: { label: "Fora do dia", tone: "muted" },
+  future: { label: "Ainda não começou", tone: "info" },
+  expired: { label: "Vencida", tone: "muted" },
+} as const;
+
+/**
+ * Esperado hoje na portaria: autorização de quem vem de fora que vale hoje e que tem algo de "agendado"
+ * (dia da semana, data de início/fim próxima) ou foi criada nas últimas 24 h. "Sempre liberado" não entra.
+ */
+export function expectedToday(g: GrantLike & { createdAt: Date }, now = new Date()) {
+  if (g.kind === "resident" || grantStatus(g, now) !== "today") return false;
+  if (parseWeekdays(g.weekdays).length) return true;
+  if (g.validFrom || (g.validUntil && g.validUntil.getTime() - now.getTime() < 7 * 86400_000)) return true;
+  return now.getTime() - g.createdAt.getTime() < 86400_000;
 }
 
 /** Morador e conselheiro que moram na unidade podem reservar e cadastrar pessoas dela. */

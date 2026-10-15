@@ -134,11 +134,18 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   cancelled; conflito de horário checado em transação serializável (pendentes também ocupam). Reserva feita por quem
   atende já sai aprovada. `/reservas`: calendário do mês (`booking-calendar.tsx`, `?mes=AAAA-MM`, cor por área em
   `AREA_COLORS`; morador vê as dos outros só como "Reservado") + painel do dia com "Reservar" →
-  `/reservas/nova?area=&dia=`; abaixo, para aprovar e próximas. `/minha-unidade` (morador: `UnitPerson`
-  resident/visitor/provider com validade, entradas da unidade). `/portaria`: busca (nome, documento, unidade, placa
-  nas anotações), ações rápidas, "Esperados hoje" (convidados + autorizados com prazo hoje ou cadastrados há 24 h),
-  "No condomínio agora" (`AccessEntry.exitedAt` vazio, botão Saiu), linha do tempo e pessoas agrupadas por unidade.
-  Entrada avisa os moradores da unidade (modelo `gate_entry`). Datas no fuso de Brasília (`brt()`/`brtParts()`).
+  `/reservas/nova?area=&dia=`; abaixo, para aprovar e próximas.
+  **Pessoas da portaria**: `AccessPerson` (uma por condomínio; `docKey` = documento normalizado identifica, então o
+  morador que cadastra alguém já existente reaproveita o cadastro; `blockedAt` = entrada impedida) + `AccessGrant`
+  (autorização: unidade ou condomínio quando `unitId` vazio; tipo resident/visitor/provider/delivery; dias da semana
+  0=dom, horário, prazo). Regras puras `grantStatus()`/`expectedToday()`/`grantSchedule()` em `lib/booking.ts`;
+  permissão `grantAccess()` em `booking-server.ts` (morador: só as unidades dele, e edita os dados da pessoa só se ela
+  não estiver em outras unidades; porteiro/zelador: tudo menos morador; síndico/superadmin: tudo). Entrada
+  (`AccessEntry`) tem vários destinos (`AccessEntryUnit`; `unitId` = o primeiro); cada destino é avisado e quem não
+  estava autorizado hoje vem com o alerta `{aviso}` (linha própria no modelo `gate_entry`: no motor de mensagens, linha
+  com variável vazia some). Ficha em `/portaria/pessoa/[id]`. `/minha-unidade`: só as autorizações das unidades do
+  morador. `/portaria`: busca, "Esperados hoje", "No condomínio agora" (botão Saiu), linha do tempo, pessoas por unidade.
+  Datas no fuso de Brasília (`brt()`/`brtParts()`).
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

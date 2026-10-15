@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DoorOpen, Search } from "lucide-react";
+import { ChevronRight, DoorOpen, Search } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { PERSON_KINDS, brt, brtParts, type PersonKind } from "@/lib/booking";
-import { gateCondo, toPersonData } from "@/lib/booking-server";
+import { GRANT_STATUS, PERSON_KINDS, brt, brtParts, expectedToday, grantSchedule, grantStatus, type PersonKind } from "@/lib/booking";
+import { gateCondo } from "@/lib/booking-server";
 import { fmtDateTime } from "@/lib/format";
 import { byUnit, unitLabel } from "@/lib/units";
 import { Badge, Card, CardHeader, Empty, Input, PageHeader, Select, Stat, buttonClass, cx, type Tone } from "@/components/ui";
-import { EntryButton, ExitButton, GateQuickActions, PersonRow } from "@/components/portaria/people";
+import { ExitButton, GateQuickActions, QuickEntryButton } from "@/components/portaria/people";
 import { ArrivalButton } from "../reservas/booking-ui";
 
 export const metadata: Metadata = { title: "Portaria" };
@@ -17,6 +17,7 @@ export const metadata: Metadata = { title: "Portaria" };
 const KIND: Record<string, { label: string; tone: Tone }> = {
   visitor: { label: "Visitante", tone: "brand" },
   provider: { label: "Prestador", tone: "warn" },
+  delivery: { label: "Entrega", tone: "info" },
   guest: { label: "Convidado", tone: "ok" },
   resident: { label: "Morador", tone: "info" },
 };
@@ -48,33 +49,35 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
   const sorted = unitRows.sort(byUnit);
   const units = sorted.map((u) => ({ id: u.id, label: unitLabel(u, true) }));
   const label = (id: string | null) => units.find((u) => u.id === id)?.label ?? "Condomínio";
-  // Busca também pela unidade ("101", "Torre A 101")
+  const destLabel = (e: { dests: { unitId: string }[]; notes: string | null }) =>
+    e.notes?.startsWith("Convidado: ") ? e.notes.slice(11) : e.dests.length ? e.dests.map((d) => label(d.unitId)).join(" + ") : "Condomínio";
   const unitMatches = q ? units.filter((u) => u.label.toLowerCase().replace(/[·\s]+/g, " ").includes(q.toLowerCase())).map((u) => u.id) : [];
 
-  const [pendingCount, todayBookings, authorized, inside, todayEntries, enteredToday] = await Promise.all([
+  const [pendingCount, todayBookings, grants, inside, todayEntries] = await Promise.all([
     db.booking.count({ where: { condominiumId: condoId, status: "pending", endAt: { gt: now } } }),
     db.booking.findMany({
       where: { condominiumId: condoId, status: "approved", startAt: { lt: dayEnd }, endAt: { gt: dayStart } },
       include: { commonArea: { select: { name: true } }, unit: { include: { building: true } }, guests: { orderBy: { name: "asc" } } },
       orderBy: { startAt: "asc" },
     }),
-    // Autorizados para hoje: visitante/prestador com prazo que vale hoje, ou cadastrado nas últimas 24 h
-    db.unitPerson.findMany({
-      where: {
-        condominiumId: condoId, kind: { in: ["visitor", "provider"] },
-        OR: [{ validUntil: { gte: dayStart } }, { createdAt: { gte: new Date(now.getTime() - 86400_000) } }],
-      },
-      orderBy: { name: "asc" }, take: 60,
-    }),
-    db.accessEntry.findMany({ where: { condominiumId: condoId, exitedAt: null, kind: { not: "resident" }, createdAt: { gte: new Date(now.getTime() - 86400_000) } }, orderBy: { createdAt: "desc" } }),
-    db.accessEntry.findMany({ where: { condominiumId: condoId, OR: [{ createdAt: { gte: dayStart } }, { exitedAt: { gte: dayStart } }] }, orderBy: { createdAt: "desc" }, take: 120 }),
-    db.accessEntry.findMany({ where: { condominiumId: condoId, createdAt: { gte: dayStart }, personId: { not: null } }, select: { personId: true } }),
+    // Autorizações de quem vem de fora (para "Esperados hoje")
+    db.accessGrant.findMany({ where: { condominiumId: condoId, kind: { not: "resident" } }, include: { person: { select: { id: true, name: true, company: true, blockedAt: true } } } }),
+    db.accessEntry.findMany({ where: { condominiumId: condoId, exitedAt: null, kind: { not: "resident" }, createdAt: { gte: new Date(now.getTime() - 86400_000) } }, include: { dests: true }, orderBy: { createdAt: "desc" } }),
+    db.accessEntry.findMany({ where: { condominiumId: condoId, OR: [{ createdAt: { gte: dayStart } }, { exitedAt: { gte: dayStart } }] }, include: { dests: true }, orderBy: { createdAt: "desc" }, take: 150 }),
   ]);
-  const entered = new Set(enteredToday.map((e) => e.personId));
-  const expectedPeople = authorized.filter((p) => !entered.has(p.id));
+
+  // Esperados: agrupa as autorizações de hoje por pessoa (destinos juntos); some quem já entrou hoje
+  const enteredToday = new Set(todayEntries.filter((e) => e.createdAt >= dayStart && e.personId).map((e) => e.personId));
+  const expectedMap = new Map<string, { person: (typeof grants)[number]["person"]; kind: string; schedule: string; unitIds: string[] }>();
+  for (const g of grants) {
+    if (g.person.blockedAt || enteredToday.has(g.personId) || !expectedToday(g, now)) continue;
+    const cur = expectedMap.get(g.personId) ?? { person: g.person, kind: g.kind, schedule: grantSchedule(g), unitIds: [] };
+    if (g.unitId) cur.unitIds.push(g.unitId);
+    expectedMap.set(g.personId, cur);
+  }
+  const expected = [...expectedMap.values()].sort((a, b) => a.person.name.localeCompare(b.person.name));
   const waitingGuests = todayBookings.reduce((n, b) => n + b.guests.filter((g) => !g.checkedInAt).length, 0);
   const entriesToday = todayEntries.filter((e) => e.createdAt >= dayStart).length;
-  // Linha do tempo: entradas e saídas do dia, da mais recente para a mais antiga
   const timeline = todayEntries
     .flatMap((e) => [
       ...(e.createdAt >= dayStart ? [{ at: e.createdAt, out: false, e }] : []),
@@ -83,20 +86,20 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
     .sort((a, b) => b.at.getTime() - a.at.getTime())
     .slice(0, 40);
 
-  const gateKinds: PersonKind[] = user.role === "syndic" || user.role === "superadmin" ? ["visitor", "provider", "resident"] : ["visitor", "provider"];
+  const gateKinds: PersonKind[] = user.role === "syndic" || user.role === "superadmin" ? ["visitor", "provider", "delivery", "resident"] : ["visitor", "provider", "delivery"];
 
   // Busca e aba Pessoas
   const showPeople = tab === "pessoas" || !!q;
-  const personWhere: Prisma.UnitPersonWhereInput = {
+  const grantWhere: Prisma.AccessGrantWhereInput = {
     condominiumId: condoId,
-    ...(q && { OR: [{ name: ci }, { document: ci }, { company: ci }, { notes: ci }, ...(unitMatches.length ? [{ unitId: { in: unitMatches } }] : [])] }),
-    ...(unitFilter && { unitId: unitFilter }),
+    ...(q && { OR: [{ person: { name: ci } }, { person: { document: ci } }, { person: { company: ci } }, { notes: ci }, ...(unitMatches.length ? [{ unitId: { in: unitMatches } }] : [])] }),
+    ...(unitFilter && { unitId: unitFilter === "condominio" ? null : unitFilter }),
     ...(kindFilter && { kind: kindFilter }),
   };
-  const [people, accounts, guests, entryHits] = showPeople
+  const [peopleGrants, accounts, guests, loose, entryHits] = showPeople
     ? await Promise.all([
-        db.unitPerson.findMany({ where: personWhere, orderBy: { name: "asc" }, take: 300 }),
-        !kindFilter || kindFilter === "resident"
+        db.accessGrant.findMany({ where: grantWhere, include: { person: { select: { id: true, name: true, document: true, company: true, blockedAt: true } } }, orderBy: { person: { name: "asc" } }, take: 400 }),
+        (!kindFilter || kindFilter === "resident") && unitFilter !== "condominio"
           ? db.userUnit.findMany({
               where: {
                 unit: { building: { condominiumId: condoId } }, user: { status: "active" },
@@ -104,24 +107,21 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
                 ...(unitFilter && { unitId: unitFilter }),
               },
               include: { user: { select: { name: true, phone: true } } },
-              take: 300,
+              take: 400,
             })
           : [],
         q ? db.bookingGuest.findMany({ where: { OR: [{ name: ci }, { document: ci }], booking: { condominiumId: condoId, status: "approved", startAt: { lt: dayEnd }, endAt: { gt: dayStart } } }, include: { booking: { include: { commonArea: { select: { name: true } } } } }, take: 30 }) : [],
-        // Placa do carro e anotações das entradas dos últimos 30 dias
-        q ? db.accessEntry.findMany({ where: { condominiumId: condoId, createdAt: { gte: new Date(now.getTime() - 30 * 86400_000) }, OR: [{ notes: ci }, { name: ci }, { document: ci }] }, orderBy: { createdAt: "desc" }, take: 15 }) : [],
+        // Cadastradas sem nenhuma autorização (ex.: guardadas na portaria)
+        q ? db.accessPerson.findMany({ where: { condominiumId: condoId, grants: { none: {} }, OR: [{ name: ci }, { document: ci }, { company: ci }] }, take: 20 }) : [],
+        q ? db.accessEntry.findMany({ where: { condominiumId: condoId, createdAt: { gte: new Date(now.getTime() - 30 * 86400_000) }, OR: [{ notes: ci }, { name: ci }, { document: ci }] }, include: { dests: true }, orderBy: { createdAt: "desc" }, take: 15 }) : [],
       ])
-    : [[], [], [], []];
+    : [[], [], [], [], []];
 
-  // Agrupa por unidade (na ordem de torre e número)
-  const groups = sorted
-    .map((u) => ({
-      id: u.id,
-      label: unitLabel(u, true),
-      accounts: accounts.filter((a) => a.unitId === u.id),
-      people: people.filter((p) => p.unitId === u.id),
-    }))
-    .filter((g) => g.accounts.length || g.people.length);
+  // Agrupa por unidade (torre e número) e, no fim, o condomínio
+  const groups = [
+    ...sorted.map((u) => ({ id: u.id, label: unitLabel(u, true), accounts: accounts.filter((a) => a.unitId === u.id), grants: peopleGrants.filter((g) => g.unitId === u.id) })),
+    { id: "condominio", label: "Condomínio (áreas comuns e administração)", accounts: [], grants: peopleGrants.filter((g) => !g.unitId) },
+  ].filter((g) => g.accounts.length || g.grants.length);
 
   return (
     <div className="mx-auto max-w-6xl animate-in">
@@ -132,7 +132,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
           {tab === "pessoas" && <input type="hidden" name="aba" value="pessoas" />}
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <Input name="q" defaultValue={q} placeholder="Nome, documento, unidade ou placa" className="pl-9" />
+            <Input name="q" defaultValue={q} placeholder="Nome, documento, empresa, unidade ou placa" className="pl-9" />
           </div>
           <button className={buttonClass("outline")}>Buscar</button>
         </form>
@@ -140,7 +140,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Esperados hoje" value={waitingGuests + expectedPeople.length} />
+        <Stat label="Esperados hoje" value={waitingGuests + expected.length} />
         <Stat label="No condomínio agora" value={inside.length} tone={inside.length ? "brand" : undefined} />
         <Stat label="Entradas hoje" value={entriesToday} />
         <Link href="/reservas"><Stat label="Reservas para aprovar" value={pendingCount} tone={pendingCount ? "warn" : undefined} /></Link>
@@ -159,14 +159,22 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
               ))}
             </ul>
           )}
-          <UnitGroups groups={groups} units={units} kinds={gateKinds} open />
+          <PeopleByUnit groups={groups} open />
+          {loose.length > 0 && (
+            <ul className="divide-y divide-line border-t border-line">
+              {loose.map((p) => (
+                <li key={p.id}><Link href={`/portaria/pessoa/${p.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-bg-2"><span className="flex-1 font-medium">{p.name}</span><span className="text-xs text-muted">Sem autorização{p.blockedAt && " · impedida"}</span><ChevronRight className="size-4 text-muted" /></Link></li>
+              ))}
+            </ul>
+          )}
           {entryHits.length > 0 && (
             <div className="border-t border-line">
               <p className="px-5 pt-3 text-xs font-medium text-muted">Entradas nos últimos 30 dias</p>
               <ul className="divide-y divide-line">
                 {entryHits.map((e) => (
                   <li key={e.id} className="px-5 py-2 text-sm">
-                    <span className="font-medium">{e.name}</span> <span className="text-xs text-muted">· {label(e.unitId)} · {fmtDateTime(e.createdAt)}{e.notes && ` · ${e.notes}`}</span>
+                    {e.personId ? <Link href={`/portaria/pessoa/${e.personId}`} className="font-medium hover:text-brand">{e.name}</Link> : <span className="font-medium">{e.name}</span>}
+                    <span className="text-xs text-muted"> · {destLabel(e)} · {fmtDateTime(e.createdAt)}{e.notes && !e.notes.startsWith("Convidado: ") && ` · ${e.notes}`}</span>
                   </li>
                 ))}
               </ul>
@@ -183,9 +191,8 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 
       {tab === "hoje" ? (
         <div className="grid items-start gap-6 lg:grid-cols-2">
-          {/* Esperados: convidados das reservas de hoje + autorizados */}
           <Card>
-            <CardHeader title="Esperados hoje" subtitle="Convidados das reservas e visitantes ou prestadores autorizados." />
+            <CardHeader title="Esperados hoje" subtitle="Convidados das reservas e quem tem autorização para hoje." />
             {todayBookings.map((b) => {
               const waiting = b.guests.filter((g) => !g.checkedInAt);
               return (
@@ -210,21 +217,24 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
                 </div>
               );
             })}
-            {expectedPeople.length > 0 && (
+            {expected.length > 0 && (
               <>
                 <p className="px-5 pt-3 text-xs font-medium text-muted">Autorizados para hoje</p>
                 <ul className="divide-y divide-line">
-                  {expectedPeople.map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 px-5 py-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate">{p.name} <span className="text-xs text-muted">· {label(p.unitId)}{p.company && ` · ${p.company}`}</span></span>
-                      <Badge tone={KIND[p.kind].tone}>{KIND[p.kind].label}</Badge>
-                      <EntryButton personId={p.id} name={p.name} />
+                  {expected.map((x) => (
+                    <li key={x.person.id} className="flex items-center gap-2 px-5 py-2 text-sm">
+                      <Link href={`/portaria/pessoa/${x.person.id}`} className="min-w-0 flex-1 hover:text-brand">
+                        <span className="block truncate font-medium">{x.person.name}{x.person.company && <span className="font-normal text-muted"> · {x.person.company}</span>}</span>
+                        <span className="block truncate text-xs text-muted">{x.unitIds.length ? x.unitIds.map(label).join(" + ") : "Condomínio"} · {x.schedule}</span>
+                      </Link>
+                      <Badge tone={KIND[x.kind]?.tone ?? "muted"}>{KIND[x.kind]?.label ?? x.kind}</Badge>
+                      <QuickEntryButton personId={x.person.id} unitIds={x.unitIds} name={x.person.name} />
                     </li>
                   ))}
                 </ul>
               </>
             )}
-            {!todayBookings.length && !expectedPeople.length && <p className="px-5 py-6 text-sm text-muted">Ninguém esperado hoje. Visitantes cadastrados pelos moradores com data para hoje aparecem aqui.</p>}
+            {!todayBookings.length && !expected.length && <p className="px-5 py-6 text-sm text-muted">Ninguém esperado hoje. Autorizações com dia marcado (diarista às terças, visita de hoje) aparecem aqui.</p>}
           </Card>
 
           <div className="space-y-6">
@@ -234,7 +244,10 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
                 <ul className="divide-y divide-line">
                   {inside.map((e) => (
                     <li key={e.id} className="flex items-center gap-2 px-5 py-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate">{e.name} <span className="text-xs text-muted">· {e.notes?.startsWith("Convidado: ") ? e.notes.slice(11) : label(e.unitId)} · desde {brtParts(e.createdAt).hm}</span></span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {e.personId ? <Link href={`/portaria/pessoa/${e.personId}`} className="hover:text-brand">{e.name}</Link> : e.name}
+                        <span className="text-xs text-muted"> · {destLabel(e)} · desde {brtParts(e.createdAt).hm}</span>
+                      </span>
                       <Badge tone={KIND[e.kind]?.tone ?? "muted"}>{KIND[e.kind]?.label ?? e.kind}</Badge>
                       <ExitButton entryId={e.id} />
                     </li>
@@ -247,14 +260,14 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
             <Card>
               <CardHeader title="Linha do tempo de hoje" />
               {timeline.length ? (
-                <ol className="space-y-0 px-5 py-3">
+                <ol className="px-5 py-3">
                   {timeline.map((t, i) => (
                     <li key={i} className="relative flex gap-3 pb-3 pl-4 text-sm before:absolute before:left-[3px] before:top-2 before:h-full before:w-px before:bg-line last:before:hidden">
                       <span className={cx("absolute left-0 top-1.5 size-[7px] rounded-full", t.out ? "bg-muted" : "bg-brand")} />
                       <span className="w-11 shrink-0 font-num text-xs text-muted">{brtParts(t.at).hm}</span>
                       <span className="min-w-0 flex-1">
                         {t.out ? "Saiu" : "Entrou"} <b className="font-medium">{t.e.name}</b>
-                        <span className="text-xs text-muted"> · {KIND[t.e.kind]?.label ?? t.e.kind}, {t.e.notes?.startsWith("Convidado: ") ? t.e.notes.slice(11) : label(t.e.unitId)}{!t.out && ` · ${t.e.createdBy}`}</span>
+                        <span className="text-xs text-muted"> · {KIND[t.e.kind]?.label ?? t.e.kind}, {destLabel(t.e)}{!t.out && ` · ${t.e.createdBy}`}</span>
                         {!t.out && t.e.notes && !t.e.notes.startsWith("Convidado: ") && <span className="block text-xs text-fg-2">{t.e.notes}</span>}
                       </span>
                     </li>
@@ -272,6 +285,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
             <input type="hidden" name="aba" value="pessoas" />
             <Select name="unidade" defaultValue={unitFilter} className="w-auto">
               <option value="">Todas as unidades</option>
+              <option value="condominio">Condomínio</option>
               {units.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
             </Select>
             <Select name="tipo" defaultValue={kindFilter ?? ""} className="w-auto">
@@ -280,7 +294,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
             </Select>
             <button className={buttonClass("outline")}>Filtrar</button>
           </form>
-          {q ? <p className="px-5 py-4 text-sm text-muted">Veja o resultado da busca acima.</p> : <UnitGroups groups={groups} units={units} kinds={gateKinds} open={!!unitFilter || groups.length <= 3} />}
+          {q ? <p className="px-5 py-4 text-sm text-muted">Veja o resultado da busca acima.</p> : <PeopleByUnit groups={groups} open={!!unitFilter || groups.length <= 3} />}
         </Card>
       )}
     </div>
@@ -290,19 +304,19 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 type Group = {
   id: string; label: string;
   accounts: { unitId: string; role: string; user: { name: string; phone: string | null } }[];
-  people: Parameters<typeof toPersonData>[0][];
+  grants: { id: string; personId: string; kind: string; validFrom: Date | null; validUntil: Date | null; weekdays: string; timeFrom: string | null; timeTo: string | null; person: { id: string; name: string; company: string | null; blockedAt: Date | null } }[];
 };
 
-/** Pessoas agrupadas por unidade: contas do app (moradores) e cadastradas (moradores, visitantes, prestadores). */
-function UnitGroups({ groups, units, kinds, open }: { groups: Group[]; units: { id: string; label: string }[]; kinds: PersonKind[]; open?: boolean }) {
+/** Pessoas agrupadas por unidade; cada linha abre a ficha (onde aparecem as outras unidades da pessoa). */
+function PeopleByUnit({ groups, open }: { groups: Group[]; open?: boolean }) {
   if (!groups.length) return <p className="px-5 py-6 text-sm text-muted">Ninguém encontrado.</p>;
   return (
     <div className="divide-y divide-line">
       {groups.map((g) => {
-        const count = (k: string) => g.people.filter((p) => p.kind === k).length + (k === "resident" ? g.accounts.length : 0);
-        const summary = (["resident", "visitor", "provider"] as const).map((k) => count(k) && `${count(k)} ${PERSON_KINDS[k].plural.toLowerCase().replace(" de serviço", "")}`).filter(Boolean).join(" · ");
+        const count = (k: string) => g.grants.filter((x) => x.kind === k).length + (k === "resident" ? g.accounts.length : 0);
+        const summary = (Object.keys(PERSON_KINDS) as PersonKind[]).map((k) => count(k) && `${count(k)} ${PERSON_KINDS[k].plural.toLowerCase().replace(" de serviço", "")}`).filter(Boolean).join(" · ");
         return (
-          <details key={g.id} open={open} className="group">
+          <details key={g.id} open={open}>
             <summary className="flex cursor-pointer items-center gap-3 px-5 py-3 text-sm hover:bg-bg-2">
               <span className="font-semibold">{g.label}</span>
               <span className="text-xs text-muted">{summary}</span>
@@ -317,9 +331,23 @@ function UnitGroups({ groups, units, kinds, open }: { groups: Group[]; units: { 
                   <Badge tone="info">Morador</Badge>
                 </li>
               ))}
-              {g.people.map((p) => (
-                <PersonRow key={p.id} p={toPersonData(p, PERSON_KINDS[p.kind as PersonKind]?.label)} units={units} kinds={kinds} canEdit={kinds.includes(p.kind as PersonKind)} gate />
-              ))}
+              {g.grants.map((x) => {
+                const st = GRANT_STATUS[grantStatus(x)];
+                return (
+                  <li key={x.id}>
+                    <Link href={`/portaria/pessoa/${x.person.id}`} className={cx("flex items-center gap-3 px-5 py-2.5 hover:bg-bg-2", st === GRANT_STATUS.expired && "opacity-60")}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{x.person.name}{x.person.company && <span className="font-normal text-muted"> · {x.person.company}</span>}</p>
+                        <p className="text-xs text-muted">{grantSchedule(x)}</p>
+                      </div>
+                      {x.person.blockedAt && <Badge tone="bad">Impedida</Badge>}
+                      <Badge tone={KIND[x.kind]?.tone ?? "muted"}>{KIND[x.kind]?.label ?? x.kind}</Badge>
+                      {x.kind !== "resident" && <Badge tone={st.tone}>{st.label}</Badge>}
+                      <ChevronRight className="size-4 shrink-0 text-muted" />
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </details>
         );

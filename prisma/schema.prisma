@@ -64,7 +64,8 @@ model Condominium {
   financeBudgets   FinanceBudget[]
   assemblies       Assembly[]
   bookings         Booking[]
-  unitPeople       UnitPerson[]
+  accessPeople     AccessPerson[]
+  accessGrants     AccessGrant[]
   accessEntries    AccessEntry[]
 }
 
@@ -81,18 +82,19 @@ model Building {
 }
 
 model Unit {
-  id            String         @id @default(cuid())
+  id            String            @id @default(cuid())
   buildingId    String
   number        String
   floor         Int?
   /// type: apartment | house | lot | commercial | other
-  type          String         @default("apartment")
-  building      Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  type          String            @default("apartment")
+  building      Building          @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   residents     UserUnit[]
   orders        ServiceOrder[]
   assemblyVotes AssemblyVote[]
   bookings      Booking[]
-  people        UnitPerson[]
+  accessGrants  AccessGrant[]
+  accessDests   AccessEntryUnit[]
   accessEntries AccessEntry[]
 
   @@unique([buildingId, number])
@@ -864,33 +866,9 @@ model BookingGuest {
   @@index([bookingId])
 }
 
-/// Pessoas ligadas a uma unidade, cadastradas pelo morador ou pela portaria (sem conta no sistema).
-model UnitPerson {
-  id            String      @id @default(cuid())
-  condominiumId String
-  unitId        String
-  /// resident (mora na unidade) | visitor | provider (prestador de serviço da unidade)
-  kind          String
-  name          String
-  document      String?
-  phone         String?
-  company       String?
-  notes         String?
-  /// Visitantes e prestadores: autorizado até esta data (vazio = sem prazo)
-  validUntil    DateTime?
-  createdById   String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
-  unit          Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
-
-  @@index([condominiumId, kind])
-  @@index([unitId])
-}
-
-/// Entrada registrada na portaria (visitante, prestador, convidado de reserva).
+/// Entrada registrada na portaria (pessoa cadastrada, avulsa ou convidado de reserva).
 model AccessEntry {
-  id            String      @id @default(cuid())
+  id            String            @id @default(cuid())
   condominiumId String
   unitId        String?
   personId      String?
@@ -902,13 +880,82 @@ model AccessEntry {
   notes         String?
   createdById   String?
   createdBy     String
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime          @default(now())
   /// Saída registrada na portaria (vazio = ainda no condomínio)
   exitedAt      DateTime?
   exitedById    String?
-  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
-  unit          Unit?       @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  condominium   Condominium       @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  unit          Unit?             @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  person        AccessPerson?     @relation(fields: [personId], references: [id], onDelete: SetNull)
+  /// Destinos da visita (uma ou várias unidades); unitId guarda o primeiro
+  dests         AccessEntryUnit[]
 
   @@index([condominiumId, createdAt])
   @@index([condominiumId, exitedAt])
+  @@index([personId])
+}
+
+/// Pessoa da portaria (uma por condomínio; o documento identifica). Pode ter várias autorizações.
+model AccessPerson {
+  id            String        @id @default(cuid())
+  condominiumId String
+  name          String
+  document      String?
+  /// Documento só com letras e números, em maiúsculas (para achar a mesma pessoa)
+  docKey        String?
+  phone         String?
+  company       String?
+  notes         String?
+  /// Entrada impedida (motivo fica com a portaria e o síndico)
+  blockedAt     DateTime?
+  blockedReason String?
+  blockedById   String?
+  createdById   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  condominium   Condominium   @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  grants        AccessGrant[]
+  entries       AccessEntry[]
+
+  @@unique([condominiumId, docKey])
+  @@index([condominiumId, name])
+}
+
+/// Autorização de entrada: para uma unidade (ou o condomínio, unitId vazio), com tipo, dias, horário e prazo.
+model AccessGrant {
+  id            String       @id @default(cuid())
+  condominiumId String
+  personId      String
+  unitId        String?
+  /// resident | visitor | provider | delivery
+  kind          String
+  validFrom     DateTime?
+  validUntil    DateTime?
+  /// Dias da semana ("2,5"; 0 = domingo); vazio = todos
+  weekdays      String       @default("")
+  timeFrom      String?
+  timeTo        String?
+  notes         String?
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  condominium   Condominium  @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  person        AccessPerson @relation(fields: [personId], references: [id], onDelete: Cascade)
+  unit          Unit?        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([condominiumId])
+  @@index([personId])
+  @@index([unitId])
+}
+
+/// Destino de uma entrada (para avisar e mostrar no histórico de cada unidade).
+model AccessEntryUnit {
+  entryId String
+  unitId  String
+  entry   AccessEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  unit    Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, unitId])
+  @@index([unitId])
 }

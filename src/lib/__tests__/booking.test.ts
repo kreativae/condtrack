@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingRange, brtParts, fitsOpening, isGate, overlaps, parseGuests, personValid } from "../booking";
+import { bookingRange, brt, brtParts, docKey, expectedToday, fitsOpening, grantSchedule, grantStatus, isGate, overlaps, parseGuests } from "../booking";
 
 describe("reservas", () => {
   it("período no fuso de Brasília; fim antes do início vira o dia seguinte", () => {
@@ -41,11 +41,10 @@ describe("reservas", () => {
     expect(isGate("provider")).toBe(false);
   });
 
-  it("visitante vale até o fim do dia autorizado; morador não vence", () => {
-    const until = new Date("2026-10-20T03:00:00Z");
-    expect(personValid({ kind: "visitor", validUntil: until }, new Date("2026-10-20T20:00:00Z"))).toBe(true);
-    expect(personValid({ kind: "visitor", validUntil: until }, new Date("2026-10-21T04:00:00Z"))).toBe(false);
-    expect(personValid({ kind: "resident", validUntil: until }, new Date("2030-01-01"))).toBe(true);
+  it("mesmo documento escrito de jeitos diferentes = mesma pessoa", () => {
+    expect(docKey("123.456.789-00")).toBe("12345678900");
+    expect(docKey("rg 12.345.678-x")).toBe("RG12345678X");
+    expect(docKey(" - ")).toBeNull();
   });
 });
 
@@ -59,5 +58,46 @@ describe("calendário de reservas", () => {
     expect(monthGrid("2026-02")[0]).toBe("2026-02-01");
     expect(shiftMonthKey("2026-12", 1)).toBe("2027-01");
     expect(shiftMonthKey("2026-01", -1)).toBe("2025-12");
+  });
+});
+
+describe("autorizações da portaria", () => {
+  const base = { kind: "provider", validFrom: null, validUntil: null, weekdays: "", timeFrom: null, timeTo: null, createdAt: new Date("2026-01-01") };
+  const tue = brt("2026-10-13", "10:00"); // terça
+  const fri = brt("2026-10-16", "10:00"); // sexta
+
+  it("dia da semana, prazo e início", () => {
+    expect(grantStatus({ ...base, weekdays: "2" }, tue)).toBe("today");
+    expect(grantStatus({ ...base, weekdays: "2" }, fri)).toBe("off_day");
+    expect(grantStatus({ ...base, validUntil: brt("2026-10-13", "00:00") }, brt("2026-10-13", "23:30"))).toBe("today");
+    expect(grantStatus({ ...base, validUntil: brt("2026-10-12", "00:00") }, tue)).toBe("expired");
+    expect(grantStatus({ ...base, validFrom: brt("2026-10-20", "00:00") }, tue)).toBe("future");
+  });
+
+  it("esperado hoje: só o que é agendado ou recente; sempre liberado e morador não", () => {
+    expect(expectedToday({ ...base, weekdays: "2,5" }, tue)).toBe(true);
+    expect(expectedToday({ ...base, weekdays: "5" }, tue)).toBe(false);
+    expect(expectedToday(base, tue)).toBe(false);
+    expect(expectedToday({ ...base, createdAt: brt("2026-10-13", "08:00") }, tue)).toBe(true);
+    expect(expectedToday({ ...base, kind: "resident", weekdays: "2" }, tue)).toBe(false);
+    expect(expectedToday({ ...base, validFrom: brt("2026-10-13", "00:00"), validUntil: brt("2026-10-13", "00:00") }, tue)).toBe(true);
+  });
+
+  it("descrição legível do horário", () => {
+    expect(grantSchedule({ ...base, weekdays: "2,5", timeFrom: "08:00", timeTo: "17:00", validUntil: brt("2026-12-31", "00:00") })).toBe("Terças e Sextas · 08:00–17:00 · até 31/12/2026");
+    expect(grantSchedule({ ...base, validFrom: brt("2026-10-20", "00:00"), validUntil: brt("2026-10-20", "00:00") })).toBe("só em 20/10/2026");
+    expect(grantSchedule(base)).toBe("Sempre liberado");
+    expect(grantSchedule({ ...base, kind: "resident" })).toBe("Mora na unidade");
+  });
+});
+
+describe("aviso de entrada na portaria", () => {
+  it("a linha do alerta some quando a pessoa estava autorizada, sem apagar o texto principal", async () => {
+    const { fill, templateDef } = await import("../messages");
+    const t = templateDef("gate_entry")!;
+    const msg = String(t.fields.find((f) => f.key === "message")?.default ?? "");
+    const vars = { tipo: "Prestador", unidade: "Torre A · 202", autor: "João", hora: "13:08" };
+    expect(fill(msg, { ...vars, aviso: "" })).toBe("Prestador para Torre A · 202, registrado por João às 13:08.");
+    expect(fill(msg, { ...vars, aviso: "Não estava autorizado(a) para hoje." }).split("\n")).toHaveLength(2);
   });
 });

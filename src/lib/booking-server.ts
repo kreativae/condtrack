@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "./db";
 import type { CurrentUser } from "./auth";
 import { adminScope } from "./admin-scope-server";
-import { brtParts, isGate, personValid } from "./booking";
+import { brtParts, docKey, grantSchedule, grantStatus, isGate } from "./booking";
 import { byUnit, unitLabel } from "./units";
 
 /** Condomínio em que a pessoa reserva/atende: o ativo, ou o escolhido no menu pelo superadmin (null = nenhum). */
@@ -29,20 +29,41 @@ export function bookingAccess(user: CurrentUser, b: { condominiumId: string; req
   return { gate, owner, view: gate || owner };
 }
 
-/** Pode cadastrar/editar pessoas da unidade: quem mora nela; na portaria, só visitantes e prestadores (síndico e superadmin, tudo). */
-export function personAccess(user: CurrentUser, unitId: string, condoId: string, kind: string) {
-  if (myUnits(user, condoId).some((u) => u.id === unitId)) return true;
+/**
+ * Pode criar/editar uma autorização: quem mora na unidade (qualquer tipo); síndico e superadmin (tudo, inclusive
+ * o condomínio); porteiro e zelador (visitantes, prestadores e entregas, em qualquer unidade ou no condomínio).
+ */
+export function grantAccess(user: CurrentUser, condoId: string, unitId: string | null, kind: string) {
   if (user.role === "superadmin" || user.role === "syndic") return true;
+  if (unitId && myUnits(user, condoId).some((u) => u.id === unitId)) return true;
   if (user.role === "doorman" || user.role === "caretaker") return kind !== "resident";
   return false;
 }
 
-/** Pessoa cadastrada → dados para os componentes do navegador. */
-export function toPersonData(p: { id: string; kind: string; unitId: string; name: string; document: string | null; phone: string | null; company: string | null; notes: string | null; validUntil: Date | null }, unitLabel?: string) {
+/** Acha a pessoa pelo documento no condomínio (ou cria). Quem já existe mantém o nome; telefone e empresa só completam. */
+export async function findOrCreatePerson(condoId: string, data: { name: string; document: string | null; phone: string | null; company: string | null }, createdById: string) {
+  const key = docKey(data.document);
+  if (key) {
+    const found = await db.accessPerson.findUnique({ where: { condominiumId_docKey: { condominiumId: condoId, docKey: key } } });
+    if (found) {
+      if ((!found.phone && data.phone) || (!found.company && data.company)) {
+        await db.accessPerson.update({ where: { id: found.id }, data: { phone: found.phone ?? data.phone, company: found.company ?? data.company } });
+      }
+      return { person: found, existed: true };
+    }
+  }
+  const person = await db.accessPerson.create({ data: { condominiumId: condoId, ...data, docKey: key, createdById } });
+  return { person, existed: false };
+}
+
+/** Autorização → dados para os componentes do navegador. */
+export function toGrantData(g: { id: string; personId: string; unitId: string | null; kind: string; validFrom: Date | null; validUntil: Date | null; weekdays: string; timeFrom: string | null; timeTo: string | null; notes: string | null; createdByName: string | null; createdAt: Date }, now = new Date()) {
   return {
-    id: p.id, kind: p.kind, unitId: p.unitId, name: p.name, document: p.document, phone: p.phone, company: p.company, notes: p.notes,
-    validUntil: p.validUntil ? brtParts(p.validUntil).day : null,
-    expired: !personValid(p),
-    unitLabel,
+    id: g.id, personId: g.personId, unitId: g.unitId, kind: g.kind, weekdays: g.weekdays, timeFrom: g.timeFrom, timeTo: g.timeTo, notes: g.notes, createdByName: g.createdByName,
+    validFrom: g.validFrom ? brtParts(g.validFrom).day : null,
+    validUntil: g.validUntil ? brtParts(g.validUntil).day : null,
+    schedule: grantSchedule(g),
+    status: grantStatus(g, now),
   };
 }
+export type GrantData = ReturnType<typeof toGrantData>;

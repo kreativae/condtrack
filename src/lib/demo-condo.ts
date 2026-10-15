@@ -9,6 +9,7 @@ import { dayToDate } from "./finance";
 import { nextProtocol } from "./orders";
 import { loadAssembly, minutesDraft } from "./assembly-server";
 import { DEFAULT_OPTIONS } from "./assembly";
+import { docKey } from "./booking";
 import {
   ACCENTS, ANNOUNCEMENTS, ASSEMBLY_NEXT, ASSEMBLY_PAST, CHECKLIST_ISSUES, CHECKLIST_NOTES, CITIES, CONDO_NAMES, FIRST_F, FIRST_M,
   ONE_OFF_EXPENSES, ORDER_POOL, ORDER_STATUSES, PROVIDER_KINDS, RATING_COMMENTS, SURNAMES, TOWER_PAIRS, VENDORS,
@@ -425,16 +426,56 @@ async function seedGate(c: {
 }) {
   const { cid, r, person, now, today, doorman, homes } = c;
   const doc = () => `${r.int(100, 999)}.${r.int(100, 999)}.${r.int(100, 999)}-${pad(r.int(0, 99))}`;
-  const peopleRows = homes.flatMap((h) => [
-    ...Array.from({ length: r.int(0, 2) }, () => ({ kind: "resident", name: person(r.next() < 0.5), notes: r.pick([null, "Filho(a)", "Cônjuge", "Mãe"]) })),
-    ...Array.from({ length: r.int(1, 2) }, () => ({ kind: "visitor", name: person(r.next() < 0.5), notes: r.pick([null, "Pode subir sem interfonar.", "Avó, visita aos domingos."]) })),
-    { kind: "provider", name: person(r.next() < 0.7), company: r.pick(["Diarista", "Babá", "Personal trainer", "Cuidadora", "Passeador de cães"]), notes: r.pick(["Vem às terças e sextas, das 8h às 17h.", "Segunda a sexta, manhã.", null]) },
-  ].map((p) => ({
-    condominiumId: cid, unitId: h.unitId, createdById: h.userId, document: r.next() < 0.6 ? doc() : null, company: null, ...p,
-    // Um visitante vencido de vez em quando
-    validUntil: p.kind === "visitor" && r.next() < 0.3 ? at(addDays(today, -r.int(3, 20)), "00:00") : null,
-  })));
-  await db.unitPerson.createMany({ data: peopleRows });
+  // Pessoas da portaria: cada uma uma vez, com autorizações por unidade (ou para o condomínio)
+  const grant = (personId: string, unitId: string | null, kind: string, createdById: string, createdByName: string, extra: { weekdays?: string; timeFrom?: string; timeTo?: string; validFrom?: Date; validUntil?: Date; notes?: string | null } = {}) =>
+    db.accessGrant.create({ data: { condominiumId: cid, personId, unitId, kind, createdById, createdByName, ...extra } });
+  const newPerson = (name: string, company: string | null = null) => {
+    const document = r.next() < 0.7 ? doc() : null;
+    return db.accessPerson.create({ data: { condominiumId: cid, name, document, docKey: docKey(document), company, phone: r.next() < 0.5 ? `(11) 9${r.int(1000, 9999)}-${r.int(1000, 9999)}` : null, createdById: doorman.id } });
+  };
+  const names = new Map((await db.user.findMany({ where: { id: { in: homes.map((h) => h.userId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+  let peopleCount = 0;
+  const providerPeople: { personId: string; unitId: string | null; weekdays: string }[] = [];
+  for (const h of homes) {
+    const by = names.get(h.userId) ?? "Morador";
+    for (let i = 0; i < r.int(0, 2); i++) {
+      const p = await newPerson(person(r.next() < 0.5));
+      await grant(p.id, h.unitId, "resident", h.userId, by, { notes: r.pick([null, "Filho(a)", "Cônjuge", "Mãe"]) });
+      peopleCount++;
+    }
+    for (let i = 0; i < r.int(1, 2); i++) {
+      const p = await newPerson(person(r.next() < 0.5));
+      const expired = r.next() < 0.25;
+      await grant(p.id, h.unitId, "visitor", h.userId, by, {
+        ...(expired ? { validUntil: at(addDays(today, -r.int(3, 20)), "00:00") } : r.next() < 0.4 ? { validFrom: at(today, "00:00"), validUntil: at(today, "00:00") } : r.next() < 0.5 ? { weekdays: "0" } : {}),
+        notes: r.pick([null, "Pode subir sem interfonar.", "Avó, visita aos domingos."]),
+      });
+      peopleCount++;
+    }
+  }
+  // Diarista que atende duas unidades em dias diferentes (o caso da mesma pessoa em várias unidades)
+  if (homes.length >= 2) {
+    const [h1, h2] = r.shuffle(homes).slice(0, 2);
+    const p = await newPerson(person(true), "Diarista");
+    const d1 = String(r.pick([1, 2, 3]));
+    const d2 = String(r.pick([4, 5]));
+    await grant(p.id, h1.unitId, "provider", h1.userId, names.get(h1.userId) ?? "Morador", { weekdays: d1, timeFrom: "08:00", timeTo: "17:00" });
+    await grant(p.id, h2.unitId, "provider", h2.userId, names.get(h2.userId) ?? "Morador", { weekdays: d2, timeFrom: "08:00", timeTo: "14:00" });
+    providerPeople.push({ personId: p.id, unitId: h1.unitId, weekdays: d1 }, { personId: p.id, unitId: h2.unitId, weekdays: d2 });
+    peopleCount++;
+  }
+  for (const h of homes.slice(0, 2)) {
+    const p = await newPerson(person(r.next() < 0.6), r.pick(["Babá", "Personal trainer", "Cuidadora", "Passeador de cães"]));
+    const wd = r.pick(["1,3,5", "2,4", "1,2,3,4,5"]);
+    await grant(p.id, h.unitId, "provider", h.userId, names.get(h.userId) ?? "Morador", { weekdays: wd, timeFrom: "07:00", timeTo: "19:00" });
+    providerPeople.push({ personId: p.id, unitId: h.unitId, weekdays: wd });
+    peopleCount++;
+  }
+  // Prestador do condomínio (sem unidade), autorizado pela administração
+  const gardener = await newPerson(person(false), "Jardinagem");
+  await grant(gardener.id, null, "provider", doorman.id, doorman.name, { weekdays: "3", timeFrom: "07:00", timeTo: "16:00", notes: "Manutenção dos jardins" });
+  providerPeople.push({ personId: gardener.id, unitId: null, weekdays: "3" });
+  peopleCount++;
 
   const usedSlots = new Set<string>();
   const occasions = ["Aniversário", "Confraternização da família", "Churrasco com amigos", "Chá de bebê", "Aniversário infantil", "Encontro da turma", ""];
@@ -481,31 +522,42 @@ async function seedGate(c: {
       for (const g of b.guests.filter(() => r.next() < 0.85)) {
         const when = new Date(startAt.getTime() + r.int(0, 90) * 60_000);
         await db.bookingGuest.update({ where: { id: g.id }, data: { checkedInAt: when, checkedInById: doorman.id } });
-        await db.accessEntry.create({ data: { condominiumId: cid, unitId: home.unitId, guestId: g.id, kind: "guest", name: g.name, document: g.document, notes: `Convidado: ${area.name}`, createdById: doorman.id, createdBy: doorman.name, createdAt: when, ...(endAt.getTime() < now && { exitedAt: endAt, exitedById: doorman.id }) } });
+        await db.accessEntry.create({ data: { condominiumId: cid, unitId: home.unitId, guestId: g.id, kind: "guest", name: g.name, document: g.document, notes: `Convidado: ${area.name}`, createdById: doorman.id, createdBy: doorman.name, createdAt: when, ...(endAt.getTime() < now && { exitedAt: endAt, exitedById: doorman.id }), dests: { create: [{ unitId: home.unitId }] } } });
       }
     }
   }
 
-  // Entradas avulsas dos últimos 7 dias (visitantes, entregas e prestadores)
-  const entries = [];
+  // Entradas dos últimos 7 dias: prestadores autorizados nos dias deles e visitas/entregas avulsas
+  let entries = 0;
+  const exit = (when: Date) => (now - when.getTime() > 3 * 3600_000 || r.next() < 0.5 ? { exitedAt: new Date(Math.min(now - 60_000, when.getTime() + r.int(15, 480) * 60_000)), exitedById: doorman.id } : {});
   for (let d = 6; d >= 0; d--) {
     const day = addDays(today, -d);
-    for (let i = 0; i < r.int(2, 6); i++) {
+    const dow = new Date(`${day}T12:00:00Z`).getUTCDay();
+    for (const pp of providerPeople.filter((x) => x.weekdays.split(",").includes(String(dow)))) {
+      const when = at(day, `0${r.int(7, 8)}:${pad(r.int(0, 59))}`);
+      if (when.getTime() > now || r.next() < 0.15) continue;
+      const p = await db.accessPerson.findUnique({ where: { id: pp.personId } });
+      await db.accessEntry.create({ data: { condominiumId: cid, unitId: pp.unitId, personId: pp.personId, kind: "provider", name: p!.name, document: p!.document, createdById: doorman.id, createdBy: doorman.name, createdAt: when, ...exit(when), dests: { create: pp.unitId ? [{ unitId: pp.unitId }] : [] } } });
+      entries++;
+    }
+    for (let i = 0; i < r.int(2, 5); i++) {
       const when = at(day, `${pad(r.int(8, 20))}:${pad(r.int(0, 59))}`);
       if (when.getTime() > now) continue;
-      const kind = r.next() < 0.6 ? "visitor" : "provider";
-      entries.push({
-        condominiumId: cid, unitId: r.next() < 0.6 && homes.length ? r.pick(homes).unitId : r.pick(c.unitIds), kind, name: person(r.next() < 0.5),
-        document: r.next() < 0.5 ? doc() : null,
-        notes: kind === "provider" ? r.pick(["Entrega de móveis", "Técnico de internet", "Manutenção do ar-condicionado", "Entrega de mercado"]) : r.pick([null, null, "Placa ABC1D23", "Visita rápida"]),
-        createdById: doorman.id, createdBy: doorman.name, createdAt: when,
-        // Quase todos já saíram; alguns das últimas horas continuam no condomínio
-        ...(now - when.getTime() > 3 * 3600_000 || r.next() < 0.5 ? { exitedAt: new Date(Math.min(now - 60_000, when.getTime() + r.int(15, 180) * 60_000)), exitedById: doorman.id } : {}),
+      const kind = r.pick(["visitor", "visitor", "delivery", "provider"]);
+      const dests = kind === "delivery" && r.next() < 0.4 ? r.shuffle(c.unitIds).slice(0, r.int(2, 3)) : [r.next() < 0.6 && homes.length ? r.pick(homes).unitId : r.pick(c.unitIds)];
+      await db.accessEntry.create({
+        data: {
+          condominiumId: cid, unitId: dests[0], kind, name: kind === "delivery" ? r.pick(["Entregador Mercado Livre", "Entregador iFood", "Correios", "Entregador Amazon"]) : person(r.next() < 0.5),
+          document: r.next() < 0.5 ? doc() : null,
+          notes: kind === "provider" ? r.pick(["Técnico de internet", "Manutenção do ar-condicionado", "Montador de móveis"]) : kind === "delivery" ? r.pick(["Pacotes", "Mercado", null]) : r.pick([null, null, "Placa ABC1D23", "Visita rápida"]),
+          createdById: doorman.id, createdBy: doorman.name, createdAt: when, ...exit(when),
+          dests: { create: dests.map((unitId) => ({ unitId })) },
+        },
       });
+      entries++;
     }
   }
-  await db.accessEntry.createMany({ data: entries });
-  return { people: peopleRows.length, bookings, entries: entries.length };
+  return { people: peopleCount, bookings, entries };
 }
 
 /** Regras padrão quando a área ainda não tem horário (pelo nome). */

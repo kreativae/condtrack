@@ -9,7 +9,7 @@ import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { unitLabel } from "@/lib/units";
 import {
-  HOLDING, MAX_ADVANCE_DAYS, MAX_BOOKING_HOURS, MAX_GUESTS, bookingRange, fitsOpening, fmtPeriod, isDay, isGate, isHM, parseGuests,
+  HOLDING, MAX_ADVANCE_DAYS, MAX_BOOKING_HOURS, MAX_GUESTS, bookingRange, docKey, fitsOpening, fmtPeriod, isDay, isGate, isHM, parseGuests,
 } from "@/lib/booking";
 import { bookingAccess, gateCondo, myUnits } from "@/lib/booking-server";
 
@@ -204,10 +204,17 @@ export async function toggleGuestArrival(guestId: string) {
       db.accessEntry.deleteMany({ where: { guestId: g.id } }),
     ]);
   } else {
+    // Convidado que já é cadastrado na portaria (mesmo documento): a entrada vai para a ficha dele
+    const key = docKey(g.document);
+    const known = key ? await db.accessPerson.findUnique({ where: { condominiumId_docKey: { condominiumId: r.b.condominiumId, docKey: key } }, select: { id: true } }) : null;
     await db.$transaction([
       db.bookingGuest.update({ where: { id: g.id }, data: { checkedInAt: new Date(), checkedInById: user.id } }),
       db.accessEntry.create({
-        data: { condominiumId: r.b.condominiumId, unitId: r.b.unitId, guestId: g.id, kind: "guest", name: g.name, document: g.document, notes: `Convidado: ${r.b.commonArea.name}`, createdById: user.id, createdBy: user.name },
+        data: {
+          condominiumId: r.b.condominiumId, unitId: r.b.unitId, guestId: g.id, personId: known?.id ?? null, kind: "guest", name: g.name, document: g.document,
+          notes: `Convidado: ${r.b.commonArea.name}`, createdById: user.id, createdBy: user.name,
+          dests: { create: r.b.unitId ? [{ unitId: r.b.unitId }] : [] },
+        },
       }),
     ]);
   }

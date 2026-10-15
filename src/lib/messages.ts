@@ -122,8 +122,9 @@ export const TEMPLATES: TemplateDef[] = [
   notification("booking_request", "Nova reserva para aprovar", "Síndico, zelador e porteiro", "Reserva: {area}", "{autor} ({unidade}) pediu {area} para {quando}.\n{convidados} convidado(s). Aprove ou recuse em Reservas.", BOOKING_VARS),
   notification("booking_decided", "Reserva aprovada ou recusada", "Quem pediu a reserva", "Reserva {decisao}: {area}", "{area} em {quando}: reserva {decisao} por {autor}.\n{comentario}", [...BOOKING_VARS, V.comentario, { name: "decisao", desc: "aprovada ou recusada", sample: "aprovada" }]),
   notification("booking_cancelled", "Reserva cancelada", "Quem pediu, ou quem aprova (se o morador cancelar)", "Reserva cancelada: {area}", "{autor} cancelou a reserva de {area} em {quando}.\n{comentario}", [...BOOKING_VARS, V.comentario]),
-  notification("gate_entry", "Entrada registrada na portaria", "Moradores da unidade", "{nome} chegou", "{tipo} para {unidade}, registrado por {autor} às {hora}.", [
+  notification("gate_entry", "Entrada registrada na portaria", "Moradores de cada unidade de destino", "{nome} chegou", "{tipo} para {unidade}, registrado por {autor} às {hora}.\n{aviso}", [
     V.condominio, V.autor,
+    { name: "aviso", desc: "Alerta quando a pessoa não estava autorizada para hoje (a linha some quando estava)", sample: "Não estava autorizado(a) para hoje: avise a portaria se não reconhecer." },
     { name: "nome", desc: "Quem entrou", sample: "Carlos Mendes" },
     { name: "tipo", desc: "Visitante, prestador…", sample: "Visitante" },
     { name: "unidade", desc: "Unidade", sample: "Torre A · 101" },
