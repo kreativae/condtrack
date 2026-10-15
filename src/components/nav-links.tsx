@@ -254,8 +254,10 @@ function SideItem({ it, active, compact, lk, handlers, hidden }: {
       {...handlers}
       style={lk.style}
       hidden={hidden}
+      // A classe "flex" anularia o atributo hidden: o item escondido precisa da classe "hidden"
       className={clsx(
-        "flex items-center rounded-xl transition-colors",
+        hidden ? "hidden" : "flex",
+        "items-center rounded-xl transition-colors",
         compact ? "gap-2.5 px-3 py-1.5 text-[13.5px]" : "gap-3 px-3 py-2 text-sm",
         NO_TOUCH_MENU,
         lk.lifted ? LIFTED : active ? "bg-brand-soft" : "hover:bg-bg-2",
