@@ -20,7 +20,7 @@ const CAT: Record<string, [string, Tone]> = {
 const PAGE = 15;
 
 export default async function AnnouncementsPage({ searchParams }: PageProps<"/comunicados">) {
-  const user = await requireUser("superadmin", "syndic", "caretaker", "council");
+  const user = await requireUser("superadmin", "syndic", "caretaker", "doorman", "council");
   const sp = await searchParams;
   // Superadmin: comunicados do condomínio em foco (cartão do menu); só pede exclusão, quem aprova é o síndico
   const admin = user.role === "superadmin";
@@ -44,7 +44,7 @@ export default async function AnnouncementsPage({ searchParams }: PageProps<"/co
       skip: (page - 1) * PAGE,
       take: PAGE,
     }),
-    user.role === "syndic" || admin ? db.user.count({ where: { ...inCondo(condoId, ["council", "caretaker"]), status: "active" } }) : 0,
+    user.role === "syndic" || admin ? db.user.count({ where: { ...inCondo(condoId, ["council", "caretaker", "doorman"]), status: "active" } }) : 0,
   ]);
   const syndic = user.role === "syndic";
 

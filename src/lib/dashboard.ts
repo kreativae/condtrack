@@ -29,6 +29,7 @@ export const DASHBOARD_SECTIONS: Record<Role, DashSection[]> = {
     { key: "urgent", label: "Urgências e atrasos" },
     { key: "checklist", label: "Checklist de hoje" },
   ],
+  doorman: [],
   provider: [
     { key: "stats", label: "Indicadores" },
     { key: "rejected", label: "Devolvidas para ajuste" },

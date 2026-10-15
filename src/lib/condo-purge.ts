@@ -12,7 +12,7 @@ const USER_SELECT = { id: true, name: true, email: true, phone: true, cpf: true,
 /** Todos os dados do condomínio, sem senhas nem segredos. */
 export async function condoBackupData(id: string) {
   const where = { condominiumId: id };
-  const [condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs] = await Promise.all([
+  const [condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, unitPeople, accessEntries] = await Promise.all([
     db.condominium.findUnique({ where: { id } }),
     db.building.findMany({ where, include: { units: { include: { residents: true } } } }),
     db.membership.findMany({ where, include: { user: { select: USER_SELECT } } }),
@@ -29,8 +29,11 @@ export async function condoBackupData(id: string) {
     db.subscription.findUnique({ where }),
     db.payment.findMany({ where }),
     db.auditLog.findMany({ where, orderBy: { createdAt: "asc" } }),
+    db.booking.findMany({ where, include: { guests: true } }),
+    db.unitPerson.findMany({ where }),
+    db.accessEntry.findMany({ where, orderBy: { createdAt: "asc" } }),
   ]);
-  return { condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs };
+  return { condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, unitPeople, accessEntries };
 }
 
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").slice(0, 120);
@@ -62,7 +65,7 @@ export async function condoBackupZip(id: string) {
     `Gerado em ${new Date().toISOString()}`,
     "",
     "dados.json: todos os registros (cadastro, estrutura, pessoas e vínculos, OS com linha do tempo, comunicados,",
-    "assembleias com votos, financeiro com histórico, orçamento, manutenção, checklist, assinatura e auditoria).",
+    "assembleias com votos, financeiro com histórico, orçamento, manutenção, checklist, reservas, portaria, assinatura e auditoria).",
     "financeiro/: notas fiscais, boletos e comprovantes de cada lançamento.",
     "Fotos e vídeos das OS não entram no arquivo; os dados de captura de cada mídia estão em dados.json.",
     ...(missing.length ? ["", "Arquivos não encontrados no armazenamento:", ...missing] : []),

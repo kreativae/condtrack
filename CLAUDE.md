@@ -25,8 +25,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   checam de novo com `requireUser(...)`; a UI nunca é a única barreira.
 - **Fluxo da OS**: open → assigned → in_progress (exige ANTES) → completed (exige DEPOIS) → validated (zelador) → approved (síndico, vai ao feed).
   Rejeição volta ao prestador com motivo.
-- **Morador (`resident`) é somente leitura.** Única exceção: votar em assembleia como proprietário da unidade
-  (`castVote`, um voto por unidade em cada item). Inquilino e dependente não votam.
+- **Morador (`resident`) é somente leitura** nas OS, no feed e no financeiro. Exceções: votar em assembleia como
+  proprietário da unidade (`castVote`, um voto por unidade em cada item; inquilino e dependente não votam), reservar
+  áreas comuns com lista de convidados e cadastrar pessoas da própria unidade (Minha unidade).
 - **Auditoria**: ações críticas chamam `audit()` (`src/lib/audit.ts`), inclusive no modo "visualizar como".
 - **Mídias**: fotos sem marca d'água; os dados de captura (data, GPS, aparelho) ficam só nos metadados da OS.
 - **Financeiro**: nunca apagar lançamentos, anexos ou logs de verdade; o histórico é a prestação de contas Única exceção: a exclusão
@@ -124,6 +125,16 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   mesma aba, abaixo dos dados (Setting público `legal_texts`, guarda só o que difere do padrão; padrões e variáveis
   `{empresa}`, `{cnpj}`… em `src/lib/legal-texts.ts`; leitura por `legalDocument()`/`legalMessages()` em `lib/legal.ts`).
   Textos são modelo: revisar com advogado.
+- **Reservas e portaria** (regras puras em `src/lib/booking.ts`, testadas; servidor em `booking-server.ts`; ações em
+  `actions/bookings.ts` e `actions/portaria.ts`). Perfil **Porteiro** (`doorman`): o `/dashboard` manda para `/portaria`;
+  não vê OS. Quem atende (`GATE_ROLES`: superadmin, síndico, zelador, porteiro) aprova/recusa reservas, cadastra
+  visitantes e prestadores e registra entradas. Áreas reserváveis em Estrutura (horário que pode virar a noite,
+  regras, capacidade = limite de convidados, "precisa de aprovação"). `Booking` pending → approved | rejected,
+  cancelled; conflito de horário checado em transação serializável (pendentes também ocupam). Reserva feita por quem
+  atende já sai aprovada. `/reservas` (lista, nova, detalhe com convidados e "chegou"), `/minha-unidade` (morador:
+  `UnitPerson` resident/visitor/provider com validade, entradas da unidade), `/portaria` (busca, entrada rápida,
+  reservas e entradas do dia; `AccessEntry` avisa os moradores da unidade, modelo `gate_entry`). Datas no fuso de
+  Brasília (`brt()`/`brtParts()`).
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

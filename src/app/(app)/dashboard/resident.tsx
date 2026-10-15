@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { CalendarDays, Contact } from "lucide-react";
+import { fmtPeriod } from "@/lib/booking";
 import { db } from "@/lib/db";
 import { nowMs } from "@/lib/format";
 import type { CurrentUser } from "@/lib/auth";
@@ -31,6 +33,12 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
   const unit = user.units[0]?.unit;
+  const unitIds = user.units.filter((u) => u.unit.building.condominiumId === cid).map((u) => u.unitId);
+  const next = await db.booking.findFirst({
+    where: { condominiumId: cid, status: { in: ["pending", "approved"] }, endAt: { gt: new Date() }, OR: [{ requestedById: user.id }, { unitId: { in: unitIds } }] },
+    include: { commonArea: { select: { name: true } } },
+    orderBy: { startAt: "asc" },
+  });
 
   return (
     <div className="animate-in">
@@ -39,6 +47,16 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
         title={`Olá, ${user.name.split(" ")[0]}`}
         description="Acompanhe tudo o que foi feito no seu condomínio."
       />
+      <div className="mb-6 grid gap-3 sm:grid-cols-2">
+        <Link href="/reservas" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><CalendarDays className="size-5" /></span>
+          <span className="min-w-0 flex-1"><b className="block text-sm">Reservas</b><span className="text-xs text-muted">{next ? `Próxima: ${next.commonArea.name}, ${fmtPeriod(next.startAt, next.endAt)}` : "Salão, churrasqueira e outros espaços"}</span></span>
+        </Link>
+        <Link href="/minha-unidade" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><Contact className="size-5" /></span>
+          <span className="min-w-0 flex-1"><b className="block text-sm">Minha unidade</b><span className="text-xs text-muted">Moradores, visitantes e prestadores autorizados</span></span>
+        </Link>
+      </div>
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Entregues em 30 dias" value={month} tone="brand" />
         <Stat label={`Entregues em ${new Date().getFullYear()}`} value={year} />

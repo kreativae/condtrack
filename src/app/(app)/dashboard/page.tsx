@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { HIDE_2FA_TIP_COOKIE, requireUser } from "@/lib/auth";
 import { TwoFactorReminder } from "./two-factor-reminder";
 import { adminScope } from "@/lib/admin-scope-server";
@@ -40,5 +41,7 @@ async function board(user: Awaited<ReturnType<typeof requireUser>>, welcome: boo
       return <CouncilDashboard user={user} />;
     case "resident":
       return <ResidentDashboard user={user} />;
+    case "doorman":
+      redirect("/portaria");
   }
 }

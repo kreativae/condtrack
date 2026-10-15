@@ -17,6 +17,8 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
     { href: "/assembleias", label: "Assembleias", icon: "vote" },
+    { href: "/reservas", label: "Reservas", icon: "calendar" },
+    { href: "/portaria", label: "Portaria", icon: "door" },
     { href: "/admin/usuarios", label: "Usuários", icon: "users", mobile: true },
     { href: "/admin/assinaturas", label: "Assinaturas", icon: "card", mobile: true },
     { href: "/admin/auditoria", label: "Auditoria", icon: "shield" },
@@ -32,6 +34,8 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
     { href: "/assembleias", label: "Assembleias", icon: "vote" },
+    { href: "/reservas", label: "Reservas", icon: "calendar" },
+    { href: "/portaria", label: "Portaria", icon: "door" },
     { href: "/usuarios", label: "Pessoas", icon: "users", mobile: true },
     { href: "/estrutura", label: "Estrutura", icon: "building" },
     { href: "/auditoria", label: "Auditoria", icon: "shield" },
@@ -47,6 +51,15 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
     { href: "/assembleias", label: "Assembleias", icon: "vote" },
+    { href: "/reservas", label: "Reservas", icon: "calendar" },
+    { href: "/portaria", label: "Portaria", icon: "door" },
+    { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
+  ],
+  // Porteiro: o início é a Portaria (o /dashboard redireciona)
+  doorman: [
+    { href: "/portaria", label: "Portaria", icon: "door", mobile: true },
+    { href: "/reservas", label: "Reservas", icon: "calendar", mobile: true },
+    { href: "/comunicados", label: "Comunicados", icon: "megaphone", mobile: true },
     { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
   ],
   provider: [
@@ -63,13 +76,17 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/relatorios", label: "Relatórios", icon: "report" },
     { href: "/comunicados", label: "Comunicados", icon: "megaphone" },
     { href: "/assembleias", label: "Assembleias", icon: "vote" },
+    { href: "/reservas", label: "Reservas", icon: "calendar" },
+    { href: "/minha-unidade", label: "Minha unidade", short: "Unidade", icon: "contact" },
     { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
   ],
-  // Morador: somente visualização (vota em assembleia quando é proprietário)
+  // Morador: visualiza os serviços; vota em assembleia (proprietário), reserva áreas e cadastra pessoas da unidade
   resident: [
     { href: "/dashboard", label: "Início", icon: "home", mobile: true },
     { href: "/feed", label: "Serviços entregues", short: "Serviços", icon: "sparkles", mobile: true },
-    { href: "/assembleias", label: "Assembleias", icon: "vote", mobile: true },
+    { href: "/reservas", label: "Reservas", icon: "calendar", mobile: true },
+    { href: "/minha-unidade", label: "Minha unidade", short: "Unidade", icon: "contact", mobile: true },
+    { href: "/assembleias", label: "Assembleias", icon: "vote" },
     { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
   ],
 };

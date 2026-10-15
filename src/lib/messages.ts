@@ -29,10 +29,17 @@ const V = {
   comentario: { name: "comentario", desc: "Comentário/motivo (quando houver)", sample: "Faltou pintar o rodapé." },
 };
 const OS_VARS = [V.protocolo, V.titulo, V.condominio, V.autor];
+const BOOKING_VARS: Var[] = [
+  V.condominio, V.autor,
+  { name: "area", desc: "Área reservada", sample: "Salão de festas" },
+  { name: "quando", desc: "Dia e horário", sample: "sáb., 24 de out. · 19:00–23:00" },
+  { name: "unidade", desc: "Unidade", sample: "Torre A · 101" },
+  { name: "convidados", desc: "Quantidade de convidados", sample: "35" },
+];
 
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") ? "Reservas e portaria" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -111,6 +118,16 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "titulo", desc: "Título da assembleia", sample: "Assembleia geral ordinária 2026" },
     { name: "itens", desc: "Itens com votos zerados", sample: "1" },
     { name: "prazo", desc: "Fim da votação online", sample: "12/10/2026 22:00" },
+  ]),
+  notification("booking_request", "Nova reserva para aprovar", "Síndico, zelador e porteiro", "Reserva: {area}", "{autor} ({unidade}) pediu {area} para {quando}.\n{convidados} convidado(s). Aprove ou recuse em Reservas.", BOOKING_VARS),
+  notification("booking_decided", "Reserva aprovada ou recusada", "Quem pediu a reserva", "Reserva {decisao}: {area}", "{area} em {quando}: reserva {decisao} por {autor}.\n{comentario}", [...BOOKING_VARS, V.comentario, { name: "decisao", desc: "aprovada ou recusada", sample: "aprovada" }]),
+  notification("booking_cancelled", "Reserva cancelada", "Quem pediu, ou quem aprova (se o morador cancelar)", "Reserva cancelada: {area}", "{autor} cancelou a reserva de {area} em {quando}.\n{comentario}", [...BOOKING_VARS, V.comentario]),
+  notification("gate_entry", "Entrada registrada na portaria", "Moradores da unidade", "{nome} chegou", "{tipo} para {unidade}, registrado por {autor} às {hora}.", [
+    V.condominio, V.autor,
+    { name: "nome", desc: "Quem entrou", sample: "Carlos Mendes" },
+    { name: "tipo", desc: "Visitante, prestador…", sample: "Visitante" },
+    { name: "unidade", desc: "Unidade", sample: "Torre A · 101" },
+    { name: "hora", desc: "Horário da entrada", sample: "14:32" },
   ]),
   notification("maint_order", "OS de manutenção preventiva aberta", "Síndico e zelador", "Manutenção preventiva: {titulo}", "{protocolo} · prevista para {vencimento}.", [
     V.protocolo,

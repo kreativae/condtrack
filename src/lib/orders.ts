@@ -18,6 +18,8 @@ export function orderScope(user: CurrentUser): Prisma.ServiceOrderWhereInput {
       return { condominiumId: user.condominiumId ?? "__none__", requestedById: user.id };
     case "resident":
       return { condominiumId: user.condominiumId ?? "__none__", status: "approved" };
+    case "doorman":
+      return { id: "__none__" };
   }
 }
 

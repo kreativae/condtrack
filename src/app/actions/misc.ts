@@ -17,8 +17,9 @@ export async function openNotification(id: string) {
   const n = await db.notification.findFirst({ where: { id, userId: user.id } });
   if (!n) return;
   await db.notification.update({ where: { id }, data: { read: true, readAt: new Date() } });
-  const to: Record<string, string> = { announcement: "/comunicados", billing: "/assinatura", checklist: "/checklist", maintenance: "/manutencao" };
+  const to: Record<string, string> = { announcement: "/comunicados", billing: "/assinatura", checklist: "/checklist", maintenance: "/manutencao", unit: "/minha-unidade" };
   if (n.referenceType === "assembly" && n.referenceId) redirect(`/assembleias/${n.referenceId}`);
+  if (n.referenceType === "booking" && n.referenceId) redirect(`/reservas/${n.referenceId}`);
   if (n.referenceType === "user" && n.referenceId && user.role === "superadmin") redirect(`/admin/usuarios/${n.referenceId}/editar`);
   redirect(n.referenceType === "service_order" && n.referenceId ? `/os/${n.referenceId}` : (n.referenceType && to[n.referenceType]) || "/notificacoes");
 }
@@ -84,7 +85,7 @@ export async function createAnnouncement(_: FormState, form: FormData): Promise<
   });
   await audit(user, "create", "announcement", a.id, { new: parsed.data });
   await notify(
-    { condominiumId: user.condominiumId!, roles: ["caretaker", "council"] },
+    { condominiumId: user.condominiumId!, roles: ["caretaker", "doorman", "council"] },
     { type: "announcement", vars: { titulo: a.title, resumo: a.content.slice(0, 140), autor: user.name }, referenceType: "announcement", referenceId: a.id },
   );
   revalidatePath("/comunicados");

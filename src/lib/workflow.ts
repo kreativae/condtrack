@@ -135,6 +135,8 @@ export function canView(o: OrderLike, u: UserLike) {
       return o.requestedById === u.id || o.status === "approved";
     case "resident":
       return o.status === "approved";
+    case "doorman":
+      return false;
   }
 }
 

@@ -158,7 +158,7 @@ export function EditUserForm({ user, roles, condos, units, self, canGrant, membe
   );
 }
 
-const MEMBER_ROLES: Role[] = ["syndic", "caretaker", "provider", "council", "resident"];
+const MEMBER_ROLES: Role[] = ["syndic", "caretaker", "doorman", "provider", "council", "resident"];
 
 /** Outros condomínios do usuário (síndico profissional, prestador de vários prédios…). */
 function ExtraMemberships({ initial, condos }: { initial: { condominiumId: string; role: string; permissions: string }[]; condos: { id: string; name: string }[] }) {

@@ -21,6 +21,7 @@ export const NAV_GROUPS = [
   { key: "dia", label: "Dia a dia" },
   { key: "dinheiro", label: "Dinheiro" },
   { key: "comunicacao", label: "Comunicação" },
+  { key: "portaria", label: "Portaria e reservas" },
   { key: "admin", label: "Administração" },
 ] as const;
 export type NavGroupKey = (typeof NAV_GROUPS)[number]["key"];
@@ -29,6 +30,7 @@ export type NavGroupKey = (typeof NAV_GROUPS)[number]["key"];
 const GROUP_OF: Record<string, NavGroupKey> = {
   "/financeiro": "dinheiro", "/relatorios": "dinheiro",
   "/comunicados": "comunicacao", "/assembleias": "comunicacao",
+  "/reservas": "portaria", "/portaria": "portaria", "/minha-unidade": "portaria",
   "/admin/condominios": "admin", "/admin/usuarios": "admin", "/usuarios": "admin", "/admin/assinaturas": "admin", "/assinatura": "admin",
   "/admin/auditoria": "admin", "/auditoria": "admin", "/admin/configuracoes": "admin", "/estrutura": "admin", "/meus-condominios": "admin",
 };

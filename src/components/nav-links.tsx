@@ -4,7 +4,7 @@ import Link from "next/link";
 import { startTransition, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell, Building, Building2, GripVertical, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Vote, Wallet, Wrench, ChevronDown, MoreHorizontal, type LucideIcon,
+  Bell, Building, Building2, GripVertical, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Vote, Wallet, Wrench, ChevronDown, MoreHorizontal, CalendarDays, DoorOpen, Contact, type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import type { NavItem } from "@/lib/nav";
@@ -18,6 +18,7 @@ import { CondoSwitcher } from "./condo-switcher";
 const ICONS: Record<string, LucideIcon> = {
   gauge: Gauge, building: Building2, clipboard: ClipboardList, users: Users, shield: ShieldCheck, sparkles: Sparkles,
   megaphone: Megaphone, card: CreditCard, settings: Settings, plus: Plus, history: History, home: Home, bell: Bell, checklist: ListChecks, report: FileText, wallet: Wallet, buildings: Building, wrench: Wrench, vote: Vote,
+  calendar: CalendarDays, door: DoorOpen, contact: Contact,
 };
 
 function isActive(pathname: string, href: string) {

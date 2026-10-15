@@ -259,13 +259,21 @@ const areaSchema = z.object({
   description: z.string().trim().max(300).optional(),
   capacity: z.coerce.number().int().min(1).max(10000).optional(),
   reservable: z.literal("on").optional(),
+  openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido").optional(),
+  closeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido").optional(),
+  bookingRules: z.string().trim().max(2000).optional(),
+  requiresApproval: z.literal("on").optional(),
 });
 
 export async function saveArea(condominiumId: string, id: string | null, _prev: StructState, form: FormData): Promise<StructState> {
   try {
     const user = await manager(condominiumId);
     const d = areaSchema.parse(fields(form));
-    const data = { name: d.name, description: d.description ?? null, capacity: d.capacity ?? null, reservable: d.reservable === "on" };
+    if (!!d.openTime !== !!d.closeTime) return { error: "Informe abertura e fechamento (ou deixe os dois vazios)." };
+    const data = {
+      name: d.name, description: d.description ?? null, capacity: d.capacity ?? null, reservable: d.reservable === "on",
+      openTime: d.openTime ?? null, closeTime: d.closeTime ?? null, bookingRules: d.bookingRules ?? "", requiresApproval: d.requiresApproval === "on",
+    };
     if (id) {
       const old = await db.commonArea.findFirstOrThrow({ where: { id, condominiumId } });
       await db.commonArea.update({ where: { id }, data });
@@ -284,8 +292,9 @@ export async function saveArea(condominiumId: string, id: string | null, _prev: 
 export async function deleteArea(condominiumId: string, id: string, _prev: StructState): Promise<StructState> {
   try {
     const user = await manager(condominiumId);
-    const a = await db.commonArea.findFirstOrThrow({ where: { id, condominiumId }, include: { _count: { select: { orders: true } } } });
+    const a = await db.commonArea.findFirstOrThrow({ where: { id, condominiumId }, include: { _count: { select: { orders: true, bookings: true } } } });
     if (a._count.orders) return { error: `${a.name} tem ${a._count.orders} OS no histórico e não pode ser excluída.` };
+    if (a._count.bookings) return { error: `${a.name} tem ${a._count.bookings} reserva(s) no histórico e não pode ser excluída. Desmarque “Pode ser reservada” para tirá-la das reservas.` };
     await db.commonArea.delete({ where: { id } });
     await audit(user, "delete", "common_area", id, { old: { name: a.name }, condominiumId });
     return done(condominiumId, `${a.name} excluída.`);

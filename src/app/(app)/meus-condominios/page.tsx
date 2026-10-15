@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Meus condomínios" };
 
 /** Visão consolidada para quem tem vínculo com vários condomínios (síndico profissional, prestador…). */
 export default async function MyCondosPage() {
-  const user = await requireUser("syndic", "caretaker", "provider", "council", "resident");
+  const user = await requireUser("syndic", "caretaker", "doorman", "provider", "council", "resident");
   const ms = await userMemberships(user.id);
   if (ms.length < 2) redirect("/dashboard");
   const now = nowMs();

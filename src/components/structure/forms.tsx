@@ -187,7 +187,10 @@ export function UnitGenerateForm({ action, kind, houseNoun }: { action: FormActi
   );
 }
 
-export function AreaForm({ action, area, submit }: { action: FormAction; area?: { name: string; description: string | null; capacity: number | null; reservable: boolean }; submit: string }) {
+type AreaInitial = { name: string; description: string | null; capacity: number | null; reservable: boolean; openTime: string | null; closeTime: string | null; bookingRules: string; requiresApproval: boolean };
+
+export function AreaForm({ action, area, submit }: { action: FormAction; area?: AreaInitial; submit: string }) {
+  const [reservable, setReservable] = useState(area?.reservable ?? false);
   return (
     <ActionForm action={action} submit={submit} reset={!area}>
       <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
@@ -196,8 +199,21 @@ export function AreaForm({ action, area, submit }: { action: FormAction; area?: 
       </div>
       <Field label="Descrição"><Textarea name="description" rows={2} defaultValue={area?.description ?? ""} /></Field>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="reservable" defaultChecked={area?.reservable} className="size-4 accent-[var(--brand)]" /> Pode ser reservada por moradores
+        <input type="checkbox" name="reservable" checked={reservable} onChange={(e) => setReservable(e.target.checked)} className="size-4 accent-[var(--brand)]" /> Pode ser reservada por moradores
       </label>
+      {reservable && (
+        <div className="space-y-4 rounded-xl bg-bg-2 p-4">
+          <div className="grid grid-cols-2 gap-4 sm:max-w-sm">
+            <Field label="Abre às"><Input name="openTime" type="time" defaultValue={area?.openTime ?? ""} /></Field>
+            <Field label="Fecha às"><Input name="closeTime" type="time" defaultValue={area?.closeTime ?? ""} /></Field>
+          </div>
+          <p className="-mt-2 text-xs text-muted">Vazio = qualquer horário. Pode virar a noite (ex.: 18:00 às 02:00). A capacidade acima limita a lista de convidados.</p>
+          <Field label="Regras de uso" hint="Aparecem para o morador ao reservar."><Textarea name="bookingRules" rows={3} maxLength={2000} defaultValue={area?.bookingRules ?? ""} placeholder="Ex.: música até 22h; entregar limpo; taxa de R$ 100 na próxima cota." /></Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="requiresApproval" defaultChecked={area?.requiresApproval ?? true} className="size-4 accent-[var(--brand)]" /> Precisa de aprovação (síndico, zelador ou porteiro)
+          </label>
+        </div>
+      )}
     </ActionForm>
   );
 }
