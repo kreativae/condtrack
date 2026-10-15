@@ -4,15 +4,16 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { MAX_ADVANCE_DAYS, brtParts, isGate } from "@/lib/booking";
+import { MAX_ADVANCE_DAYS, brtParts, isDay, isGate } from "@/lib/booking";
 import { condoUnits, gateCondo, myUnits } from "@/lib/booking-server";
 import { Card, PageHeader } from "@/components/ui";
 import { BookingForm } from "../booking-ui";
 
 export const metadata: Metadata = { title: "Nova reserva" };
 
-export default async function NewBookingPage() {
+export default async function NewBookingPage({ searchParams }: PageProps<"/reservas/nova">) {
   const user = await requireUser();
+  const sp = await searchParams;
   const condoId = await gateCondo(user);
   if (!condoId) redirect("/reservas");
   const gate = isGate(user.role);
@@ -42,6 +43,8 @@ export default async function NewBookingPage() {
           busy={busy.map((b) => ({ areaId: b.commonAreaId, startAt: b.startAt.toISOString(), endAt: b.endAt.toISOString(), status: b.status }))}
           today={brtParts(now).day}
           gate={gate}
+          initialArea={typeof sp.area === "string" ? sp.area : undefined}
+          initialDay={isDay(sp.dia) ? sp.dia : undefined}
         />
       </Card>
     </div>

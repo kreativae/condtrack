@@ -48,3 +48,16 @@ describe("reservas", () => {
     expect(personValid({ kind: "resident", validUntil: until }, new Date("2030-01-01"))).toBe(true);
   });
 });
+
+describe("calendário de reservas", () => {
+  it("grade do mês começa no domingo e termina no sábado", async () => {
+    const { monthGrid, shiftMonthKey } = await import("../booking");
+    const g = monthGrid("2026-10");
+    expect(g[0]).toBe("2026-09-27");
+    expect(g.at(-1)).toBe("2026-10-31");
+    expect(g.length % 7).toBe(0);
+    expect(monthGrid("2026-02")[0]).toBe("2026-02-01");
+    expect(shiftMonthKey("2026-12", 1)).toBe("2027-01");
+    expect(shiftMonthKey("2026-01", -1)).toBe("2025-12");
+  });
+});

@@ -12,10 +12,10 @@ type Area = { id: string; name: string; capacity: number | null; openTime: strin
 type Busy = { areaId: string; startAt: string; endAt: string; status: string };
 
 /** Nova reserva: área, unidade, dia, horário, observações e lista de convidados. */
-export function BookingForm({ areas, units, busy, today, gate }: { areas: Area[]; units: { id: string; label: string }[]; busy: Busy[]; today: string; gate: boolean }) {
+export function BookingForm({ areas, units, busy, today, gate, initialArea, initialDay }: { areas: Area[]; units: { id: string; label: string }[]; busy: Busy[]; today: string; gate: boolean; initialArea?: string; initialDay?: string }) {
   const [state, form, pending] = useFormSubmit(createBooking);
-  const [areaId, setAreaId] = useState(areas[0]?.id ?? "");
-  const [day, setDay] = useState(today);
+  const [areaId, setAreaId] = useState(areas.find((a) => a.id === initialArea)?.id ?? areas[0]?.id ?? "");
+  const [day, setDay] = useState(initialDay && initialDay >= today ? initialDay : today);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [guests, setGuests] = useState("");

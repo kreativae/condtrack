@@ -132,10 +132,13 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   visitantes e prestadores e registra entradas. Áreas reserváveis em Estrutura (horário que pode virar a noite,
   regras, capacidade = limite de convidados, "precisa de aprovação"). `Booking` pending → approved | rejected,
   cancelled; conflito de horário checado em transação serializável (pendentes também ocupam). Reserva feita por quem
-  atende já sai aprovada. `/reservas` (lista, nova, detalhe com convidados e "chegou"), `/minha-unidade` (morador:
-  `UnitPerson` resident/visitor/provider com validade, entradas da unidade), `/portaria` (busca, entrada rápida,
-  reservas e entradas do dia; `AccessEntry` avisa os moradores da unidade, modelo `gate_entry`). Datas no fuso de
-  Brasília (`brt()`/`brtParts()`).
+  atende já sai aprovada. `/reservas`: calendário do mês (`booking-calendar.tsx`, `?mes=AAAA-MM`, cor por área em
+  `AREA_COLORS`; morador vê as dos outros só como "Reservado") + painel do dia com "Reservar" →
+  `/reservas/nova?area=&dia=`; abaixo, para aprovar e próximas. `/minha-unidade` (morador: `UnitPerson`
+  resident/visitor/provider com validade, entradas da unidade). `/portaria`: busca (nome, documento, unidade, placa
+  nas anotações), ações rápidas, "Esperados hoje" (convidados + autorizados com prazo hoje ou cadastrados há 24 h),
+  "No condomínio agora" (`AccessEntry.exitedAt` vazio, botão Saiu), linha do tempo e pessoas agrupadas por unidade.
+  Entrada avisa os moradores da unidade (modelo `gate_entry`). Datas no fuso de Brasília (`brt()`/`brtParts()`).
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

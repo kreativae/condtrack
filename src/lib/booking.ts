@@ -116,3 +116,36 @@ export function fmtPeriod(startAt: Date | string, endAt: Date | string) {
   const b = brtParts(e);
   return `${day} · ${a.hm}–${b.hm}${b.day !== a.day ? " (dia seguinte)" : ""}`;
 }
+
+/** Cor de cada área no calendário (cores do tema, na ordem das áreas). */
+export const AREA_COLORS = [
+  { chip: "bg-brand/10 text-brand", dot: "bg-brand" },
+  { chip: "bg-info/10 text-info", dot: "bg-info" },
+  { chip: "bg-ok/10 text-ok", dot: "bg-ok" },
+  { chip: "bg-warn/10 text-warn", dot: "bg-warn" },
+  { chip: "bg-bad/10 text-bad", dot: "bg-bad" },
+] as const;
+export const areaColor = (i: number) => AREA_COLORS[i % AREA_COLORS.length];
+
+/** "2026-10" válido? */
+export const isMonth = (v: unknown): v is string => typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
+
+/** Dias (AAAA-MM-DD) da grade do mês, de domingo a sábado, incluindo as pontas dos meses vizinhos. */
+export function monthGrid(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1, 12));
+  const start = new Date(first);
+  start.setUTCDate(1 - first.getUTCDay());
+  const last = new Date(Date.UTC(y, m, 0, 12));
+  const end = new Date(last);
+  end.setUTCDate(last.getUTCDate() + (6 - last.getUTCDay()));
+  const days: string[] = [];
+  for (const d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) days.push(d.toISOString().slice(0, 10));
+  return days;
+}
+
+export function shiftMonthKey(month: string, n: number) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return d.toISOString().slice(0, 7);
+}

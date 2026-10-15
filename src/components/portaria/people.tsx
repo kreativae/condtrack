@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { DoorOpen, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
-import { deletePerson, registerEntry, savePerson } from "@/app/actions/portaria";
+import { DoorOpen, LogOut, Loader2, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { deletePerson, markExit, registerEntry, savePerson } from "@/app/actions/portaria";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Badge, Button, Field, Input, Select, Textarea, cx } from "@/components/ui";
@@ -101,7 +101,7 @@ export function PersonRow({ p, units, kinds, canEdit, gate }: { p: PersonData; u
 }
 
 /** Registrar a entrada de alguém já cadastrado (um clique). */
-function EntryButton({ personId, name }: { personId: string; name: string }) {
+export function EntryButton({ personId, name }: { personId: string; name: string }) {
   const [state, form, pending] = useFormSubmit(registerEntry);
   return (
     <form {...form}>
@@ -161,5 +161,42 @@ export function AddPerson({ units, kinds, defaultKind, label }: { units: Opt[]; 
       </div>
       <PersonForm units={units} kinds={kinds} defaultKind={defaultKind} onDone={() => setOpen(false)} />
     </div>
+  );
+}
+
+/** Registrar a saída de quem está no condomínio. */
+export function ExitButton({ entryId }: { entryId: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => start(() => markExit(entryId))}
+      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 text-xs font-medium text-fg-2 transition hover:bg-bg-2"
+    >
+      {pending ? <Loader2 className="size-3.5 animate-spin" /> : <LogOut className="size-3.5" />}Saiu
+    </button>
+  );
+}
+
+/** Topo da portaria: registrar entrada ou cadastrar visitante/prestador sem sair da tela. */
+export function GateQuickActions({ units, kinds }: { units: Opt[]; kinds: PersonKind[] }) {
+  const [open, setOpen] = useState<"entry" | "person" | null>(null);
+  return (
+    <>
+      <div className="flex shrink-0 gap-2">
+        <Button variant={open === "entry" ? "brand" : "outline"} onClick={() => setOpen(open === "entry" ? null : "entry")}><DoorOpen className="size-4" />Registrar entrada</Button>
+        <Button variant={open === "person" ? "brand" : "outline"} onClick={() => setOpen(open === "person" ? null : "person")}><UserPlus className="size-4" />Cadastrar visitante</Button>
+      </div>
+      {open && (
+        <div className="basis-full rounded-2xl border border-line bg-surface p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="font-display text-base font-semibold">{open === "entry" ? "Registrar entrada" : "Cadastrar visitante ou prestador"}</p>
+            <button type="button" onClick={() => setOpen(null)} className="rounded-lg p-1 text-muted hover:bg-bg-2" aria-label="Fechar"><X className="size-4" /></button>
+          </div>
+          {open === "entry" ? <QuickEntryForm units={units} /> : <PersonForm units={units} kinds={kinds} defaultKind="visitor" onDone={() => setOpen(null)} />}
+        </div>
+      )}
+    </>
   );
 }

@@ -903,8 +903,12 @@ model AccessEntry {
   createdById   String?
   createdBy     String
   createdAt     DateTime    @default(now())
+  /// Saída registrada na portaria (vazio = ainda no condomínio)
+  exitedAt      DateTime?
+  exitedById    String?
   condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   unit          Unit?       @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
   @@index([condominiumId, createdAt])
+  @@index([condominiumId, exitedAt])
 }

@@ -481,7 +481,7 @@ async function seedGate(c: {
       for (const g of b.guests.filter(() => r.next() < 0.85)) {
         const when = new Date(startAt.getTime() + r.int(0, 90) * 60_000);
         await db.bookingGuest.update({ where: { id: g.id }, data: { checkedInAt: when, checkedInById: doorman.id } });
-        await db.accessEntry.create({ data: { condominiumId: cid, unitId: home.unitId, guestId: g.id, kind: "guest", name: g.name, document: g.document, notes: `Convidado: ${area.name}`, createdById: doorman.id, createdBy: doorman.name, createdAt: when } });
+        await db.accessEntry.create({ data: { condominiumId: cid, unitId: home.unitId, guestId: g.id, kind: "guest", name: g.name, document: g.document, notes: `Convidado: ${area.name}`, createdById: doorman.id, createdBy: doorman.name, createdAt: when, ...(endAt.getTime() < now && { exitedAt: endAt, exitedById: doorman.id }) } });
       }
     }
   }
@@ -499,6 +499,8 @@ async function seedGate(c: {
         document: r.next() < 0.5 ? doc() : null,
         notes: kind === "provider" ? r.pick(["Entrega de móveis", "Técnico de internet", "Manutenção do ar-condicionado", "Entrega de mercado"]) : r.pick([null, null, "Placa ABC1D23", "Visita rápida"]),
         createdById: doorman.id, createdBy: doorman.name, createdAt: when,
+        // Quase todos já saíram; alguns das últimas horas continuam no condomínio
+        ...(now - when.getTime() > 3 * 3600_000 || r.next() < 0.5 ? { exitedAt: new Date(Math.min(now - 60_000, when.getTime() + r.int(15, 180) * 60_000)), exitedById: doorman.id } : {}),
       });
     }
   }

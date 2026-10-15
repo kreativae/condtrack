@@ -122,3 +122,13 @@ export async function registerEntry(_prev: PortariaState, form: FormData): Promi
   refresh();
   return { ok: true, message: `Entrada de ${entry.name} registrada.` };
 }
+
+/** Portaria registra a saída (tira da lista "No condomínio agora"). */
+export async function markExit(entryId: string) {
+  const user = await requireUser(...(["superadmin", "syndic", "caretaker", "doorman"] as const));
+  if (user.impersonator) return;
+  const condoId = await gateCondo(user);
+  if (!condoId) return;
+  await db.accessEntry.updateMany({ where: { id: entryId, condominiumId: condoId, exitedAt: null }, data: { exitedAt: new Date(), exitedById: user.id } });
+  refresh();
+}
