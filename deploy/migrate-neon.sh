@@ -50,7 +50,9 @@ for t in '"User"' '"Condominium"' '"ServiceOrder"' '_prisma_migrations'; do
 done
 echo "Tabelas — Neon: $(psql "$SRC" -Atc "select count(*) from information_schema.tables where table_schema = 'public'") · Coolify: $(psql "$DST" -Atc "select count(*) from information_schema.tables where table_schema = 'public'")"
 
-ERR=$(grep -c ERROR /tmp/erros.log || true)
+# "schema public already exists" é esperado: o destino já recebe o esquema vazio antes da cópia
+grep -v 'schema "public" already exists' /tmp/erros.log > /tmp/erros-reais.log || true
+ERR=$(grep -c ERROR /tmp/erros-reais.log || true)
 echo "Erros na importação: $ERR"
-[ "$ERR" = "0" ] || { echo "-- Primeiros erros (sem dados sensíveis):"; grep ERROR /tmp/erros.log | sort | uniq -c | head -20; }
+[ "$ERR" = "0" ] || { echo "-- Primeiros erros (sem dados sensíveis):"; grep ERROR /tmp/erros-reais.log | sort | uniq -c | head -20; }
 echo "Pronto."
