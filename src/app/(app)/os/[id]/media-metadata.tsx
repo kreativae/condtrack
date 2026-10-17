@@ -2,6 +2,7 @@ import { Camera, Clock, MapPin, Smartphone, Upload, Video } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui";
 import { DELETED_USER, fmtDateTime } from "@/lib/format";
 import { PHASE_LABEL, type Phase } from "@/lib/workflow";
+import { thumb } from "@/lib/media-url";
 
 type Item = { id: string; url: string; type: string; phase: string; sizeBytes: number; metadata: string; uploadedAt: Date; uploadedBy: { name: string } | null };
 type Meta = { takenAt?: string; geo?: string | null; originalSize?: number; duration?: number; watermarked?: boolean; originalName?: string; device?: string | null };
@@ -35,7 +36,7 @@ export function MediaMetadata({ items, stamp }: { items: Item[]; stamp: string }
                   <Video className="absolute left-1/2 top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 text-muted" />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.url} alt="" loading="lazy" className="size-full object-cover" />
+                  <img src={thumb(m.url, 480)} alt="" loading="lazy" className="size-full object-cover" />
                 )}
               </div>
               <dl className="min-w-0 flex-1 space-y-1 text-xs">

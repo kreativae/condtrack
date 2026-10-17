@@ -5,6 +5,7 @@ import { Avatar, Card, cx } from "./ui";
 import { DELETED_USER, fmtDateTime, fmtRelative } from "@/lib/format";
 import { locationLabel } from "@/lib/orders";
 import type { Prisma } from "@prisma/client";
+import { thumb } from "@/lib/media-url";
 
 export const feedInclude = {
   condominium: { select: { name: true } },
@@ -52,7 +53,7 @@ export function FeedCard({ o, showCondo }: { o: FeedItem; showCondo?: boolean })
                 <video src={m.url} controls playsInline preload="metadata" className="size-full object-cover" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.url} alt={`${o.title} — ${label.toLowerCase()}`} className="size-full object-cover" />
+                <img src={thumb(m.url, 800)} alt={`${o.title} — ${label.toLowerCase()}`} loading="lazy" className="size-full object-cover" />
               )}
               <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">{label}</span>
             </div>

@@ -151,6 +151,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Agenda (`portaria/agenda.tsx`: todos os contatos A–Z, letra calculada no banco sem acento, filtros de torre, tipo,
   situação e "moradores com conta", 50 por página) e Pessoas por unidade.
   Datas no fuso de Brasília (`brt()`/`brtParts()`).
+- **Fotos reduzidas**: listas e cartões usam `thumb(url, 480|800|1200)` (`src/lib/media-url.ts`) → `/api/media/...?w=`,
+  que gera WebP com o sharp (`readThumb` em `storage.ts`) e guarda em `UPLOAD_DIR/_thumbs` (no disco). A visualização
+  em tela cheia e o relatório usam a original.
 - **Next.js 16**: `src/proxy.ts` (antigo middleware); veja o aviso em `AGENTS.md`.
 
 - **Negociação especial** (`BillingDeal`, `src/lib/billing-deal.ts`): preço por unidade (mensal e anual) por condomínio,

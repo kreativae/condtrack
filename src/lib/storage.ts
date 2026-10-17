@@ -113,12 +113,44 @@ export async function readStored(parts: string[]): Promise<StoredFile | null> {
   }
 }
 
+// Fotos reduzidas (WebP) para listas e cartões: geradas na primeira visita e guardadas em
+// <UPLOAD_DIR>/_thumbs/<largura>/<pasta>/<arquivo>.webp quando os arquivos estão no disco
+export const THUMB_WIDTHS = [480, 800, 1200];
+const THUMBS = "_thumbs";
+const thumbPath = (w: number, dir: string, name: string) =>
+  path.join(/*turbopackIgnore: true*/ ROOT, THUMBS, String(w), dir, `${name}.webp`);
+
+/** Versão reduzida de uma foto; null quando não se aplica (vídeo, SVG, largura fora da lista). */
+export async function readThumb(parts: string[], width: number): Promise<StoredFile | null> {
+  if (parts.length !== 2 || !THUMB_WIDTHS.includes(width)) return null;
+  const [dir, name] = parts.map(safe);
+  if (!dir || !name || name.startsWith(".") || !/\.(jpe?g|png|webp)$/i.test(name)) return null;
+  const cached = thumbPath(width, dir, name);
+  if (!blobEnabled()) {
+    const buf = await readFile(cached).catch(() => null);
+    if (buf) return { body: new Uint8Array(buf), mime: "image/webp", size: buf.length };
+  }
+  const orig = await readStored([dir, name]);
+  if (!orig) return null;
+  const input = orig.body instanceof Uint8Array ? orig.body : new Uint8Array(await new Response(orig.body).arrayBuffer());
+  const { default: sharp } = await import("sharp");
+  const out = await sharp(input).rotate().resize({ width, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
+  if (!blobEnabled()) {
+    await mkdir(path.dirname(cached), { recursive: true });
+    await writeFile(cached, out).catch(() => null);
+  }
+  return { body: new Uint8Array(out), mime: "image/webp", size: out.length };
+}
+
 /** Remove um arquivo a partir da URL /api/media/<pasta>/<arquivo>. */
 export async function deleteFile(url: string) {
   const [dir, name] = url.replace(/^\/api\/media\//, "").split("/").map(safe);
   if (!dir || !name) return;
   if (blobEnabled()) await del(`${BLOB_PREFIX}/${dir}/${name}`).catch(() => null);
-  else await unlink(path.join(/*turbopackIgnore: true*/ ROOT, dir, name)).catch(() => null);
+  else {
+    await unlink(path.join(/*turbopackIgnore: true*/ ROOT, dir, name)).catch(() => null);
+    for (const w of THUMB_WIDTHS) await unlink(thumbPath(w, dir, name)).catch(() => null);
+  }
 }
 
 /** Remove todos os arquivos de uma pasta (ex.: mídias de uma OS excluída). */
@@ -127,6 +159,9 @@ export async function deleteFolder(folder: string) {
   if (!dir) return;
   if (!blobEnabled()) {
     await rm(path.join(/*turbopackIgnore: true*/ ROOT, dir), { recursive: true, force: true });
+    for (const w of THUMB_WIDTHS) {
+      await rm(path.join(/*turbopackIgnore: true*/ ROOT, THUMBS, String(w), dir), { recursive: true, force: true });
+    }
     return;
   }
   let cursor: string | undefined;

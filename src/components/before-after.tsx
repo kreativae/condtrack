@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronsLeftRight } from "lucide-react";
+import { thumb } from "@/lib/media-url";
 
 /** Comparação lado a lado com divisor arrastável. */
 export function BeforeAfter({ before, after, alt }: { before: string; after: string; alt: string }) {
@@ -9,10 +10,10 @@ export function BeforeAfter({ before, after, alt }: { before: string; after: str
   return (
     <div className="relative aspect-[16/10] w-full select-none overflow-hidden rounded-2xl bg-bg-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={after} alt={`${alt} — depois`} className="absolute inset-0 size-full object-cover" draggable={false} />
+      <img src={thumb(after, 1200)} alt={`${alt} — depois`} className="absolute inset-0 size-full object-cover" draggable={false} />
       <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={before} alt={`${alt} — antes`} className="absolute inset-0 size-full object-cover" draggable={false} />
+        <img src={thumb(before, 1200)} alt={`${alt} — antes`} className="absolute inset-0 size-full object-cover" draggable={false} />
       </div>
       <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">Antes</span>
       <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-[#0f172a] backdrop-blur">Depois</span>

@@ -7,6 +7,7 @@ import type { ChecklistEditor } from "./today";
 import { processImage } from "@/components/media-uploader";
 import { MediaGrid } from "@/components/media-grid";
 import { Alert, Card, CardHeader, Input, Select, Textarea, buttonClass, cx } from "@/components/ui";
+import { thumb } from "@/lib/media-url";
 
 export type DayNote = { id: string; text: string; photos: string[]; by: string; userId: string | null; at: string; deletable: boolean };
 export type DayPhoto = { id: string; url: string; caption: string; by: string; at: string };
@@ -89,7 +90,7 @@ function NoteForm({ condominiumId, date }: { condominiumId: string; date: string
           {photos.map((url) => (
             <div key={url} className="relative size-16 overflow-hidden rounded-lg ring-1 ring-line">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="size-full object-cover" />
+              <img src={thumb(url, 480)} alt="" className="size-full object-cover" />
               <button type="button" onClick={() => setPhotos((p) => p.filter((x) => x !== url))} aria-label="Tirar foto" className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white">
                 <X className="size-3" />
               </button>
@@ -224,7 +225,7 @@ function NoteEditor({ note, editor, condominiumId, onClose }: { note: DayNote; e
             {photos.map((url) => (
               <div key={url} className="relative size-14 overflow-hidden rounded-lg ring-1 ring-line">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="size-full object-cover" />
+                <img src={thumb(url, 480)} alt="" className="size-full object-cover" />
                 <button type="button" onClick={() => setPhotos((p) => p.filter((x) => x !== url))} aria-label="Tirar foto" className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"><X className="size-3" /></button>
               </div>
             ))}

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Loader2, Play, Trash2, X } from "lucide-react";
 import { deleteMedia } from "@/app/actions/orders";
 import { cx } from "./ui";
+import { thumb } from "@/lib/media-url";
 
 type Media = { id: string; url: string; type: string; uploadedAt: string; uploadedBy: string; deletable?: boolean };
 
@@ -27,7 +28,7 @@ export function MediaGrid({ items }: { items: Media[] }) {
                 </>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.url} alt="" loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" />
+                <img src={thumb(m.url, 480)} alt="" loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" />
               )}
             </button>
             {m.deletable && (

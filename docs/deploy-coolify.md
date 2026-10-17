@@ -112,6 +112,23 @@ dispara o deploy.
 Use a URL da seção **GitHub** (`/source/github/`), não a de GitLab: com ela o GitHub
 recebe 200, mas nada é publicado.
 
+## Deploy mais rápido
+
+- O `Dockerfile` guarda entre builds o cache do npm e o `.next/cache`; as dependências e a CLI do Prisma
+  só são refeitas quando o `package-lock.json` muda.
+- App › **Advanced** › **Watch Paths**: com a lista abaixo, push que mexe só em `docs/` ou `deploy/` não dispara deploy.
+
+  ```
+  src/**
+  prisma/**
+  public/**
+  scripts/**
+  package.json
+  package-lock.json
+  Dockerfile
+  next.config.ts
+  ```
+
 ## Painéis Vercel e Neon em Configurações
 
 Continuam funcionando enquanto houver token/API key, mas mostram a Vercel e o Neon,
