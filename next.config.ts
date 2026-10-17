@@ -9,6 +9,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Gera .next/standalone para a imagem Docker (Coolify); a Vercel ignora.
+  output: "standalone",
+  // Fora do bundle: o pacote vai para .next/standalone/node_modules e
+  // scripts/migrate-blob.mjs consegue importá-lo dentro da imagem.
+  serverExternalPackages: ["@vercel/blob"],
   turbopack: { root: __dirname },
   // Só em desenvolvimento: permite abrir o app também via 127.0.0.1 (sessão separada)
   allowedDevOrigins: ["127.0.0.1"],

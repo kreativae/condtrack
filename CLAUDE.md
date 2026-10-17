@@ -9,6 +9,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 
 - Tudo em português (textos da UI, commits, comentários). Commits descrevem a funcionalidade: `Área: o que mudou`.
 - Trabalho direto na `main`; a Vercel publica cada push em produção. **Pergunte antes de dar push.**
+- Branch **`server`**: versão para o servidor próprio (Coolify/Hetzner): `Dockerfile`, migrações na subida do
+  container e mídias no disco (`UPLOAD_DIR`). Passo a passo em `docs/deploy-coolify.md`. Traga a `main` para a
+  `server` com merge para receber as funcionalidades novas.
 - Um commit por ajuste, com push logo em seguida, para nada ficar preso numa máquina só.
 - Se um build falhar na Vercel, o site continua na versão anterior; corrija na `main`.
 - Pontos de restauração: tags `v1-estavel` (2026-09-28, aba Aparência) e `v2-estavel` (2026-10-04, antes dos vínculos com vários condomínios). Para voltar um arquivo: `git checkout v1-estavel -- caminho`.

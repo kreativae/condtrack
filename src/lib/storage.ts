@@ -5,8 +5,9 @@ import { randomUUID } from "node:crypto";
 import { del, get, list, put } from "@vercel/blob";
 
 // Armazenamento de mídias das OS.
-// - Vercel Blob (privado) quando configurado (token ou BLOB_STORE_ID + OIDC) — produção.
-// - Disco local (./storage) caso contrário — desenvolvimento.
+// - Disco (UPLOAD_DIR) quando definido — servidor próprio (Coolify) e desenvolvimento.
+// - Vercel Blob (privado) quando configurado (token ou BLOB_STORE_ID + OIDC) — Vercel.
+// - Disco local (./storage) caso contrário.
 // Em ambos, a URL gravada no banco é /api/media/<pasta>/<arquivo>: a entrega
 // passa sempre pela rota que confere a permissão de quem está vendo.
 const ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR || "./storage");
@@ -29,9 +30,11 @@ export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
 
 /**
  * Blob ativo com token (BLOB_READ_WRITE_TOKEN) ou com o formato novo da Vercel:
- * BLOB_STORE_ID + OIDC (o SDK obtém o VERCEL_OIDC_TOKEN sozinho).
+ * BLOB_STORE_ID + OIDC (o SDK obtém o VERCEL_OIDC_TOKEN sozinho). UPLOAD_DIR
+ * definido tem prioridade: no servidor próprio tudo fica no disco (volume).
  */
 export function blobEnabled() {
+  if (process.env.UPLOAD_DIR) return false;
   return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
