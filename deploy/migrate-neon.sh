@@ -5,6 +5,8 @@
 # No servidor, dentro de um container com o cliente do Postgres 18 (a versão do Neon):
 #   curl -fsSLO https://raw.githubusercontent.com/kreativae/condtrack/server/deploy/migrate-neon.sh
 #   docker run --rm -it --network coolify -v "$PWD":/w -w /w postgres:18-alpine sh migrate-neon.sh
+# Se o banco do Coolify estiver na rede do projeto, troque "coolify" pelo nome dela
+# (docker inspect NOME-DO-BANCO mostra em NetworkSettings.Networks).
 set -eu
 
 printf "URL do Neon (conexão DIRETA, sem -pooler): "; stty -echo 2>/dev/null || true; read -r SRC; stty echo 2>/dev/null || true; echo
@@ -17,8 +19,16 @@ for u in "$SRC" "$DST"; do
   esac
 done
 
-echo "== Origem:  $(psql "$SRC" -Atc "select current_user || ' · ' || version()")"
-echo "== Destino: $(psql "$DST" -Atc "select current_user || ' · ' || version()")"
+# Confere as duas conexões antes de qualquer coisa
+A=$(psql "$SRC" -Atc "select current_user || ' · ' || version()") || { echo "✖ Não conectou no Neon (confira a URL)."; exit 1; }
+B=$(psql "$DST" -Atc "select current_user || ' · ' || version()") || {
+  echo "✖ Não conectou no Postgres do Coolify. Se o erro for 'could not translate host name', o banco está"
+  echo "  em outra rede: veja qual com  docker inspect NOME-DO-BANCO --format '{{range \$k, \$v := .NetworkSettings.Networks}}{{\$k}} {{end}}'"
+  echo "  e rode de novo com  --network ESSA-REDE  no lugar de  --network coolify."
+  exit 1
+}
+echo "== Origem:  $A"
+echo "== Destino: $B"
 
 printf "Isto APAGA tudo no destino e copia o Neon. Digite SIM para continuar: "; read -r OK
 [ "$OK" = "SIM" ] || { echo "Cancelado."; exit 1; }
