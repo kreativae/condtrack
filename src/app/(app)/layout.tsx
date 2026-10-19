@@ -23,6 +23,8 @@ import { unitLabel } from "@/lib/units";
 import { redirect } from "next/navigation";
 import { termsVersion } from "@/lib/legal";
 import { getMenuStyle } from "@/lib/menu-style-server";
+import { getPlatformOptions } from "@/lib/platform-options-server";
+import { BuildInfo } from "@/components/build-info";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -42,7 +44,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // Ordem escolhida pelo usuário (segurar e arrastar no menu); páginas novas entram no lugar padrão, no fim
   const saved = user.navOrder ? user.navOrder.split(",") : [];
   // Estilo do menu do computador (Configurações → Aparência)
-  const menuStyle = await getMenuStyle();
+  const [menuStyle, platform] = await Promise.all([getMenuStyle(), getPlatformOptions()]);
+  // Commit em vigor (canto inferior direito): perfis escolhidos em Configurações → Aparência.
+  // No "visualizar como" vale o perfil de quem está visualizando de verdade
+  const showBuild = platform.buildInfoRoles.includes(user.impersonator ? "superadmin" : user.role);
   const rank = (href: string, i: number) => (saved.includes(href) ? saved.indexOf(href) : 1000 + i);
   const items = base.map((it, i) => ({ it, r: rank(it.href, i) })).sort((a, b) => a.r - b.r).map((x) => x.it);
   const customized = saved.length > 0;
@@ -161,6 +166,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-8 sm:px-8 lg:pb-16">{children}</main>
       </div>
+      {showBuild && <BuildInfo />}
       <MobileNav items={items} customized={customized} condos={scopeList ? { list: scopeList, current: scope } : multi ? { ...multi, mode: "member" as const, subtitle: ROLE_LABEL[user.role] } : undefined} initialPins={pins} user={{ name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.condominium ? ROLE_LABEL[user.role] : "Plataforma", place }} />
     </div>
   );

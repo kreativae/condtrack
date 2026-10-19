@@ -44,6 +44,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Configurações → Aparência** (`?aba=aparencia`): cores do sistema nos temas claro e escuro. `src/lib/theme-appearance.ts`
   (padrões, derivações, contraste) + `theme-appearance-server.ts`; o layout raiz injeta só as variáveis alteradas.
   `THEME_DEFAULTS` deve bater com `:root` em `globals.css`.
+- **Configurações → Aparência → Plataforma** (Setting público `platform_options`, `src/lib/platform-options*.ts`):
+  liga/desliga as abas Vercel e Neon (desligar só esconde; o que foi salvo fica) e escolhe os perfis que veem o
+  commit em vigor (`components/build-info.tsx`, canto inferior direito no computador; `SOURCE_COMMIT` no Coolify,
+  `VERCEL_GIT_*` na Vercel). Padrão: abas visíveis e commit só para o superadmin.
 - **Configurações → Página de login**: `src/lib/login-appearance*.ts`. A cor própria do login tem prioridade sobre a Aparência.
 - **Configurações → Mensagens**: modelos de notificação e e-mail em `src/lib/messages*.ts`, com histórico de envios.
 - **Relatórios** (`/relatorios` → `/relatorio`): prestação de contas do período. `src/lib/report.ts` busca os dados;

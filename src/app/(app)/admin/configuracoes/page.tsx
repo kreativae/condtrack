@@ -19,6 +19,8 @@ import { CopyField, SettingsForm, type ClientField } from "./settings-form";
 import { LoginAppearanceForm } from "./login-appearance-form";
 import { MenuStyleForm } from "./menu-style-form";
 import { getMenuStyle } from "@/lib/menu-style-server";
+import { PlatformOptionsForm } from "./platform-options-form";
+import { getPlatformOptions } from "@/lib/platform-options-server";
 import { ThemeAppearanceForm } from "./theme-appearance-form";
 import { getThemeAppearance } from "@/lib/theme-appearance-server";
 import { getLoginAppearance } from "@/lib/login-appearance-server";
@@ -50,21 +52,25 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
   const { aba } = sp;
   // "aparencia": cores de todas as páginas (claro e escuro), com prévia
   if (aba === "aparencia") {
-    const [t, jar, menuStyle] = await Promise.all([getThemeAppearance(), cookies(), getMenuStyle()]);
+    const [t, jar, menuStyle, platform] = await Promise.all([getThemeAppearance(), cookies(), getMenuStyle(), getPlatformOptions()]);
     return (
-      <SettingsShell current="aparencia">
+      <SettingsShell current="aparencia" hidden={platform.vercelNeon ? [] : HIDDEN_WITHOUT_VERCEL}>
         <div className="min-w-0 space-y-6">
+          <PlatformOptionsForm initial={platform} />
           <MenuStyleForm initial={menuStyle} />
           <ThemeAppearanceForm initial={t} current={jar.get("theme")?.value === "dark" ? "dark" : "light"} />
         </div>
       </SettingsShell>
     );
   }
+  // Abas Vercel e Neon podem ser desligadas em Aparência (o que foi salvo nelas fica guardado)
+  const platform = await getPlatformOptions();
+  const hidden = platform.vercelNeon ? [] : HIDDEN_WITHOUT_VERCEL;
   // "login" é uma aba própria (editor visual), fora dos grupos de integração
   if (aba === "login") {
     const [a, pk] = await Promise.all([getLoginAppearance(), passkeyConfig()]);
     return (
-      <SettingsShell current="login">
+      <SettingsShell current="login" hidden={hidden}>
         <LoginAppearanceForm initial={a} passkeys={pk.enabled} />
       </SettingsShell>
     );
@@ -74,7 +80,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
     const historico = sp.sub === "historico";
     const [values, overrides, cfg] = await Promise.all([getAllTemplates(), getTemplateOverrides(), emailConfig()]);
     return (
-      <SettingsShell current="mensagens">
+      <SettingsShell current="mensagens" hidden={hidden}>
         <div className="min-w-0 space-y-6">
           <nav className="flex gap-1 border-b border-line">
             {([["modelos", "Modelos"], ["historico", "Histórico de envios"]] as const).map(([k, l]) => (
@@ -99,7 +105,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
       </SettingsShell>
     );
   }
-  const current = (SETTINGS.find((g) => g.key === aba)?.key ?? "stripe") as SettingsGroup;
+  const current = (SETTINGS.find((g) => g.key === aba && !hidden.includes(g.key))?.key ?? "stripe") as SettingsGroup;
   const def = SETTINGS.find((g) => g.key === current)!;
 
   const [values, sources, statusAll] = await Promise.all([
@@ -133,7 +139,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
   ]);
 
   return (
-    <SettingsShell current={current} configured={configured}>
+    <SettingsShell current={current} configured={configured} hidden={hidden}>
         <div className="space-y-6">
           <Card>
             <CardHeader title={def.title} subtitle={def.description} action={configured[current] ? <Badge tone="ok" dot>Ativo</Badge> : <Badge tone="muted" dot>Não configurado</Badge>} />
@@ -198,10 +204,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/c
 
 type Tab = SettingsGroup | "aparencia" | "login" | "mensagens";
 
+const HIDDEN_WITHOUT_VERCEL: SettingsGroup[] = ["vercel", "neon"];
+
 /** Cabeçalho + menu lateral das abas de Configurações. */
-function SettingsShell({ current, configured, children }: { current: Tab; configured?: Partial<Record<SettingsGroup, boolean>>; children: React.ReactNode }) {
+function SettingsShell({ current, configured, hidden = [], children }: { current: Tab; configured?: Partial<Record<SettingsGroup, boolean>>; hidden?: SettingsGroup[]; children: React.ReactNode }) {
   const tabs = [
-    ...SETTINGS.map((g) => ({ key: g.key as Tab, title: g.title })),
+    ...SETTINGS.filter((g) => !hidden.includes(g.key)).map((g) => ({ key: g.key as Tab, title: g.title })),
     { key: "aparencia" as const, title: "Aparência" },
     { key: "login" as const, title: "Página de login" },
     { key: "mensagens" as const, title: "Mensagens" },

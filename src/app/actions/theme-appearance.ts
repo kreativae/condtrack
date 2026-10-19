@@ -8,6 +8,8 @@ import { HEX_RE, THEME_KEYS, THEME_SETTING_KEY, emptyTheme } from "@/lib/theme-a
 import { getThemeAppearance } from "@/lib/theme-appearance-server";
 import { MENU_SETTING_KEY, MENU_STYLES, isMenuStyle } from "@/lib/menu-style";
 import { getMenuStyle } from "@/lib/menu-style-server";
+import { PLATFORM_SETTING_KEY, parsePlatformOptions } from "@/lib/platform-options";
+import { getPlatformOptions } from "@/lib/platform-options-server";
 
 export type ThemeAppearanceState = { error?: string; ok?: boolean; message?: string } | undefined;
 
@@ -60,4 +62,25 @@ export async function saveMenuStyle(_prev: ThemeAppearanceState, form: FormData)
   await audit(user, "update", "setting", MENU_SETTING_KEY, { old: { estilo: before }, new: { estilo: style } });
   revalidatePath("/", "layout");
   return { ok: true, message: `Menu “${MENU_STYLES[style].label}” aplicado para todos.` };
+}
+
+/** Abas Vercel/Neon em Configurações e perfis que veem o commit em vigor. */
+export async function savePlatformOptions(_prev: ThemeAppearanceState, form: FormData): Promise<ThemeAppearanceState> {
+  const user = await requireUser("superadmin");
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String(form.get("data") ?? "{}"));
+  } catch {
+    return { error: "Dados inválidos." };
+  }
+  const next = parsePlatformOptions(raw);
+  const before = await getPlatformOptions();
+  await db.setting.upsert({
+    where: { key: PLATFORM_SETTING_KEY },
+    create: { key: PLATFORM_SETTING_KEY, value: JSON.stringify(next), updatedById: user.id },
+    update: { value: JSON.stringify(next), updatedById: user.id },
+  });
+  await audit(user, "update", "setting", PLATFORM_SETTING_KEY, { old: before, new: next });
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Opções da plataforma salvas." };
 }
