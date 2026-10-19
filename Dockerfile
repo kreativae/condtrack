@@ -57,6 +57,10 @@ RUN mkdir -p node_modules/.bin && ln -sf ../../prisma-cli/node_modules/prisma/bu
 # (monte um volume persistente em /app/storage e defina UPLOAD_DIR=/app/storage)
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 RUN mkdir -p /app/storage && chown nextjs:nodejs /app/storage
+# Commit em vigor (selo no canto inferior direito). O Coolify só envia com "Include Source
+# Commit in Build" ligado; fica no fim para não invalidar o cache das etapas anteriores
+ARG SOURCE_COMMIT
+ENV SOURCE_COMMIT=$SOURCE_COMMIT
 USER nextjs
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=6 \

@@ -129,6 +129,11 @@ recebe 200, mas nada é publicado.
   next.config.ts
   ```
 
+## Commit em vigor (selo no canto inferior direito)
+
+App › **General** (ou **Advanced**) › ligue **Include Source Commit in Build** e faça **Redeploy**.
+Sem isso o selo mostra "local". Quem vê o selo é escolhido em Configurações → Aparência → Plataforma.
+
 ## Painéis Vercel e Neon em Configurações
 
 Continuam funcionando enquanto houver token/API key, mas mostram a Vercel e o Neon,
