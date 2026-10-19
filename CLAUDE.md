@@ -83,8 +83,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Cartões de números** (`Stat` em `ui.tsx`): o tamanho do valor depende só da largura do cartão (`@container`),
   para cartões lado a lado ficarem iguais. Use `fmtBRL()` para dinheiro (sinal de menos que não quebra linha).
 - **Checklist do zelador**: `src/lib/checklist*.ts`, `src/app/actions/checklist.ts`, `src/app/api/cron/checklist`.
-  O alerta de atraso roda a cada 15 min pelo GitHub Actions (`.github/workflows/checklist-atrasado.yml`, precisa do secret
-  `CRON_SECRET` e da variable `APP_URL` no GitHub) e também quando alguém abre o app depois do prazo.
+  O alerta de atraso roda a cada 15 min e também quando alguém abre o app depois do prazo. Na branch `server`, quem
+  chama `/api/cron/checklist` é uma Scheduled Task do Coolify (ver `docs/deploy-coolify.md`, seção 2); o workflow do
+  GitHub (`.github/workflows/checklist-atrasado.yml`) fica sem a variable `APP_URL` e não faz nada.
   Anotações do dia (texto + fotos) em `ChecklistNote`, com a galeria do dia (`components/checklist/day-notes.tsx`).
 - **Excluir condomínio real = arquivar** (`Condominium.deletedAt`, `archiveCondominium`/`restoreCondominium` em
   `actions/admin.ts`): some de todas as listas, do seletor e dos vínculos (filtro `deletedAt: null` em cada consulta de

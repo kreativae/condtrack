@@ -51,9 +51,13 @@ O alerta de checklist atrasado e a manutenção preventiva rodam por
 
 - **Opção A (mais simples):** no GitHub, `Settings › Secrets and variables › Actions`,
   troque a variable `APP_URL` para o domínio novo quando ele virar o oficial.
-- **Opção B (no próprio servidor):** app › **Scheduled Tasks** › **+ Add**:
-  - **Command:** `wget -qO- --header="Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3000/api/cron/checklist`
-  - **Frequency:** `*/15 * * * *`
+- **Opção B (no próprio servidor, a usada hoje):** app › **Scheduled Tasks** › **+ Add**, com o
+  **Container** vazio (roda no próprio app):
+  - **Command:** `sh -c 'wget -qO- --header="Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3000/api/cron/checklist'`
+    (o `sh -c` faz a variável ser lida dentro do container; sem ele, a chamada volta 401)
+  - **Schedule:** `*/15 * * * *`
+  - Precisa de `CRON_SECRET` nas variáveis do app. O agendamento do GitHub atrasa horas em
+    repositório gratuito, por isso o do Coolify é o recomendado.
 
   e apague a variable `APP_URL` do GitHub, para não rodar em dobro (o aviso é um por
   dia por condomínio, mas a manutenção também roda nessa chamada).
