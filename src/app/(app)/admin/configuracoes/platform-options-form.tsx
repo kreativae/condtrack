@@ -36,7 +36,7 @@ export function PlatformOptionsForm({ initial }: { initial: PlatformOptions }) {
         <div>
           <p className="text-sm font-medium">Versão em uso (commit)</p>
           <p className="mt-0.5 text-xs text-muted">
-            Aparece ao passar o mouse no canto inferior direito, no computador, com o código e o título da última atualização publicada.
+            Aparece ao passar o mouse no canto inferior direito, no computador, com o código da última atualização publicada.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
