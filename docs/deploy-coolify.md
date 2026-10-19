@@ -110,13 +110,15 @@ App › **Webhooks** › **Manual Git webhooks › GitHub**: copie a **Webhook U
 dispara o deploy.
 
 Use a URL da seção **GitHub** (`/source/github/`), não a de GitLab: com ela o GitHub
-recebe 200, mas nada é publicado.
+recebe 200, mas nada é publicado. O webhook é **por repositório**: o do corretor não serve
+para o condtrack; cada app no Coolify precisa do seu no GitHub.
 
 ## Deploy mais rápido
 
 - O `Dockerfile` guarda entre builds o cache do npm e o `.next/cache`; as dependências e a CLI do Prisma
   só são refeitas quando o `package-lock.json` muda.
-- App › **Advanced** › **Watch Paths**: com a lista abaixo, push que mexe só em `docs/` ou `deploy/` não dispara deploy.
+- **Watch Paths** (se a sua versão do Coolify mostrar o campo; com a fonte "Public GitHub" ele não aparece e
+  todo push faz deploy): com a lista abaixo, push que mexe só em `docs/` ou `deploy/` não dispara deploy.
 
   ```
   src/**
