@@ -24,8 +24,9 @@ export function ReceiveParcelForm({ units, locations }: { units: Opt[]; location
     return r;
   });
   return (
-    <form {...form} className="space-y-4">
-      <div key={key} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    // Os campos seguem a largura do cartão (@container), não a da janela: lado a lado com a lista, o cartão é estreito
+    <form {...form} className="@container space-y-4">
+      <div key={key} className="grid gap-4 @md:grid-cols-2 @3xl:grid-cols-4">
         <Field label="Unidade">
           <Select name="unitId" required defaultValue="" autoFocus={key > 0}>
             <option value="" disabled>Selecione…</option>
@@ -36,7 +37,7 @@ export function ReceiveParcelForm({ units, locations }: { units: Opt[]; location
         <Field label="Descrição ou rastreio (opcional)"><Input name="description" maxLength={200} placeholder="Caixa média, envelope, BR123456789" /></Field>
         <Field label="Volumes"><Input name="volumes" type="number" min={1} max={99} defaultValue={1} /></Field>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 @md:grid-cols-2 @3xl:grid-cols-4">
         <Field label="Transportadora">
           <Input name="carrier" maxLength={60} list="parcel-carriers" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Correios, Mercado Livre…" />
           <datalist id="parcel-carriers">{CARRIERS.map((c) => <option key={c} value={c} />)}</datalist>
