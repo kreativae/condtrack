@@ -39,7 +39,7 @@ const BOOKING_VARS: Var[] = [
 
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") ? "Reservas e portaria" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") || key.startsWith("parcel") ? "Reservas e portaria" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -129,6 +129,21 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "tipo", desc: "Visitante, prestador…", sample: "Visitante" },
     { name: "unidade", desc: "Unidade", sample: "Torre A · 101" },
     { name: "hora", desc: "Horário da entrada", sample: "14:32" },
+  ]),
+  notification("parcel_received", "Encomenda chegou na portaria", "Moradores da unidade", "Encomenda na portaria", "{volumes} para {unidade}: {descricao}\nPara: {destinatario}\nOnde está: {local}\nRetire na portaria.", [
+    V.condominio, V.autor,
+    { name: "unidade", desc: "Unidade", sample: "Torre A · 101" },
+    { name: "destinatario", desc: "Nome no pacote (a linha some quando não informado)", sample: "Ana Souza" },
+    { name: "descricao", desc: "Transportadora e descrição", sample: "Mercado Livre · caixa média" },
+    { name: "volumes", desc: "Quantidade de volumes", sample: "1 volume" },
+    { name: "local", desc: "Onde está guardada (a linha some quando não informado)", sample: "Armário 3" },
+  ]),
+  notification("parcel_delivered", "Encomenda retirada", "Moradores da unidade", "Encomenda retirada", "{descricao} de {unidade} retirada por {quem} às {hora}.", [
+    V.condominio, V.autor,
+    { name: "unidade", desc: "Unidade", sample: "Torre A · 101" },
+    { name: "descricao", desc: "Transportadora e descrição", sample: "Mercado Livre · caixa média" },
+    { name: "quem", desc: "Quem retirou", sample: "Ana Souza" },
+    { name: "hora", desc: "Horário da retirada", sample: "18:40" },
   ]),
   notification("maint_order", "OS de manutenção preventiva aberta", "Síndico e zelador", "Manutenção preventiva: {titulo}", "{protocolo} · prevista para {vencimento}.", [
     V.protocolo,

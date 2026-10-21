@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Contact } from "lucide-react";
+import { Contact, MapPin } from "lucide-react";
+import { parcelOverdue, waitLabel } from "@/lib/parcels";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { PERSON_KINDS, type PersonKind } from "@/lib/booking";
 import { gateCondo, myUnits, toGrantData } from "@/lib/booking-server";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, nowMs } from "@/lib/format";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
-import { Card, CardHeader, Empty, PageHeader } from "@/components/ui";
+import { Badge, Card, CardHeader, Empty, PageHeader } from "@/components/ui";
 import { AddGrant, GrantRow } from "@/components/portaria/people";
 
 export const metadata: Metadata = { title: "Minha unidade" };
@@ -23,10 +24,12 @@ export default async function MyUnitPage() {
     return <div className="mx-auto max-w-4xl animate-in">{header}<Card><Empty icon={<Contact />} title="Sem unidade vinculada">Peça ao síndico para vincular sua unidade ao seu cadastro.</Empty></Card></div>;
   }
   const ids = units.map((u) => u.id);
-  const [grants, accounts, entries] = await Promise.all([
+  const [grants, accounts, entries, parcels] = await Promise.all([
     db.accessGrant.findMany({ where: { unitId: { in: ids } }, include: { person: { select: { id: true, name: true, document: true, phone: true, company: true, blockedAt: true } } }, orderBy: { person: { name: "asc" } } }),
     db.userUnit.findMany({ where: { unitId: { in: ids } }, include: { user: { select: { name: true, role: true, status: true } } } }),
     db.accessEntry.findMany({ where: { dests: { some: { unitId: { in: ids } } } }, include: { dests: { select: { unitId: true } } }, orderBy: { createdAt: "desc" }, take: 25 }),
+    // Encomendas: as que aguardam e as 10 últimas retiradas
+    db.parcel.findMany({ where: { unitId: { in: ids }, OR: [{ status: "waiting" }, { deliveredAt: { gte: new Date(nowMs() - 30 * 86400_000) } }] }, orderBy: { receivedAt: "desc" }, take: 40 }),
   ]);
   // O morador edita os dados da pessoa só quando ela não está autorizada em outras unidades
   const shared = new Set(
@@ -34,11 +37,44 @@ export default async function MyUnitPage() {
   );
   const kinds = Object.keys(PERSON_KINDS) as PersonKind[];
   const now = new Date();
+  const waitingParcels = parcels.filter((p) => p.status === "waiting").reverse();
+  const doneParcels = parcels.filter((p) => p.status !== "waiting").slice(0, 10);
 
   return (
     <div className="mx-auto max-w-4xl animate-in">
       {header}
       <div className="space-y-6">
+        <Card>
+          <CardHeader title={`Encomendas na portaria (${waitingParcels.length})`} subtitle="Você é avisado quando chega e quando alguém retira." />
+          {waitingParcels.length ? (
+            <ul className="divide-y divide-line">
+              {waitingParcels.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{[p.carrier, p.description].filter(Boolean).join(" · ") || "Encomenda"}{p.volumes > 1 && ` · ${p.volumes} volumes`}</p>
+                    <p className="text-xs text-muted">{p.recipient ? `Para ${p.recipient} · ` : ""}{units.length > 1 && `${units.find((u) => u.id === p.unitId)?.label} · `}recebida {fmtDateTime(p.receivedAt)}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand"><MapPin className="size-3" />{p.location ?? "Na portaria"}</span>
+                  <Badge tone={parcelOverdue(p.receivedAt, now) ? "bad" : "muted"}>{waitLabel(p.receivedAt, now)}</Badge>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="px-5 py-4 text-sm text-muted">Nada aguardando retirada.</p>
+          )}
+          {doneParcels.length > 0 && (
+            <details className="border-t border-line">
+              <summary className="cursor-pointer px-5 py-3 text-xs font-medium text-muted hover:text-fg">Retiradas nos últimos 30 dias ({doneParcels.length})</summary>
+              <ul className="divide-y divide-line">
+                {doneParcels.map((p) => (
+                  <li key={p.id} className="px-5 py-2 text-xs text-fg-2">
+                    {[p.carrier, p.description].filter(Boolean).join(" · ") || "Encomenda"} · {p.status === "delivered" ? `retirada por ${p.deliveredTo} em ${fmtDateTime(p.deliveredAt)}` : `devolvida: ${p.notes ?? ""}`}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </Card>
         {units.map((u) => {
           const mine = grants.filter((g) => g.unitId === u.id);
           const unitOpt = [{ id: u.id, label: u.label }];

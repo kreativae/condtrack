@@ -11,6 +11,7 @@ import { Badge, Card, CardHeader, Empty, Input, PageHeader, Select, Stat, button
 import { ExitButton, GateQuickActions, QuickEntryButton } from "@/components/portaria/people";
 import { ArrivalButton } from "../reservas/booking-ui";
 import { ContactAgenda } from "./agenda";
+import { ParcelsTab } from "./parcels-tab";
 
 export const metadata: Metadata = { title: "Portaria" };
 
@@ -38,7 +39,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 80) : "";
   const unitFilter = typeof sp.unidade === "string" ? sp.unidade : "";
   const kindFilter = typeof sp.tipo === "string" && sp.tipo in PERSON_KINDS ? (sp.tipo as PersonKind) : null;
-  const tab = sp.aba === "pessoas" ? "pessoas" : sp.aba === "agenda" ? "agenda" : "hoje";
+  const tab = sp.aba === "pessoas" ? "pessoas" : sp.aba === "agenda" ? "agenda" : sp.aba === "encomendas" ? "encomendas" : "hoje";
   const now = new Date();
   const today = brtParts(now).day;
   const dayStart = brt(today, "00:00");
@@ -53,7 +54,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
     e.notes?.startsWith("Convidado: ") ? e.notes.slice(11) : e.dests.length ? e.dests.map((d) => label(d.unitId)).join(" + ") : "Condomínio";
   const unitMatches = q ? units.filter((u) => u.label.toLowerCase().replace(/[·\s]+/g, " ").includes(q.toLowerCase())).map((u) => u.id) : [];
 
-  const [pendingCount, todayBookings, grants, inside, todayEntries] = await Promise.all([
+  const [pendingCount, todayBookings, grants, inside, todayEntries, parcelsWaiting] = await Promise.all([
     db.booking.count({ where: { condominiumId: condoId, status: "pending", endAt: { gt: now } } }),
     db.booking.findMany({
       where: { condominiumId: condoId, status: "approved", startAt: { lt: dayEnd }, endAt: { gt: dayStart } },
@@ -64,6 +65,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
     db.accessGrant.findMany({ where: { condominiumId: condoId, kind: { not: "resident" } }, include: { person: { select: { id: true, name: true, company: true, blockedAt: true } } } }),
     db.accessEntry.findMany({ where: { condominiumId: condoId, exitedAt: null, kind: { not: "resident" }, createdAt: { gte: new Date(now.getTime() - 86400_000) } }, include: { dests: true }, orderBy: { createdAt: "desc" } }),
     db.accessEntry.findMany({ where: { condominiumId: condoId, OR: [{ createdAt: { gte: dayStart } }, { exitedAt: { gte: dayStart } }] }, include: { dests: true }, orderBy: { createdAt: "desc" }, take: 150 }),
+    db.parcel.count({ where: { condominiumId: condoId, status: "waiting" } }),
   ]);
 
   // Esperados: agrupa as autorizações de hoje por pessoa (destinos juntos); some quem já entrou hoje
@@ -149,10 +151,11 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
         <GateQuickActions units={units} kinds={gateKinds} />
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label="Esperados hoje" value={waitingGuests + expected.length} />
         <Stat label="No condomínio agora" value={inside.length} tone={inside.length ? "brand" : undefined} />
         <Stat label="Entradas hoje" value={entriesToday} />
+        <Link href="/portaria?aba=encomendas"><Stat label="Encomendas aguardando" value={parcelsWaiting} tone={parcelsWaiting ? "brand" : undefined} /></Link>
         <Link href="/reservas"><Stat label="Reservas para aprovar" value={pendingCount} tone={pendingCount ? "warn" : undefined} /></Link>
       </div>
 
@@ -201,12 +204,14 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
       )}
 
       <nav className="mb-5 flex gap-1 border-b border-line">
-        {([["hoje", "Hoje"], ["agenda", "Agenda"], ["pessoas", "Pessoas por unidade"]] as const).map(([k, l]) => (
+        {([["hoje", "Hoje"], ["encomendas", "Encomendas"], ["agenda", "Agenda"], ["pessoas", "Pessoas por unidade"]] as const).map(([k, l]) => (
           <Link key={k} href={k === "hoje" ? "/portaria" : `/portaria?aba=${k}`} className={cx("-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>{l}</Link>
         ))}
       </nav>
 
-      {tab === "agenda" ? (
+      {tab === "encomendas" ? (
+        <ParcelsTab condoId={condoId} sp={sp} units={units} />
+      ) : tab === "agenda" ? (
         <Card>
           <ContactAgenda
             condoId={condoId}

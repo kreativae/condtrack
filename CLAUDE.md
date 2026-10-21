@@ -155,6 +155,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   morador. `/portaria`: busca (só nomes, até 30), abas Hoje ("Esperados hoje", "No condomínio agora" com Saiu, linha do tempo),
   Agenda (`portaria/agenda.tsx`: todos os contatos A–Z, letra calculada no banco sem acento, filtros de torre, tipo,
   situação e "moradores com conta", 50 por página) e Pessoas por unidade.
+  **Encomendas** (aba Encomendas da Portaria, `portaria/parcels-tab.tsx`; `Parcel`; regras em `src/lib/parcels.ts`,
+  ações em `actions/parcels.ts`): receber para a unidade (local de guarda com sugestões dos já usados; transportadora e
+  local continuam preenchidos para registrar vários seguidos), dar baixa com quem retirou, devolver com motivo, trocar
+  o local. Moradores da unidade recebem `parcel_received` (com o local) e `parcel_delivered`. Parada há 7 dias ou mais
+  fica em destaque (`PARCEL_OVERDUE_DAYS`). O morador vê as suas em Minha unidade e o total no início.
   Datas no fuso de Brasília (`brt()`/`brtParts()`).
 - **Fotos reduzidas**: listas e cartões usam `thumb(url, 480|800|1200)` (`src/lib/media-url.ts`) → `/api/media/...?w=`,
   que gera WebP com o sharp (`readThumb` em `storage.ts`) e guarda em `UPLOAD_DIR/_thumbs` (no disco). A visualização

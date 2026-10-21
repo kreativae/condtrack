@@ -34,6 +34,7 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
     .slice(0, 6);
   const unit = user.units[0]?.unit;
   const unitIds = user.units.filter((u) => u.unit.building.condominiumId === cid).map((u) => u.unitId);
+  const parcels = await db.parcel.count({ where: { unitId: { in: unitIds }, status: "waiting" } });
   const next = await db.booking.findFirst({
     where: { condominiumId: cid, status: { in: ["pending", "approved"] }, endAt: { gt: new Date() }, OR: [{ requestedById: user.id }, { unitId: { in: unitIds } }] },
     include: { commonArea: { select: { name: true } } },
@@ -54,7 +55,7 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
         </Link>
         <Link href="/minha-unidade" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
           <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><Contact className="size-5" /></span>
-          <span className="min-w-0 flex-1"><b className="block text-sm">Minha unidade</b><span className="text-xs text-muted">Moradores, visitantes e prestadores autorizados</span></span>
+          <span className="min-w-0 flex-1"><b className="block text-sm">Minha unidade</b><span className={parcels ? "text-xs font-medium text-brand" : "text-xs text-muted"}>{parcels ? `${parcels} encomenda(s) aguardando na portaria` : "Moradores, visitantes, prestadores e encomendas"}</span></span>
         </Link>
       </div>
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">

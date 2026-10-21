@@ -67,6 +67,7 @@ model Condominium {
   accessPeople     AccessPerson[]
   accessGrants     AccessGrant[]
   accessEntries    AccessEntry[]
+  parcels          Parcel[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -96,6 +97,7 @@ model Unit {
   accessGrants  AccessGrant[]
   accessDests   AccessEntryUnit[]
   accessEntries AccessEntry[]
+  parcels       Parcel[]
 
   @@unique([buildingId, number])
 }
@@ -958,4 +960,33 @@ model AccessEntryUnit {
 
   @@id([entryId, unitId])
   @@index([unitId])
+}
+
+/// Encomenda recebida na portaria para uma unidade: fica guardada num local (armário, prateleira) até a retirada.
+model Parcel {
+  id              String      @id @default(cuid())
+  condominiumId   String
+  unitId          String
+  /// Nome de quem deve receber (opcional; a unidade é o que vale)
+  recipient       String?
+  carrier         String?
+  description     String?
+  volumes         Int         @default(1)
+  /// Onde está guardada (ex.: "Armário 3", "Prateleira B")
+  location        String?
+  notes           String?
+  /// waiting | delivered | returned
+  status          String      @default("waiting")
+  receivedAt      DateTime    @default(now())
+  receivedById    String?
+  receivedByName  String
+  deliveredAt     DateTime?
+  deliveredTo     String?
+  deliveredById   String?
+  deliveredByName String?
+  condominium     Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  unit            Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([condominiumId, status])
+  @@index([unitId, status])
 }

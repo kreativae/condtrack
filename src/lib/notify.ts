@@ -21,7 +21,7 @@ function linkFor(n: Payload, layout: (k: string) => string) {
   if (n.referenceType === "maintenance") return { path: "/manutencao", label: layout("ctaDefault") };
   if (n.referenceType === "assembly" && n.referenceId) return { path: `/assembleias/${n.referenceId}`, label: layout("ctaDefault") };
   if (n.referenceType === "booking" && n.referenceId) return { path: `/reservas/${n.referenceId}`, label: layout("ctaDefault") };
-  if (n.referenceType === "unit") return { path: "/minha-unidade", label: layout("ctaDefault") };
+  if (n.referenceType === "unit" || n.referenceType === "parcel") return { path: "/minha-unidade", label: layout("ctaDefault") };
   return { path: "/notificacoes", label: layout("ctaDefault") };
 }
 

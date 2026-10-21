@@ -36,7 +36,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     const cid = user.condominiumId;
     after(() => maybeAlertLate(cid, nowMs()).catch((e) => console.error("[checklist] alerta", e)));
   }
-  const unread = user.role === "resident" ? 0 : await db.notification.count({ where: { userId: user.id, read: false } });
+  // Todos os perfis recebem avisos (o morador: encomendas, portaria, reservas e assembleias)
+  const unread = await db.notification.count({ where: { userId: user.id, read: false } });
   // Financeiro do conselho só aparece quando o síndico/superadmin libera
   // Vínculos com condomínios (síndico profissional, prestador de vários prédios…)
   const ms = user.role !== "superadmin" ? await userMemberships(user.id) : [];
@@ -156,9 +157,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </p>
           <div className="flex items-center gap-1">
             <ThemeToggle initial={theme} />
-{user.role !== "resident" && (
             <NotificationBell initial={unread} />
-            )}
             <Link href="/perfil" className="ml-1 lg:hidden">
               <Avatar name={user.name} src={user.avatarUrl} size={32} />
             </Link>

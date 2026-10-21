@@ -17,7 +17,7 @@ export async function openNotification(id: string) {
   const n = await db.notification.findFirst({ where: { id, userId: user.id } });
   if (!n) return;
   await db.notification.update({ where: { id }, data: { read: true, readAt: new Date() } });
-  const to: Record<string, string> = { announcement: "/comunicados", billing: "/assinatura", checklist: "/checklist", maintenance: "/manutencao", unit: "/minha-unidade" };
+  const to: Record<string, string> = { announcement: "/comunicados", billing: "/assinatura", checklist: "/checklist", maintenance: "/manutencao", unit: "/minha-unidade", parcel: "/minha-unidade" };
   if (n.referenceType === "assembly" && n.referenceId) redirect(`/assembleias/${n.referenceId}`);
   if (n.referenceType === "booking" && n.referenceId) redirect(`/reservas/${n.referenceId}`);
   if (n.referenceType === "user" && n.referenceId && user.role === "superadmin") redirect(`/admin/usuarios/${n.referenceId}/editar`);

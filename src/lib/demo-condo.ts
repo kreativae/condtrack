@@ -557,7 +557,28 @@ async function seedGate(c: {
       entries++;
     }
   }
-  return { people: peopleCount, bookings, entries };
+  // Encomendas: algumas aguardando (uma parada há mais de uma semana) e outras já retiradas
+  const carriers = ["Correios", "Mercado Livre", "Amazon", "Shopee", "Magalu"];
+  const spots = ["Armário 1", "Armário 2", "Armário 3", "Prateleira A", "Prateleira B"];
+  let parcels = 0;
+  for (let i = 0; i < r.int(6, 10); i++) {
+    const unitId = homes.length && r.next() < 0.6 ? r.pick(homes).unitId : r.pick(c.unitIds);
+    const ago = i === 0 ? r.int(8, 12) : r.int(0, 6);
+    const receivedAt = new Date(Math.min(now - 5 * 60_000, at(addDays(today, -ago), `${pad(r.int(8, 19))}:${pad(r.int(0, 59))}`).getTime()));
+    const delivered = i > 2 && r.next() < 0.6;
+    const carrier = r.pick(carriers);
+    await db.parcel.create({
+      data: {
+        condominiumId: cid, unitId, carrier, description: r.pick([null, "Caixa pequena", "Caixa média", "Envelope", "Pacote grande"]), volumes: r.next() < 0.15 ? 2 : 1,
+        location: r.pick(spots), recipient: r.next() < 0.5 ? person(r.next() < 0.5) : null,
+        receivedAt, receivedById: doorman.id, receivedByName: doorman.name,
+        ...(delivered && { status: "delivered", deliveredAt: new Date(Math.min(now - 60_000, receivedAt.getTime() + r.int(1, 30) * 3600_000)), deliveredTo: person(r.next() < 0.5), deliveredById: doorman.id, deliveredByName: doorman.name }),
+      },
+    });
+    parcels++;
+  }
+
+  return { people: peopleCount, bookings, entries, parcels };
 }
 
 /** Regras padrão quando a área ainda não tem horário (pelo nome). */
