@@ -5,12 +5,12 @@ import { Camera, Check, Loader2, MapPin, PackageCheck, Pencil, ScanText, Undo2, 
 import { deliverParcel, moveParcel, receiveParcel, returnParcel, type ParcelState } from "@/app/actions/parcels";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
-import { Alert, Badge, Button, Field, Input, Select, cx } from "@/components/ui";
+import { Alert, Badge, Button, Field, Input, cx } from "@/components/ui";
 import { CARRIERS } from "@/lib/parcels";
+import type { UnitOption } from "@/lib/unit-search";
+import { UnitPicker } from "./unit-picker";
 import { thumb } from "@/lib/media-url";
 import { cleanForOcr, parseLabel, type LabelResident, type LabelUnit } from "@/lib/parcel-label";
-
-type Opt = { id: string; label: string };
 
 /**
  * Reduz a foto no aparelho (lado maior até 1600 px): a versão colorida (JPEG) é a que fica anexada; a versão
@@ -46,9 +46,13 @@ async function preparePhoto(file: File, max = 1600) {
  * transportadora e rastreio para o porteiro conferir. Transportadora e local continuam preenchidos depois de
  * salvar, para registrar várias seguidas (chegou o caminhão dos Correios com 10 pacotes).
  */
-export function ReceiveParcelForm({ units, locations, labelUnits, residents }: { units: Opt[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[] }) {
+export function ReceiveParcelForm({ units, locations, labelUnits, residents, fixedUnit, onDone }: {
+  units: UnitOption[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[];
+  /** Aberto pelo cartão da unidade: a unidade já vem escolhida. */
+  fixedUnit?: string; onDone?: () => void;
+}) {
   const [key, setKey] = useState(0);
-  const [unitId, setUnitId] = useState("");
+  const [unitId, setUnitId] = useState(fixedUnit ?? "");
   const [recipient, setRecipient] = useState("");
   const [description, setDescription] = useState("");
   const [carrier, setCarrier] = useState("");
@@ -71,7 +75,7 @@ export function ReceiveParcelForm({ units, locations, labelUnits, residents }: {
     const r = await receiveParcel(p, f);
     if (r?.ok) {
       setKey((k) => k + 1);
-      setUnitId("");
+      setUnitId(fixedUnit ?? "");
       setRecipient("");
       setDescription("");
       clearPhoto();
@@ -149,12 +153,13 @@ export function ReceiveParcelForm({ units, locations, labelUnits, residents }: {
       </div>
 
       <div key={key} className="grid gap-4 @md:grid-cols-2 @3xl:grid-cols-4">
-        <Field label="Unidade">
-          <Select name="unitId" required value={unitId} onChange={(e) => setUnitId(e.target.value)} autoFocus={key > 0}>
-            <option value="" disabled>Selecione…</option>
-            {units.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-          </Select>
-        </Field>
+        {fixedUnit ? (
+          <input type="hidden" name="unitId" value={fixedUnit} />
+        ) : (
+          <Field label="Unidade">
+            <UnitPicker units={units} name="unitId" value={unitId} onChange={setUnitId} autoFocus={key > 0} />
+          </Field>
+        )}
         <Field label="Destinatário (opcional)"><Input name="recipient" maxLength={120} value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Nome no pacote" /></Field>
         <Field label="Descrição ou rastreio (opcional)"><Input name="description" maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Caixa média, envelope, BR123456789" /></Field>
         <Field label="Volumes"><Input name="volumes" type="number" min={1} max={99} defaultValue={1} /></Field>
@@ -178,7 +183,10 @@ export function ReceiveParcelForm({ units, locations, labelUnits, residents }: {
       )}
       {state?.error && <Alert>{state.error}</Alert>}
       {state?.message && <Alert tone="ok">{state.message}</Alert>}
-      <SubmitButton pending={pending} pendingText="Registrando…" size="sm" disabled={!!reading}><PackageCheck className="size-4" />Registrar e avisar a unidade</SubmitButton>
+      <div className="flex gap-2">
+        <SubmitButton pending={pending} pendingText="Registrando…" size="sm" disabled={!!reading}><PackageCheck className="size-4" />Registrar e avisar a unidade</SubmitButton>
+        {onDone && <Button type="button" variant="ghost" size="sm" onClick={onDone}>Fechar</Button>}
+      </div>
     </form>
   );
 }
@@ -204,16 +212,19 @@ export function ParcelRow({ p, locations }: { p: ParcelRowData; locations: strin
             <img src={thumb(p.photo, 480)} alt="" className="size-11 rounded-lg object-cover ring-1 ring-line" />
           </a>
         )}
-        <div className="min-w-0 flex-1">
+        {/* Texto com largura mínima: em coluna estreita, os botões descem juntos para a linha de baixo */}
+        <div className="min-w-48 flex-1">
           <p className="text-sm font-semibold">{p.unit}{p.recipient && <span className="font-normal text-fg-2"> · {p.recipient}</span>}</p>
-          <p className="text-xs text-muted">{p.what}{p.volumes > 1 && ` · ${p.volumes} volumes`} · recebida {p.receivedAt} por {p.receivedBy}</p>
+          <p className="text-xs text-muted">{[p.what, p.volumes > 1 && `${p.volumes} volumes`, `recebida ${p.receivedAt} por ${p.receivedBy}`].filter(Boolean).join(" · ")}</p>
         </div>
-        <button type="button" onClick={() => setMode(mode === "move" ? null : "move")} title="Trocar o local" className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand hover:bg-brand/15">
-          <MapPin className="size-3" />{p.location ?? "Sem local"}
-        </button>
-        <Badge tone={p.overdue ? "bad" : "muted"}>{p.wait}</Badge>
-        <Button size="sm" variant={mode === "deliver" ? "brand" : "outline"} onClick={() => setMode(mode === "deliver" ? null : "deliver")}><Check className="size-3.5" />Entregar</Button>
-        <button type="button" onClick={() => setMode(mode === "return" ? null : "return")} title="Devolver ou cancelar" className="rounded-lg p-1.5 text-muted hover:bg-bg-2 hover:text-fg"><Undo2 className="size-4" /></button>
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={() => setMode(mode === "move" ? null : "move")} title="Trocar o local" className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand hover:bg-brand/15">
+            <MapPin className="size-3" />{p.location ?? "Sem local"}
+          </button>
+          <Badge tone={p.overdue ? "bad" : "muted"}>{p.wait}</Badge>
+          <Button size="sm" variant={mode === "deliver" ? "brand" : "outline"} onClick={() => setMode(mode === "deliver" ? null : "deliver")}><Check className="size-3.5" />Entregar</Button>
+          <button type="button" onClick={() => setMode(mode === "return" ? null : "return")} title="Devolver ou cancelar" className="rounded-lg p-1.5 text-muted hover:bg-bg-2 hover:text-fg"><Undo2 className="size-4" /></button>
+        </div>
       </div>
 
       {mode === "deliver" && (

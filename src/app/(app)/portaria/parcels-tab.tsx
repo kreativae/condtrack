@@ -3,14 +3,16 @@ import { Package } from "lucide-react";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/format";
 import { PARCEL_STATUS, locationSuggestions, parcelOverdue, waitLabel, type ParcelStatus } from "@/lib/parcels";
-import { Badge, Card, CardHeader, Empty, Select, buttonClass, cx } from "@/components/ui";
+import { Badge, Card, CardHeader, Empty, cx } from "@/components/ui";
 import { ParcelRow, ReceiveParcelForm } from "@/components/portaria/parcels";
+import { UnitFilter } from "@/components/portaria/quick";
+import type { UnitOption } from "@/lib/unit-search";
 
 type SP = Record<string, string | string[] | undefined>;
 const str = (v: SP[string]) => (typeof v === "string" ? v : "");
 
 /** Aba Encomendas da portaria: receber, ver o que está aguardando (e onde) e dar baixa. */
-export async function ParcelsTab({ condoId, sp, units }: { condoId: string; sp: SP; units: { id: string; label: string }[] }) {
+export async function ParcelsTab({ condoId, sp, units }: { condoId: string; sp: SP; units: UnitOption[] }) {
   const view = str(sp.ver) === "entregues" ? "entregues" : "aguardando";
   const unitFilter = str(sp.unidade);
   const label = (id: string) => units.find((u) => u.id === id)?.label ?? "—";
@@ -46,15 +48,9 @@ export async function ParcelsTab({ condoId, sp, units }: { condoId: string; sp: 
               <Link key={k} href={base(k)} className={cx("rounded-lg px-3 py-1.5 font-medium transition", view === k ? "bg-surface text-fg shadow-card" : "text-muted hover:text-fg")}>{l}</Link>
             ))}
           </div>
-          <form action="/portaria" className="ml-auto flex gap-2">
-            <input type="hidden" name="aba" value="encomendas" />
-            {view === "entregues" && <input type="hidden" name="ver" value="entregues" />}
-            <Select name="unidade" defaultValue={unitFilter} className="w-auto">
-              <option value="">Todas as unidades</option>
-              {units.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-            </Select>
-            <button className={buttonClass("outline")}>Filtrar</button>
-          </form>
+          <div className="ml-auto flex min-w-64 flex-1 justify-end">
+            <UnitFilter units={units} value={unitFilter} base="/portaria" extra={{ aba: "encomendas", ...(view === "entregues" && { ver: "entregues" }) }} />
+          </div>
         </div>
 
         {view === "aguardando" ? (

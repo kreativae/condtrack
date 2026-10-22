@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, DoorOpen, Search } from "lucide-react";
+import { ChevronRight, DoorOpen } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { GRANT_STATUS, PERSON_KINDS, brt, brtParts, docKey, expectedToday, grantSchedule, grantStatus, type PersonKind } from "@/lib/booking";
 import { gateCondo } from "@/lib/booking-server";
 import { byUnit, unitLabel } from "@/lib/units";
-import { Badge, Card, CardHeader, Empty, Input, PageHeader, Select, Stat, buttonClass, cx, type Tone } from "@/components/ui";
+import { Badge, Card, CardHeader, Empty, PageHeader, Select, Stat, buttonClass, cx, type Tone } from "@/components/ui";
 import { ExitButton, GateQuickActions, QuickEntryButton } from "@/components/portaria/people";
 import { ArrivalButton } from "../reservas/booking-ui";
 import { ContactAgenda } from "./agenda";
 import { ParcelsTab } from "./parcels-tab";
+import { UnitPanel } from "./unit-panel";
+import { BatchReceive, QuickBar, UnitFilter } from "@/components/portaria/quick";
+import { locationSuggestions } from "@/lib/parcels";
 
 export const metadata: Metadata = { title: "Portaria" };
 
@@ -37,6 +40,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
     );
   }
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 80) : "";
+  const selectedUnit = typeof sp.u === "string" ? sp.u : "";
   const unitFilter = typeof sp.unidade === "string" ? sp.unidade : "";
   const kindFilter = typeof sp.tipo === "string" && sp.tipo in PERSON_KINDS ? (sp.tipo as PersonKind) : null;
   const tab = sp.aba === "pessoas" ? "pessoas" : sp.aba === "agenda" ? "agenda" : sp.aba === "encomendas" ? "encomendas" : "hoje";
@@ -48,11 +52,20 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 
   const unitRows = await db.unit.findMany({ where: { building: { condominiumId: condoId } }, include: { building: true } });
   const sorted = unitRows.sort(byUnit);
-  const units = sorted.map((u) => ({ id: u.id, label: unitLabel(u, true) }));
+  // number e building alimentam a busca digitando ("502", "aurora 502")
+  const units = sorted.map((u) => ({ id: u.id, label: unitLabel(u, true), number: u.number, building: u.building.name }));
   const label = (id: string | null) => units.find((u) => u.id === id)?.label ?? "Condomínio";
   const destLabel = (e: { dests: { unitId: string }[]; notes: string | null }) =>
     e.notes?.startsWith("Convidado: ") ? e.notes.slice(11) : e.dests.length ? e.dests.map((d) => label(d.unitId)).join(" + ") : "Condomínio";
   const unitMatches = q ? units.filter((u) => u.label.toLowerCase().replace(/[·\s]+/g, " ").includes(q.toLowerCase())).map((u) => u.id) : [];
+
+  const [usedLocations, residentAccounts, residentPeople] = await Promise.all([
+    db.parcel.findMany({ where: { condominiumId: condoId, location: { not: null } }, select: { location: true }, orderBy: { receivedAt: "desc" }, take: 500 }),
+    db.userUnit.findMany({ where: { unit: { building: { condominiumId: condoId } }, user: { status: "active" } }, select: { unitId: true, user: { select: { name: true } } } }),
+    db.accessGrant.findMany({ where: { condominiumId: condoId, kind: "resident", unitId: { not: null } }, select: { unitId: true, person: { select: { name: true } } } }),
+  ]);
+  const locations = locationSuggestions(usedLocations.map((p) => p.location));
+  const labelResidents = [...residentAccounts.map((a) => ({ name: a.user.name, unitId: a.unitId })), ...residentPeople.map((g) => ({ name: g.person.name, unitId: g.unitId! }))];
 
   const [pendingCount, todayBookings, grants, inside, todayEntries, parcelsWaiting] = await Promise.all([
     db.booking.count({ where: { condominiumId: condoId, status: "pending", endAt: { gt: now } } }),
@@ -137,19 +150,22 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 
   return (
     <div className="mx-auto max-w-6xl animate-in">
-      <PageHeader eyebrow="Portaria" title="Portaria" description="Quem é esperado, quem está no condomínio e o que aconteceu hoje." />
-
-      <div className="mb-5 flex flex-wrap items-start gap-2">
-        <form action="/portaria" className="flex min-w-60 flex-1 gap-2">
-          {tab !== "hoje" && <input type="hidden" name="aba" value={tab} />}
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <Input name="q" defaultValue={q} placeholder="Nome, documento, empresa ou unidade" className="pl-9" />
-          </div>
-          <button className={buttonClass("outline")}>Buscar</button>
-        </form>
+      {/* Tudo começa pela barra: unidade abre o cartão dela; nome busca pessoas. "/" volta para cá. */}
+      <div className="mb-4 flex flex-wrap items-start gap-2">
+        <div className="min-w-64 flex-1"><QuickBar units={units} initial={q} /></div>
         <GateQuickActions units={units} kinds={gateKinds} />
       </div>
+
+      {selectedUnit ? (
+        <UnitPanel condoId={condoId} unitId={selectedUnit} units={units} locations={locations} labelUnits={units} residents={labelResidents} kinds={gateKinds} />
+      ) : (
+        !q && (
+          <Card className="mb-6">
+            <CardHeader title="Recebimento em lote" subtitle="Chegou a van com vários pacotes: fixe transportadora e local, digite a unidade e Enter." />
+            <div className="p-5"><BatchReceive units={units} locations={locations} /></div>
+          </Card>
+        )
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label="Esperados hoje" value={waitingGuests + expected.length} />
@@ -312,19 +328,18 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
         </div>
       ) : (
         <Card>
-          <form className="grid gap-2 border-b border-line p-4 sm:grid-cols-[repeat(2,minmax(0,1fr))_auto]" action="/portaria">
-            <input type="hidden" name="aba" value="pessoas" />
-            <Select name="unidade" defaultValue={unitFilter}>
-              <option value="">Todas as unidades</option>
-              <option value="condominio">Condomínio</option>
-              {units.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-            </Select>
-            <Select name="tipo" defaultValue={kindFilter ?? ""}>
-              <option value="">Todos os tipos</option>
-              {(Object.keys(PERSON_KINDS) as PersonKind[]).map((k) => <option key={k} value={k}>{PERSON_KINDS[k].plural}</option>)}
-            </Select>
-            <button className={buttonClass("outline")}>Filtrar</button>
-          </form>
+          <div className="flex flex-wrap gap-2 border-b border-line p-4">
+            <UnitFilter units={units} value={unitFilter} base="/portaria" extra={{ aba: "pessoas", ...(kindFilter && { tipo: kindFilter }) }} condoOption />
+            <form className="flex gap-2" action="/portaria">
+              <input type="hidden" name="aba" value="pessoas" />
+              {unitFilter && <input type="hidden" name="unidade" value={unitFilter} />}
+              <Select name="tipo" defaultValue={kindFilter ?? ""} className="w-auto">
+                <option value="">Todos os tipos</option>
+                {(Object.keys(PERSON_KINDS) as PersonKind[]).map((k) => <option key={k} value={k}>{PERSON_KINDS[k].plural}</option>)}
+              </Select>
+              <button className={buttonClass("outline")}>Filtrar</button>
+            </form>
+          </div>
           <PeopleByUnit groups={groups} open={!!unitFilter || groups.length <= 3} />
         </Card>
       )}

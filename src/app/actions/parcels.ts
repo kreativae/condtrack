@@ -125,3 +125,31 @@ export async function moveParcel(id: string, location: string) {
   await db.parcel.updateMany({ where: { id, condominiumId: condoId, status: "waiting" }, data: { location: normalizeLocation(location) } });
   refresh();
 }
+
+/** Morador veio buscar tudo: baixa de todas as encomendas da unidade de uma vez (um aviso só). */
+export async function deliverUnitParcels(unitId: string, _prev: ParcelState, form: FormData): Promise<ParcelState> {
+  const user = await requireUser(...GATE);
+  if (user.impersonator) return { error: "Indisponível em modo de visualização." };
+  const condoId = await gateCondo(user);
+  if (!condoId) return { error: "Escolha um condomínio no menu." };
+  const who = clip(form.get("deliveredTo"), 120);
+  if (!who || who.length < 2) return { error: "Informe quem retirou." };
+  const unit = await db.unit.findFirst({ where: { id: unitId, building: { condominiumId: condoId } }, include: { building: true } });
+  if (!unit) return { error: "Unidade inválida." };
+  const now = new Date();
+  const done = await db.parcel.updateMany({
+    where: { unitId, condominiumId: condoId, status: "waiting" },
+    data: { status: "delivered", deliveredAt: now, deliveredTo: who, deliveredById: user.id, deliveredByName: user.name },
+  });
+  if (!done.count) return { error: "Não há encomendas aguardando nesta unidade." };
+  await audit(user, "deliver", "parcel", unitId, { new: { retiradaPor: who, quantidade: done.count, unidade: unitLabel(unit) }, condominiumId: condoId });
+  const to = await residentsOf(unitId);
+  if (to.length) {
+    await notify(
+      { condominiumId: condoId, userIds: to, exclude: user.id },
+      { type: "parcel_delivered", vars: { unidade: unitLabel(unit), descricao: done.count === 1 ? "Encomenda" : `${done.count} encomendas`, quem: who, hora: brtParts(now).hm, autor: user.name }, referenceType: "parcel", referenceId: unitId },
+    );
+  }
+  refresh();
+  return { ok: true, message: `${done.count} encomenda(s) entregue(s) a ${who}.` };
+}

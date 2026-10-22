@@ -152,7 +152,14 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   (`AccessEntry`) tem vários destinos (`AccessEntryUnit`; `unitId` = o primeiro); cada destino é avisado e quem não
   estava autorizado hoje vem com o alerta `{aviso}` (linha própria no modelo `gate_entry`: no motor de mensagens, linha
   com variável vazia some). Ficha em `/portaria/pessoa/[id]`. `/minha-unidade`: só as autorizações das unidades do
-  morador. `/portaria`: busca (só nomes, até 30), abas Hoje ("Esperados hoje", "No condomínio agora" com Saiu, linha do tempo),
+  morador. `/portaria` é feita para ser rápida com centenas de unidades: **barra rápida** no topo (`QuickBar` em
+  `components/portaria/quick.tsx`, foco automático, tecla "/"): unidade digitada ("502", "a502", "aurora 502";
+  regras em `src/lib/unit-search.ts`, testadas) abre o **cartão da unidade** (`?u=`, `portaria/unit-panel.tsx`:
+  moradores com telefone, encomendas com "Entregar todas", autorizados com "Entrou", últimas entradas e os botões
+  Receber encomenda / Registrar entrada / Autorizar já com a unidade); nome vai para a busca (`?q=`). Sem unidade,
+  **recebimento em lote** (`BatchReceive`: transportadora e local fixos, unidade + Enter registra e avisa).
+  Nunca use `<select>` com as unidades na portaria: use `UnitPicker` (`components/portaria/unit-picker.tsx`) ou
+  `UnitFilter`. Busca de pessoas (só nomes, até 30), abas Hoje ("Esperados hoje", "No condomínio agora" com Saiu, linha do tempo),
   Agenda (`portaria/agenda.tsx`: todos os contatos A–Z, letra calculada no banco sem acento, filtros de torre, tipo,
   situação e "moradores com conta", 50 por página) e Pessoas por unidade.
   **Encomendas** (aba Encomendas da Portaria, `portaria/parcels-tab.tsx`; `Parcel`; regras em `src/lib/parcels.ts`,

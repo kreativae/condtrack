@@ -19,7 +19,8 @@ export function myUnits(user: CurrentUser, condoId: string) {
 /** Todas as unidades do condomínio, em ordem (para quem atende na portaria). */
 export async function condoUnits(condoId: string) {
   const units = await db.unit.findMany({ where: { building: { condominiumId: condoId } }, include: { building: true } });
-  return units.sort(byUnit).map((u) => ({ id: u.id, label: unitLabel(u, true) }));
+  // number e building: a busca digitando da portaria ("502", "aurora 502") usa os dois
+  return units.sort(byUnit).map((u) => ({ id: u.id, label: unitLabel(u, true), number: u.number, building: u.building.name }));
 }
 
 /** Pode ver/mexer na reserva: quem atende no condomínio, quem pediu ou quem mora na unidade. */

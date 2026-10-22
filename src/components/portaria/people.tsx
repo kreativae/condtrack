@@ -9,6 +9,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { Alert, Badge, Button, Field, Input, Select, Textarea, cx } from "@/components/ui";
 import { GRANT_STATUS, PERSON_KINDS, WEEKDAY_SHORT, parseWeekdays, type PersonKind } from "@/lib/booking";
 import type { GrantData } from "@/lib/booking-server";
+import type { UnitOption } from "@/lib/unit-search";
+import { UnitPicker } from "./unit-picker";
 
 type Opt = { id: string; label: string };
 export type PersonBasics = { id: string; name: string; document: string | null; phone: string | null; company: string | null };
@@ -52,11 +54,8 @@ export function GrantForm({ grant, person, personId, units, kinds, allowCondo, c
         ) : units.length === 1 && !allowCondo ? (
           <input type="hidden" name="unitId" value={units[0].id} />
         ) : (
-          <Field label="Para onde">
-            <Select name="unitId" defaultValue="" required={!allowCondo}>
-              {allowCondo ? <option value="">Condomínio (áreas comuns, administração)</option> : <option value="" disabled>Selecione a unidade…</option>}
-              {units.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-            </Select>
+          <Field label="Para onde" hint={allowCondo ? "Vazio = condomínio (áreas comuns, administração)." : undefined}>
+            <UnitPicker units={units as UnitOption[]} name="unitId" allowEmptyLabel={allowCondo ? "Condomínio (áreas comuns, administração)" : undefined} />
           </Field>
         )}
       </div>
@@ -141,10 +140,14 @@ export function AddGrant({ label, ...props }: { label: string } & Parameters<typ
  * Registrar entrada. Com `person`: escolhe um ou vários destinos (as unidades autorizadas hoje já vêm marcadas).
  * Sem `person`: digita nome e documento (se o documento já existir, a entrada é ligada à pessoa).
  */
-export function EntryForm({ person, units, suggested = [], onDone }: { person?: { id: string; name: string }; units: Opt[]; suggested?: { unitId: string | null; label: string; ok: boolean }[]; onDone?: () => void }) {
+export function EntryForm({ person, units, suggested = [], defaultUnitIds = [], onDone }: {
+  person?: { id: string; name: string }; units: Opt[]; suggested?: { unitId: string | null; label: string; ok: boolean }[];
+  /** Aberto pelo cartão da unidade: ela já vem marcada. */
+  defaultUnitIds?: string[]; onDone?: () => void;
+}) {
   const [state, form, pending] = useFormSubmit(registerEntry);
-  const [checked, setChecked] = useState<string[]>(suggested.filter((s) => s.ok && s.unitId).map((s) => s.unitId!));
-  const [extra, setExtra] = useState<string[]>([]);
+  const [checked, setChecked] = useState<string[]>([...suggested.filter((s) => s.ok && s.unitId).map((s) => s.unitId!), ...defaultUnitIds]);
+  const [extra, setExtra] = useState<string[]>(defaultUnitIds.filter((id) => !suggested.some((s) => s.unitId === id)));
   const options = [...suggested.filter((s) => s.unitId).map((s) => ({ id: s.unitId!, label: s.label, ok: s.ok })), ...extra.map((id) => ({ id, label: units.find((u) => u.id === id)?.label ?? id, ok: false }))];
   const toggle = (id: string) => setChecked(checked.includes(id) ? checked.filter((x) => x !== id) : [...checked, id]);
   const unauthorized = checked.filter((id) => !options.find((o) => o.id === id)?.ok);
@@ -184,10 +187,12 @@ export function EntryForm({ person, units, suggested = [], onDone }: { person?: 
               {person && <Badge tone={o.ok ? "ok" : "muted"}>{o.ok ? "Autorizada hoje" : "Sem autorização hoje"}</Badge>}
             </label>
           ))}
-          <Select value="" onChange={(e) => { const v = e.target.value; if (v && !options.some((o) => o.id === v)) { setExtra([...extra, v]); setChecked([...checked, v]); } }} className="text-sm">
-            <option value="">{options.length ? "Adicionar outra unidade…" : "Escolher unidade…"}</option>
-            {units.filter((u) => !options.some((o) => o.id === u.id)).map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-          </Select>
+          <UnitPicker
+            key={extra.length}
+            units={(units as UnitOption[]).filter((u) => !options.some((o) => o.id === u.id))}
+            placeholder={options.length ? "Outra unidade (digite: 502, aurora 502)" : "Unidade (digite: 502, aurora 502)"}
+            onChange={(v) => { if (v && !options.some((o) => o.id === v)) { setExtra([...extra, v]); setChecked([...checked, v]); } }}
+          />
           {!checked.length && <p className="text-xs text-muted">Sem unidade marcada = entrada para o condomínio (áreas comuns, administração).</p>}
         </div>
         {person && unauthorized.length > 0 && <p className="mt-2 text-xs text-warn">Sem autorização para hoje em {unauthorized.length} destino(s): a unidade recebe o aviso com esse alerta.</p>}
@@ -234,9 +239,9 @@ export function GateQuickActions({ units, kinds }: { units: Opt[]; kinds: Person
   const [open, setOpen] = useState<"entry" | "person" | null>(null);
   return (
     <>
-      <div className="flex shrink-0 gap-2">
-        <Button variant={open === "entry" ? "brand" : "outline"} onClick={() => setOpen(open === "entry" ? null : "entry")}><DoorOpen className="size-4" />Registrar entrada</Button>
-        <Button variant={open === "person" ? "brand" : "outline"} onClick={() => setOpen(open === "person" ? null : "person")}><UserPlus className="size-4" />Cadastrar pessoa</Button>
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
+        <Button className="h-11 sm:h-14" variant={open === "entry" ? "brand" : "outline"} onClick={() => setOpen(open === "entry" ? null : "entry")}><DoorOpen className="size-4" /><span className="sm:hidden">Entrada</span><span className="hidden sm:inline">Registrar entrada</span></Button>
+        <Button className="h-11 sm:h-14" variant={open === "person" ? "brand" : "outline"} onClick={() => setOpen(open === "person" ? null : "person")}><UserPlus className="size-4" /><span className="sm:hidden">Cadastrar</span><span className="hidden sm:inline">Cadastrar pessoa</span></Button>
       </div>
       {open && (
         <div className="basis-full rounded-2xl border border-line bg-surface p-4 sm:p-5">

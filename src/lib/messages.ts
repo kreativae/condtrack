@@ -138,7 +138,7 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "volumes", desc: "Quantidade de volumes", sample: "1 volume" },
     { name: "local", desc: "Onde está guardada (a linha some quando não informado)", sample: "Armário 3" },
   ]),
-  notification("parcel_delivered", "Encomenda retirada", "Moradores da unidade", "Encomenda retirada", "{descricao} de {unidade} retirada por {quem} às {hora}.", [
+  notification("parcel_delivered", "Encomenda retirada", "Moradores da unidade", "Encomenda retirada", "Retirada por {quem} às {hora}: {descricao} de {unidade}.", [
     V.condominio, V.autor,
     { name: "unidade", desc: "Unidade", sample: "Torre A · 101" },
     { name: "descricao", desc: "Transportadora e descrição", sample: "Mercado Livre · caixa média" },
