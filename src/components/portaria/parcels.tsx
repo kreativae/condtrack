@@ -6,7 +6,6 @@ import { deliverParcel, moveParcel, receiveParcel, returnParcel, type ParcelStat
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Badge, Button, Field, Input, cx } from "@/components/ui";
-import { CARRIERS } from "@/lib/parcels";
 import type { UnitOption } from "@/lib/unit-search";
 import { UnitPicker } from "./unit-picker";
 import { thumb } from "@/lib/media-url";
@@ -46,8 +45,8 @@ async function preparePhoto(file: File, max = 1600) {
  * transportadora e rastreio para o porteiro conferir. Transportadora e local continuam preenchidos depois de
  * salvar, para registrar várias seguidas (chegou o caminhão dos Correios com 10 pacotes).
  */
-export function ReceiveParcelForm({ units, locations, labelUnits, residents, fixedUnit, onDone }: {
-  units: UnitOption[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[];
+export function ReceiveParcelForm({ units, carriers, locations, labelUnits, residents, fixedUnit, onDone }: {
+  units: UnitOption[]; carriers: string[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[];
   /** Aberto pelo cartão da unidade: a unidade já vem escolhida. */
   fixedUnit?: string; onDone?: () => void;
 }) {
@@ -167,7 +166,7 @@ export function ReceiveParcelForm({ units, locations, labelUnits, residents, fix
       <div className="grid gap-4 @md:grid-cols-2 @3xl:grid-cols-4">
         <Field label="Transportadora">
           <Input name="carrier" maxLength={60} list="parcel-carriers" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Correios, Mercado Livre…" />
-          <datalist id="parcel-carriers">{CARRIERS.map((c) => <option key={c} value={c} />)}</datalist>
+          <datalist id="parcel-carriers">{carriers.map((c) => <option key={c} value={c} />)}</datalist>
         </Field>
         <Field label="Onde ficou guardada" hint="Fica preenchido para a próxima.">
           <Input name="location" maxLength={60} list="parcel-locations" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Armário 3, Prateleira B, Geladeira" />

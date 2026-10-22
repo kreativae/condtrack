@@ -43,6 +43,10 @@ model Condominium {
   layout               String    @default("vertical")
   /// como chamar as unidades horizontais: house (Casa) | lot (Lote)
   houseNoun            String    @default("house")
+  /// Transportadoras sugeridas ao receber encomendas na portaria (Estrutura → Encomendas); vazio = lista padrão
+  parcelCarriers       String[]  @default([])
+  /// Locais de guarda das encomendas (armários, prateleiras); vazio = sugere os locais já usados
+  parcelLocations      String[]  @default([])
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

@@ -14,7 +14,7 @@ import { ContactAgenda } from "./agenda";
 import { ParcelsTab } from "./parcels-tab";
 import { UnitPanel } from "./unit-panel";
 import { BatchReceive, GuestAccordion, QuickBar, UnitFilter } from "@/components/portaria/quick";
-import { locationSuggestions } from "@/lib/parcels";
+import { parcelOptions } from "@/lib/parcels-server";
 
 export const metadata: Metadata = { title: "Portaria" };
 
@@ -59,12 +59,11 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
     e.notes?.startsWith("Convidado: ") ? e.notes.slice(11) : e.dests.length ? e.dests.map((d) => label(d.unitId)).join(" + ") : "Condomínio";
   const unitMatches = q ? units.filter((u) => u.label.toLowerCase().replace(/[·\s]+/g, " ").includes(q.toLowerCase())).map((u) => u.id) : [];
 
-  const [usedLocations, residentAccounts, residentPeople] = await Promise.all([
-    db.parcel.findMany({ where: { condominiumId: condoId, location: { not: null } }, select: { location: true }, orderBy: { receivedAt: "desc" }, take: 500 }),
+  const [{ carriers, locations }, residentAccounts, residentPeople] = await Promise.all([
+    parcelOptions(condoId),
     db.userUnit.findMany({ where: { unit: { building: { condominiumId: condoId } }, user: { status: "active" } }, select: { unitId: true, user: { select: { name: true } } } }),
     db.accessGrant.findMany({ where: { condominiumId: condoId, kind: "resident", unitId: { not: null } }, select: { unitId: true, person: { select: { name: true } } } }),
   ]);
-  const locations = locationSuggestions(usedLocations.map((p) => p.location));
   const labelResidents = [...residentAccounts.map((a) => ({ name: a.user.name, unitId: a.unitId })), ...residentPeople.map((g) => ({ name: g.person.name, unitId: g.unitId! }))];
 
   const [pendingCount, todayBookings, grants, inside, todayEntries, parcelsWaiting] = await Promise.all([
@@ -157,12 +156,12 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
       </div>
 
       {selectedUnit ? (
-        <UnitPanel condoId={condoId} unitId={selectedUnit} units={units} locations={locations} labelUnits={units} residents={labelResidents} kinds={gateKinds} />
+        <UnitPanel condoId={condoId} unitId={selectedUnit} units={units} carriers={carriers} locations={locations} labelUnits={units} residents={labelResidents} kinds={gateKinds} />
       ) : (
         !q && (
           <Card className="mb-6">
             <CardHeader title="Recebimento em lote" subtitle="Chegou a van com vários pacotes: fixe transportadora e local, digite a unidade e Enter." />
-            <div className="p-5"><BatchReceive units={units} locations={locations} /></div>
+            <div className="p-5"><BatchReceive units={units} carriers={carriers} locations={locations} /></div>
           </Card>
         )
       )}

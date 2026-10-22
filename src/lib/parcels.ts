@@ -8,8 +8,32 @@ export const PARCEL_STATUS = {
 } as const;
 export type ParcelStatus = keyof typeof PARCEL_STATUS;
 
-/** Sugestões de transportadora (o campo aceita qualquer texto). */
+/** Sugestões de transportadora quando o condomínio não editou a lista (o campo aceita qualquer texto). */
 export const CARRIERS = ["Correios", "Mercado Livre", "Amazon", "Shopee", "Magalu", "iFood", "Loggi", "Jadlog", "Total Express", "DHL", "FedEx"] as const;
+
+/** Até quantos itens cada lista editável (transportadoras, locais) guarda. */
+export const PARCEL_LIST_MAX = 40;
+
+const foldKey = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Texto da Estrutura (um item por linha) → lista limpa: sem vazios, sem repetir (ignora maiúsculas e acentos). */
+export function parseParcelList(text: string) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const item = normalizeLocation(line);
+    if (!item || seen.has(foldKey(item))) continue;
+    seen.add(foldKey(item));
+    out.push(item);
+  }
+  return out.slice(0, PARCEL_LIST_MAX);
+}
+
+/** Transportadoras do recebimento: as do condomínio ou, sem lista própria, as padrão. */
+export const parcelCarriers = (saved: string[]) => (saved.length ? saved : [...CARRIERS]);
+
+/** Locais de guarda: os definidos na Estrutura ou, sem lista própria, os já usados. */
+export const parcelLocations = (saved: string[], used: (string | null)[]) => (saved.length ? saved : locationSuggestions(used));
 
 /** Depois de quantos dias parada na portaria a encomenda aparece em destaque. */
 export const PARCEL_OVERDUE_DAYS = 7;
@@ -33,7 +57,7 @@ export const normalizeLocation = (s: string | null | undefined) => (s ?? "").tri
 
 /** Locais já usados, do mais usado para o menos usado, sem repetir (ignora maiúsculas e acentos). */
 export function locationSuggestions(used: (string | null)[], limit = 20) {
-  const key = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const key = foldKey;
   const count = new Map<string, { label: string; n: number }>();
   for (const raw of used) {
     const l = normalizeLocation(raw);

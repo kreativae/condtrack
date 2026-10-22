@@ -1,26 +1,28 @@
 import Link from "next/link";
-import { Building2, ChevronDown, Home, LayoutGrid, ListChecks, Pencil, Tags, Users } from "lucide-react";
+import { Building2, ChevronDown, Home, LayoutGrid, ListChecks, Package, Pencil, Tags, Users } from "lucide-react";
 import { db } from "@/lib/db";
 import { categoryIcon } from "@/lib/category-icons";
 import {
-  createBuilding, createUnit, deleteArea, deleteBuilding, deleteCategory, deleteUnit, generateUnits, renameBuilding, saveArea, saveCategory, saveLayout, updateUnit,
+  createBuilding, createUnit, deleteArea, deleteBuilding, deleteCategory, deleteUnit, generateUnits, renameBuilding, saveArea, saveCategory, saveLayout, saveParcelLists, updateUnit,
 } from "@/app/actions/structure";
 import { Badge, Card, CardHeader, Empty, cx } from "@/components/ui";
 import { UNIT_TYPES, byNumber, structureWords } from "@/lib/units";
 import { ChecklistAdmin } from "@/components/checklist/admin";
-import { AreaForm, BuildingCreateForm, CategoryForm, DeleteButton, LayoutForm, RenameForm, UnitCreateForm, UnitEditForm, UnitGenerateForm } from "./forms";
+import { parcelOptions } from "@/lib/parcels-server";
+import { AreaForm, BuildingCreateForm, CategoryForm, DeleteButton, LayoutForm, ParcelListsForm, RenameForm, UnitCreateForm, UnitEditForm, UnitGenerateForm } from "./forms";
 
 export const STRUCTURE_TABS = [
   { key: "torres", label: "Torres e unidades", icon: Building2 },
   { key: "areas", label: "Áreas comuns", icon: LayoutGrid },
   { key: "categorias", label: "Categorias de serviço", icon: Tags },
   { key: "checklist", label: "Checklist do zelador", icon: ListChecks },
+  { key: "encomendas", label: "Encomendas", icon: Package },
 ] as const;
 export type StructureTab = (typeof STRUCTURE_TABS)[number]["key"];
 
 
 export async function StructureManager({ condominiumId, basePath, tab }: { condominiumId: string; basePath: string; tab: StructureTab }) {
-  const [condo, buildings, areas, categories, checklistCount] = await Promise.all([
+  const [condo, buildings, areas, categories, checklistCount, parcels] = await Promise.all([
     db.condominium.findUniqueOrThrow({ where: { id: condominiumId }, select: { layout: true, houseNoun: true } }),
     db.building.findMany({
       where: { condominiumId },
@@ -30,6 +32,7 @@ export async function StructureManager({ condominiumId, basePath, tab }: { condo
     db.commonArea.findMany({ where: { condominiumId }, orderBy: { name: "asc" }, include: { _count: { select: { orders: true } } } }),
     db.serviceCategory.findMany({ where: { condominiumId }, orderBy: { name: "asc" }, include: { _count: { select: { orders: true } } } }),
     db.checklistItem.count({ where: { condominiumId, active: true } }),
+    parcelOptions(condominiumId),
   ]);
   const totalUnits = buildings.reduce((a, b) => a + b.units.length, 0);
   const words = structureWords(condo.layout, condo.houseNoun);
@@ -38,6 +41,7 @@ export async function StructureManager({ condominiumId, basePath, tab }: { condo
     areas: String(areas.length),
     categorias: String(categories.length),
     checklist: String(checklistCount),
+    encomendas: `${parcels.carriers.length} · ${parcels.locations.length}`,
   };
 
   return (
@@ -165,6 +169,13 @@ export async function StructureManager({ condominiumId, basePath, tab }: { condo
             <div className="p-5"><AreaForm action={saveArea.bind(null, condominiumId, null)} submit="Adicionar área" /></div>
           </Card>
         </div>
+      )}
+
+      {tab === "encomendas" && (
+        <Card>
+          <CardHeader title="Transportadoras e locais de guarda" subtitle="Sugestões que a portaria vê ao receber encomendas, no recebimento em lote e ao trocar o local." />
+          <div className="p-5"><ParcelListsForm action={saveParcelLists.bind(null, condominiumId)} carriers={parcels.carriers} locations={parcels.locations} /></div>
+        </Card>
       )}
 
       {tab === "checklist" && <ChecklistAdmin condominiumId={condominiumId} historyHref={`/checklist?condo=${condominiumId}`} />}

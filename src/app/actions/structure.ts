@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { CATEGORY_ICONS } from "@/lib/category-icons";
+import { parseParcelList } from "@/lib/parcels";
 import { UNIT_TYPE_KEYS, aptNumber, defaultKind, houseNumbers, isHouseNoun, isLayout, type GroupKind, unitNoun } from "@/lib/units";
 
 export type StructState = { error?: string; ok?: boolean; message?: string } | undefined;
@@ -117,6 +118,26 @@ export async function saveLayout(condominiumId: string, _prev: StructState, form
     await audit(user, "update", "condominium_layout", condominiumId, { old, new: { layout, houseNoun: noun }, condominiumId });
     revalidatePath("/", "layout"); // os rótulos das unidades mudam em todo o sistema
     return done(condominiumId, "Tipo do condomínio atualizado.");
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// ───────────────────────────── Encomendas ─────────────────────────────
+
+/** Transportadoras e locais de guarda sugeridos na portaria (um por linha; vazio volta ao padrão). */
+export async function saveParcelLists(condominiumId: string, _prev: StructState, form: FormData): Promise<StructState> {
+  try {
+    const user = await manager(condominiumId);
+    const data = {
+      parcelCarriers: parseParcelList(String(form.get("carriers") ?? "")),
+      parcelLocations: parseParcelList(String(form.get("locations") ?? "")),
+    };
+    const old = await db.condominium.findUniqueOrThrow({ where: { id: condominiumId }, select: { parcelCarriers: true, parcelLocations: true } });
+    await db.condominium.update({ where: { id: condominiumId }, data });
+    await audit(user, "update", "parcel_lists", condominiumId, { old, new: data, condominiumId });
+    revalidatePath("/portaria");
+    return done(condominiumId, "Listas das encomendas salvas.");
   } catch (e) {
     return fail(e);
   }

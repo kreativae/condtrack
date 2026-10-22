@@ -7,7 +7,6 @@ import { deliverUnitParcels, receiveParcel, type ParcelState } from "@/app/actio
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Button, Field, Input, cx } from "@/components/ui";
-import { CARRIERS } from "@/lib/parcels";
 import { matchUnits, type UnitOption } from "@/lib/unit-search";
 import type { LabelResident, LabelUnit } from "@/lib/parcel-label";
 import { UnitPicker } from "./unit-picker";
@@ -111,7 +110,7 @@ export function QuickBar({ units, initial }: { units: UnitOption[]; initial?: st
  * Recebimento em lote: transportadora e local fixos, o porteiro digita a unidade e aperta Enter.
  * Cada Enter registra uma encomenda e avisa a unidade; o campo limpa para a próxima.
  */
-export function BatchReceive({ units, locations }: { units: UnitOption[]; locations: string[] }) {
+export function BatchReceive({ units, carriers, locations }: { units: UnitOption[]; carriers: string[]; locations: string[] }) {
   const [carrier, setCarrier] = useState("");
   const [location, setLocation] = useState("");
   const [busy, setBusy] = useState(false);
@@ -140,7 +139,7 @@ export function BatchReceive({ units, locations }: { units: UnitOption[]; locati
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Transportadora (fixa)">
           <Input value={carrier} onChange={(e) => setCarrier(e.target.value)} list="batch-carriers" placeholder="Correios, Mercado Livre…" />
-          <datalist id="batch-carriers">{CARRIERS.map((c) => <option key={c} value={c} />)}</datalist>
+          <datalist id="batch-carriers">{carriers.map((c) => <option key={c} value={c} />)}</datalist>
         </Field>
         <Field label="Onde vão ficar (fixo)">
           <Input value={location} onChange={(e) => setLocation(e.target.value)} list="batch-locations" placeholder="Armário 3, Prateleira B" />
@@ -176,8 +175,8 @@ export function BatchReceive({ units, locations }: { units: UnitOption[]; locati
 }
 
 /** Cartão da unidade: os três botões grandes e o formulário que cada um abre, já com a unidade. */
-export function UnitActions({ unitId, units, locations, labelUnits, residents, kinds }: {
-  unitId: string; units: UnitOption[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[]; kinds: PersonKind[];
+export function UnitActions({ unitId, units, carriers, locations, labelUnits, residents, kinds }: {
+  unitId: string; units: UnitOption[]; carriers: string[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[]; kinds: PersonKind[];
 }) {
   const [open, setOpen] = useState<"parcel" | "entry" | "grant" | null>(null);
   const big = "h-12 px-4 text-[15px]";
@@ -190,7 +189,7 @@ export function UnitActions({ unitId, units, locations, labelUnits, residents, k
       </div>
       {open && (
         <div className="rounded-2xl border border-line bg-bg-2/40 p-4">
-          {open === "parcel" && <ReceiveParcelForm units={units} locations={locations} labelUnits={labelUnits} residents={residents} fixedUnit={unitId} onDone={() => setOpen(null)} />}
+          {open === "parcel" && <ReceiveParcelForm units={units} carriers={carriers} locations={locations} labelUnits={labelUnits} residents={residents} fixedUnit={unitId} onDone={() => setOpen(null)} />}
           {open === "entry" && <EntryForm units={units} defaultUnitIds={[unitId]} onDone={() => setOpen(null)} />}
           {open === "grant" && <GrantForm units={units} kinds={kinds} fixedUnit={unitId} onDone={() => setOpen(null)} />}
         </div>

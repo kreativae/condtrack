@@ -257,3 +257,19 @@ export function CategoryForm({ action, category, submit }: { action: FormAction;
     </ActionForm>
   );
 }
+
+/** Transportadoras e locais de guarda que a portaria vê como sugestão (um por linha). */
+export function ParcelListsForm({ action, carriers, locations }: { action: FormAction; carriers: string[]; locations: string[] }) {
+  return (
+    <ActionForm action={action} submit="Salvar listas" note="Um item por linha. Lista vazia volta ao padrão: transportadoras comuns e os locais já usados na portaria.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Transportadoras" hint="Aparecem ao receber encomendas; o porteiro ainda pode digitar outra.">
+          <Textarea name="carriers" rows={10} defaultValue={carriers.join("\n")} placeholder={"Correios\nMercado Livre"} />
+        </Field>
+        <Field label="Locais de guarda" hint="Armários, prateleiras, geladeira: viram os atalhos do recebimento.">
+          <Textarea name="locations" rows={10} defaultValue={locations.join("\n")} placeholder={"Armário 1\nPrateleira A"} />
+        </Field>
+      </div>
+    </ActionForm>
+  );
+}

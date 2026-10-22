@@ -166,7 +166,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   ações em `actions/parcels.ts`): receber para a unidade (local de guarda com sugestões dos já usados; transportadora e
   local continuam preenchidos para registrar vários seguidos), dar baixa com quem retirou, devolver com motivo, trocar
   o local. Moradores da unidade recebem `parcel_received` (com o local) e `parcel_delivered`. Parada há 7 dias ou mais
-  fica em destaque (`PARCEL_OVERDUE_DAYS`). O morador vê as suas em Minha unidade e o total no início.
+  fica em destaque (`PARCEL_OVERDUE_DAYS`).
+  Transportadoras e locais de guarda sugeridos são editáveis em Estrutura → Encomendas (síndico e superadmin;
+  `Condominium.parcelCarriers`/`parcelLocations`, `saveParcelLists`). Lista vazia = padrão (`CARRIERS` e locais já
+  usados); a portaria lê tudo por `parcelOptions()` (`lib/parcels-server.ts`). O morador vê as suas em Minha unidade e o total no início.
   Foto da etiqueta (`Parcel.photoUrl`, pasta `parcel-<id>`; a rota de mídias libera só para quem atende no condomínio e
   quem mora na unidade). Leitura automática no navegador do porteiro (sem custo, sem carga no servidor): a foto é
   reduzida (JPEG anexado) e limpa por `cleanForOcr()` (preto e branco Otsu, endireita até ±10° com `skewAngle()`, apaga

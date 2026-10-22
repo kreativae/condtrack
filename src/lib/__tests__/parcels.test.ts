@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brt } from "../booking";
-import { locationSuggestions, normalizeLocation, parcelOverdue, parcelWaitDays, waitLabel } from "../parcels";
+import { CARRIERS, PARCEL_LIST_MAX, locationSuggestions, normalizeLocation, parcelCarriers, parcelLocations, parcelOverdue, parcelWaitDays, parseParcelList, waitLabel } from "../parcels";
 
 describe("encomendas", () => {
   it("dias de espera contam pelo calendário de Brasília", () => {
@@ -31,5 +31,20 @@ describe("aviso de encomenda", () => {
     const base = { volumes: "1 volume", unidade: "Torre A · 101", descricao: "Correios" };
     expect(fill(msg, { ...base, destinatario: "", local: "" })).toBe("1 volume para Torre A · 101: Correios\nRetire na portaria.");
     expect(fill(msg, { ...base, destinatario: "Ana", local: "Armário 3" }).split("\n")).toHaveLength(4);
+  });
+});
+
+describe("listas das encomendas (Estrutura)", () => {
+  it("um item por linha, sem vazios nem repetidos (maiúsculas e acentos não contam)", () => {
+    expect(parseParcelList("Armário 1\n\n  armario   1 \r\nPrateleira A\nARMÁRIO 1\n")).toEqual(["Armário 1", "Prateleira A"]);
+    expect(parseParcelList("")).toEqual([]);
+    expect(parseParcelList(Array.from({ length: 60 }, (_, i) => `Local ${i}`).join("\n"))).toHaveLength(PARCEL_LIST_MAX);
+  });
+
+  it("sem lista própria usa o padrão; com lista, só ela", () => {
+    expect(parcelCarriers([])).toEqual([...CARRIERS]);
+    expect(parcelCarriers(["Correios", "Loggi"])).toEqual(["Correios", "Loggi"]);
+    expect(parcelLocations([], ["Geladeira", "Armário 3", "armario 3"])).toEqual(["Armário 3", "Geladeira"]);
+    expect(parcelLocations(["Armário 1"], ["Geladeira"])).toEqual(["Armário 1"]);
   });
 });

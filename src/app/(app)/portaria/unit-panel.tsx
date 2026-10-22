@@ -16,8 +16,8 @@ const KIND: Record<string, string> = { visitor: "Visitante", provider: "Prestado
 const UNIT_ROLE: Record<string, string> = { owner: "proprietário", tenant: "inquilino", dependent: "dependente" };
 
 /** Tudo de uma unidade num lugar só: moradores, encomendas, autorizados, últimas entradas e as ações. */
-export async function UnitPanel({ condoId, unitId, units, locations, labelUnits, residents, kinds }: {
-  condoId: string; unitId: string; units: UnitOption[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[]; kinds: PersonKind[];
+export async function UnitPanel({ condoId, unitId, units, carriers, locations, labelUnits, residents, kinds }: {
+  condoId: string; unitId: string; units: UnitOption[]; carriers: string[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[]; kinds: PersonKind[];
 }) {
   const unit = await db.unit.findFirst({ where: { id: unitId, building: { condominiumId: condoId } }, include: { building: true } });
   if (!unit) return null;
@@ -45,7 +45,7 @@ export async function UnitPanel({ condoId, unitId, units, locations, labelUnits,
       </div>
 
       <div className="p-5">
-        <UnitActions unitId={unitId} units={units} locations={locations} labelUnits={labelUnits} residents={residents} kinds={kinds} />
+        <UnitActions unitId={unitId} units={units} carriers={carriers} locations={locations} labelUnits={labelUnits} residents={residents} kinds={kinds} />
       </div>
 
       <div className="grid gap-px border-t border-line bg-line lg:grid-cols-2">
