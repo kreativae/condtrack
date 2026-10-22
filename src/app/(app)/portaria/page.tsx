@@ -330,8 +330,8 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
       {/* Topo fixo: a barra (unidade ou nome, tecla "/") e os números. Rolando a página, continua à mão. */}
       <div className="sticky top-[calc(3.5rem+var(--chrome,0rem))] z-20 -mx-4 mb-3 bg-bg/95 px-4 pb-3 pt-2 backdrop-blur lg:top-[calc(4rem+var(--chrome,0rem))] lg:mx-0 lg:px-0">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1"><QuickBar units={units} initial={q} /></div>
-          <div className="hidden max-w-[45%] lg:block"><StatChips items={chips} /></div>
+          <div className="min-w-0 flex-1 lg:w-60 lg:flex-none xl:w-64 2xl:w-[28rem]"><QuickBar units={units} initial={q} /></div>
+          <div className="hidden min-w-0 flex-1 lg:block"><StatChips items={chips} oneLine /></div>
         </div>
       </div>
 

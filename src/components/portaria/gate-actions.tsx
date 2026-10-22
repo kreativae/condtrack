@@ -143,7 +143,7 @@ function revealBlock(id: string) {
 }
 
 /** Fichas de números: uma faixa só (rola de lado no celular). Cada uma leva à lista dela. */
-export function StatChips({ items }: { items: { label: string; value: number; href: string; tone?: "brand" | "warn" }[] }) {
+export function StatChips({ items, oneLine }: { items: { label: string; value: number; href: string; tone?: "brand" | "warn" }[]; /** Ao lado da busca: uma linha só (rola de lado se faltar espaço). */ oneLine?: boolean }) {
   const router = useRouter();
 
   // Chegou de outra aba com "#bloco" no endereço: mostra o bloco depois de montar
@@ -153,7 +153,7 @@ export function StatChips({ items }: { items: { label: string; value: number; hr
   }, []);
 
   return (
-    <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+    <div className={cx("flex gap-1 overflow-x-auto xl:gap-1.5 pb-1 [scrollbar-width:none]", oneLine ? "" : "-mx-4 px-4 sm:mx-0 sm:flex-wrap sm:px-0")}>
       {items.map((i) => (
         <a
           key={i.label}
@@ -173,7 +173,8 @@ export function StatChips({ items }: { items: { label: string; value: number; hr
             }, 100);
           }}
           className={cx(
-            "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition hover:border-brand/40",
+            "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border py-1 text-xs font-medium transition hover:border-brand/40",
+            oneLine ? "px-2.5 xl:px-3" : "px-3",
             i.value && i.tone === "warn" ? "border-warn/30 bg-warn/10 text-warn" : i.value && i.tone === "brand" ? "border-brand/30 bg-brand/10 text-brand" : "border-line bg-surface text-fg-2",
           )}
         >

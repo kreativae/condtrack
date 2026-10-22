@@ -89,7 +89,7 @@ export function QuickBar({ units, initial }: { units: UnitOption[]; initial?: st
             else e.currentTarget.blur();
           }
         }}
-        placeholder="Unidade (502, A502, aurora 502) ou nome"
+        placeholder="Unidade (502, A502) ou nome"
         aria-label="Buscar unidade ou pessoa"
         className="h-14 w-full rounded-2xl border border-line bg-surface pl-12 pr-12 text-lg text-fg shadow-card outline-none transition placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand/15"
       />
