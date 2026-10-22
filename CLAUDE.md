@@ -153,13 +153,17 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   estava autorizado hoje vem com o alerta `{aviso}` (linha própria no modelo `gate_entry`: no motor de mensagens, linha
   com variável vazia some). Ficha em `/portaria/pessoa/[id]`. `/minha-unidade`: só as autorizações das unidades do
   morador. `/portaria` é feita para ser rápida com centenas de unidades: **barra rápida** no topo (`QuickBar` em
-  `components/portaria/quick.tsx`, foco automático, tecla "/"): unidade digitada ("502", "a502", "aurora 502";
-  regras em `src/lib/unit-search.ts`, testadas) abre o **cartão da unidade** (`?u=`, `portaria/unit-panel.tsx`:
-  moradores com telefone, encomendas com "Entregar todas", autorizados com "Entrou", últimas entradas e os botões
-  Receber encomenda / Registrar entrada / Autorizar já com a unidade); nome vai para a busca (`?q=`). Sem unidade,
-  **recebimento em lote** (`BatchReceive`: transportadora e local fixos, unidade + Enter registra e avisa).
+  `components/portaria/quick.tsx`, fixa ao rolar, foco automático, "/" entra e Esc sai): unidade digitada ("502",
+  "a502", "aurora 502"; regras em `src/lib/unit-search.ts`, testadas) abre o **cartão da unidade** (`?u=`,
+  `portaria/unit-panel.tsx`: moradores com telefone, encomendas com "Entregar todas", autorizados com "Entrou",
+  últimas entradas; divide em colunas por `@container`); nome vai para a busca (`?q=`). Abaixo, os 4 atalhos
+  (`GateActions` em `components/portaria/gate-actions.tsx`: Encomenda R, Entrada E, Lote L, Pessoa P / Autorizar A,
+  já com a unidade aberta; Esc fecha a unidade) abrem os formulários numa gaveta (`Sheet`: sobe de baixo no celular,
+  janela no computador) e as fichas de números (`StatChips`). Aba Agora: no computador duas colunas (unidade, busca ou
+  encomendas aguardando à esquerda; painel "Agora" fixo à direita); no celular o "Agora" vem primeiro.
+  **Recebimento em lote** (`BatchReceive`, tecla L: transportadora e local fixos, unidade + Enter registra e avisa).
   Nunca use `<select>` com as unidades na portaria: use `UnitPicker` (`components/portaria/unit-picker.tsx`) ou
-  `UnitFilter`. Busca de pessoas (só nomes, até 30), abas Hoje ("Esperados hoje", "No condomínio agora" com Saiu, linha do tempo),
+  `UnitFilter`. Busca de pessoas (só nomes, até 30), abas Agora ("Esperados hoje", "No condomínio agora" com Saiu, encomendas paradas, linha do tempo recolhida),
   Agenda (`portaria/agenda.tsx`: todos os contatos A–Z, letra calculada no banco sem acento, filtros de torre, tipo,
   situação e "moradores com conta", 50 por página) e Pessoas por unidade.
   **Encomendas** (aba Encomendas da Portaria, `portaria/parcels-tab.tsx`; `Parcel`; regras em `src/lib/parcels.ts`,

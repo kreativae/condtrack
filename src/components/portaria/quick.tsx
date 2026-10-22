@@ -24,6 +24,7 @@ export function QuickBar({ units, initial }: { units: UnitOption[]; initial?: st
   const [text, setText] = useState(initial ?? "");
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
+  const [focused, setFocused] = useState(false);
   const matches = useMemo(() => (/\d/.test(text) || text.trim().length >= 3 ? matchUnits(text, units, 6) : []), [text, units]);
   // Opções: as unidades achadas e, no fim, "buscar pessoas"
   const options = [...matches.map((u) => ({ kind: "unit" as const, id: u.id, label: u.label })), ...(text.trim().length >= 2 ? [{ kind: "people" as const, id: "", label: `Buscar pessoas: “${text.trim()}”` }] : [])];
@@ -63,8 +64,14 @@ export function QuickBar({ units, initial }: { units: UnitOption[]; initial?: st
           setOpen(true);
           setHi(0);
         }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onFocus={() => {
+          setOpen(true);
+          setFocused(true);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          setTimeout(() => setOpen(false), 120);
+        }}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") {
             e.preventDefault();
@@ -76,14 +83,16 @@ export function QuickBar({ units, initial }: { units: UnitOption[]; initial?: st
             e.preventDefault();
             go(options[hi]);
           } else if (e.key === "Escape") {
-            setOpen(false);
+            // Primeiro fecha as sugestões; o segundo Esc sai da barra (libera as teclas R, E, L, P)
+            if (open && options.length) setOpen(false);
+            else e.currentTarget.blur();
           }
         }}
         placeholder="Unidade (502, A502, aurora 502) ou nome"
         aria-label="Buscar unidade ou pessoa"
         className="h-14 w-full rounded-2xl border border-line bg-surface pl-12 pr-12 text-lg text-fg shadow-card outline-none transition placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand/15"
       />
-      <kbd className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 font-mono text-xs text-muted sm:block">/</kbd>
+      <kbd className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 rounded-md border border-line px-1.5 font-mono text-xs text-muted sm:block" title={focused ? "Esc sai da busca e libera os atalhos" : "Tecla / para buscar"}>{focused ? "Esc" : "/"}</kbd>
       {open && options.length > 0 && (
         <ul className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-line bg-surface py-1 shadow-pop">
           {options.map((o, i) => (

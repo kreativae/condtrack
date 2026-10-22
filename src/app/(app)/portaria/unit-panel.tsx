@@ -1,24 +1,20 @@
 import Link from "next/link";
 import { Package, Phone, User, X } from "lucide-react";
 import { db } from "@/lib/db";
-import { GRANT_STATUS, brtParts, grantSchedule, grantStatus, type PersonKind } from "@/lib/booking";
+import { GRANT_STATUS, brtParts, grantSchedule, grantStatus } from "@/lib/booking";
 import { fmtDateTime } from "@/lib/format";
 import { parcelOverdue, waitLabel } from "@/lib/parcels";
 import { unitLabel } from "@/lib/units";
-import type { UnitOption } from "@/lib/unit-search";
-import type { LabelResident, LabelUnit } from "@/lib/parcel-label";
 import { Badge, Card } from "@/components/ui";
 import { QuickEntryButton } from "@/components/portaria/people";
 import { ParcelRow } from "@/components/portaria/parcels";
-import { DeliverAll, UnitActions } from "@/components/portaria/quick";
+import { DeliverAll } from "@/components/portaria/quick";
 
 const KIND: Record<string, string> = { visitor: "Visitante", provider: "Prestador", delivery: "Entrega", resident: "Morador", guest: "Convidado" };
 const UNIT_ROLE: Record<string, string> = { owner: "proprietário", tenant: "inquilino", dependent: "dependente" };
 
-/** Tudo de uma unidade num lugar só: moradores, encomendas, autorizados, últimas entradas e as ações. */
-export async function UnitPanel({ condoId, unitId, units, carriers, locations, labelUnits, residents, kinds }: {
-  condoId: string; unitId: string; units: UnitOption[]; carriers: string[]; locations: string[]; labelUnits: LabelUnit[]; residents: LabelResident[]; kinds: PersonKind[];
-}) {
+/** Tudo de uma unidade num lugar só: moradores, encomendas, autorizados e últimas entradas (as ações ficam nos atalhos do topo). */
+export async function UnitPanel({ condoId, unitId, locations }: { condoId: string; unitId: string; locations: string[] }) {
   const unit = await db.unit.findFirst({ where: { id: unitId, building: { condominiumId: condoId } }, include: { building: true } });
   if (!unit) return null;
   const now = new Date();
@@ -44,11 +40,7 @@ export async function UnitPanel({ condoId, unitId, units, carriers, locations, l
         <Link href="/portaria" className="rounded-lg p-1.5 text-muted hover:bg-bg-2" aria-label="Fechar a unidade"><X className="size-5" /></Link>
       </div>
 
-      <div className="p-5">
-        <UnitActions unitId={unitId} units={units} carriers={carriers} locations={locations} labelUnits={labelUnits} residents={residents} kinds={kinds} />
-      </div>
-
-      <div className="grid gap-px border-t border-line bg-line lg:grid-cols-2">
+      <div className="@container border-t border-line"><div className="grid gap-px bg-line @3xl:grid-cols-2">
         <section className="bg-surface p-5">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Moradores</h3>
           <ul className="space-y-2">
@@ -92,7 +84,7 @@ export async function UnitPanel({ condoId, unitId, units, carriers, locations, l
         </section>
 
         {/* No celular as encomendas vêm primeiro (o mais usado); no computador ficam na coluna da direita */}
-        <section className="order-first bg-surface p-5 lg:order-none">
+        <section className="order-first bg-surface p-5 @3xl:order-none">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Encomendas aguardando</h3>
           {parcels.length ? (
             <>
@@ -128,7 +120,7 @@ export async function UnitPanel({ condoId, unitId, units, carriers, locations, l
             <p className="text-sm text-muted">Nenhuma entrada registrada.</p>
           )}
         </section>
-      </div>
+      </div></div>
     </Card>
   );
 }
