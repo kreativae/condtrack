@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DoorOpen, Layers, PackagePlus, UserPlus, X } from "lucide-react";
@@ -17,14 +17,22 @@ import { BatchReceive } from "./quick";
  * Portal no <body> (a animação de entrada das páginas prende elementos "fixed"); Esc fecha.
  */
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
+    // Foco dentro da gaveta: o campo com autoFocus ou o primeiro campo visível (senão a digitação cai na página atrás)
+    const focusFirst = setTimeout(() => {
+      const box = panel.current;
+      if (!box || box.contains(document.activeElement)) return;
+      box.querySelector<HTMLElement>("input:not([type=hidden]):not([type=file]), select, textarea")?.focus();
+    }, 30);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
+      clearTimeout(focusFirst);
       document.body.style.overflow = prev;
     };
   }, [open, onClose]);
@@ -32,7 +40,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-surface shadow-pop animate-in sm:max-w-2xl sm:rounded-3xl">
+      <div ref={panel} className="relative flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-surface shadow-pop animate-in sm:max-w-2xl sm:rounded-3xl">
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line-strong sm:hidden" />
         <div className="flex items-center gap-2 border-b border-line px-5 py-3">
           <p className="flex-1 font-display text-lg font-semibold">{title}</p>

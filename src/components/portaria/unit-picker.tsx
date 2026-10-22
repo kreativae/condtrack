@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent, type Ref } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import { Building2, X } from "lucide-react";
 import { cx } from "@/components/ui";
 import { matchUnits, type UnitOption } from "@/lib/unit-search";
+import { FloatingList } from "./floating";
 
 /**
  * Unidade digitando ("502", "a502", "aurora 502") em vez de uma lista de centenas de opções.
@@ -23,6 +24,7 @@ export function UnitPicker({ units, name, value, onChange, onEnter, placeholder 
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const matches = useMemo(() => matchUnits(text, units), [text, units]);
+  const wrap = useRef<HTMLDivElement>(null);
 
   function choose(id: string, viaEnter = false) {
     if (value === undefined) setInternal(id);
@@ -52,6 +54,8 @@ export function UnitPicker({ units, name, value, onChange, onEnter, placeholder 
         onEnter(current.id);
       }
     } else if (e.key === "Escape") {
+      // Com a lista aberta, o Esc só fecha a lista (não a gaveta em volta)
+      if (open && text) e.stopPropagation();
       setOpen(false);
       setText("");
     } else if (e.key === "Backspace" && !text && current) {
@@ -61,7 +65,7 @@ export function UnitPicker({ units, name, value, onChange, onEnter, placeholder 
   }
 
   return (
-    <div className={cx("relative", className)}>
+    <div ref={wrap} className={cx("relative", className)}>
       {name && <input type="hidden" name={name} value={selected} />}
       <Building2 className={cx("pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted", big ? "size-5" : "size-4")} />
       <input
@@ -89,8 +93,7 @@ export function UnitPicker({ units, name, value, onChange, onEnter, placeholder 
       {current && !text && (
         <button type="button" onClick={() => choose("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted hover:bg-bg-2" aria-label="Limpar unidade"><X className="size-4" /></button>
       )}
-      {open && (text || allowEmptyLabel) && (
-        <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-pop">
+      <FloatingList anchor={wrap} open={open && !!(text || allowEmptyLabel)}>
           {allowEmptyLabel && !text && (
             <li><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose("")} className="w-full px-3 py-2 text-left text-sm text-fg-2 hover:bg-bg-2">{allowEmptyLabel}</button></li>
           )}
@@ -108,8 +111,7 @@ export function UnitPicker({ units, name, value, onChange, onEnter, placeholder 
             </li>
           ))}
           {text && !matches.length && <li className="px-3 py-2 text-sm text-muted">Nenhuma unidade com “{text}”.</li>}
-        </ul>
-      )}
+      </FloatingList>
     </div>
   );
 }

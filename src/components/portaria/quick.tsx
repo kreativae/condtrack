@@ -11,7 +11,8 @@ import { matchUnits, type UnitOption } from "@/lib/unit-search";
 import type { LabelResident, LabelUnit } from "@/lib/parcel-label";
 import { UnitPicker } from "./unit-picker";
 import { EntryForm, GrantForm } from "./people";
-import { ReceiveParcelForm } from "./parcels";
+import { PlaceChips, ReceiveParcelForm } from "./parcels";
+import { SuggestInput } from "./floating";
 import type { PersonKind } from "@/lib/booking";
 
 /**
@@ -147,23 +148,15 @@ export function BatchReceive({ units, carriers, locations }: { units: UnitOption
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Transportadora (fixa)">
-          <Input value={carrier} onChange={(e) => setCarrier(e.target.value)} list="batch-carriers" placeholder="Correios, Mercado Livre…" />
-          <datalist id="batch-carriers">{carriers.map((c) => <option key={c} value={c} />)}</datalist>
+          <SuggestInput value={carrier} onChange={setCarrier} options={carriers} placeholder="Correios, Mercado Livre…" />
         </Field>
         <Field label="Onde vão ficar (fixo)">
-          <Input value={location} onChange={(e) => setLocation(e.target.value)} list="batch-locations" placeholder="Armário 3, Prateleira B" />
-          <datalist id="batch-locations">{locations.map((l) => <option key={l} value={l} />)}</datalist>
+          <SuggestInput value={location} onChange={setLocation} options={locations} placeholder="Armário 3, Prateleira B" />
         </Field>
       </div>
-      {locations.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {locations.slice(0, 8).map((l) => (
-            <button key={l} type="button" onClick={() => setLocation(l)} className={cx("rounded-full px-2.5 py-0.5 text-xs font-medium", location === l ? "bg-brand text-brand-ink" : "bg-bg-2 text-fg-2 hover:bg-line")}>{l}</button>
-          ))}
-        </div>
-      )}
+      <div className="pt-2"><PlaceChips locations={locations} value={location} onPick={setLocation} /></div>
       <div className="flex items-center gap-2">
-        <UnitPicker key={pickerKey} units={units} big inputRef={unitInput} onEnter={register} placeholder="Digite a unidade e Enter" className="flex-1" autoFocus={pickerKey > 0} />
+        <UnitPicker key={pickerKey} units={units} big inputRef={unitInput} onEnter={register} placeholder="Digite a unidade e Enter" className="flex-1" autoFocus />
         {busy && <Loader2 className="size-5 animate-spin text-muted" />}
       </div>
       <p className="text-xs text-muted">Cada Enter registra uma encomenda e avisa a unidade. Para foto, destinatário ou mais volumes, use “Receber encomenda” no cartão da unidade.</p>

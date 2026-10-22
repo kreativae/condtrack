@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Alert, Badge, Button, Field, Input, cx } from "@/components/ui";
 import type { UnitOption } from "@/lib/unit-search";
 import { UnitPicker } from "./unit-picker";
+import { SuggestInput } from "./floating";
 import { thumb } from "@/lib/media-url";
 import { cleanForOcr, parseLabel, type LabelResident, type LabelUnit } from "@/lib/parcel-label";
 
@@ -165,21 +166,13 @@ export function ReceiveParcelForm({ units, carriers, locations, labelUnits, resi
       </div>
       <div className="grid gap-4 @md:grid-cols-2 @3xl:grid-cols-4">
         <Field label="Transportadora">
-          <Input name="carrier" maxLength={60} list="parcel-carriers" value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Correios, Mercado Livre…" />
-          <datalist id="parcel-carriers">{carriers.map((c) => <option key={c} value={c} />)}</datalist>
+          <SuggestInput name="carrier" value={carrier} onChange={setCarrier} options={carriers} placeholder="Correios, Mercado Livre…" />
         </Field>
         <Field label="Onde ficou guardada" hint="Fica preenchido para a próxima.">
-          <Input name="location" maxLength={60} list="parcel-locations" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Armário 3, Prateleira B, Geladeira" />
-          <datalist id="parcel-locations">{locations.map((l) => <option key={l} value={l} />)}</datalist>
+          <SuggestInput name="location" value={location} onChange={setLocation} options={locations} placeholder="Armário 3, Prateleira B, Geladeira" />
         </Field>
       </div>
-      {locations.length > 0 && (
-        <div className="-mt-2 flex flex-wrap gap-1">
-          {locations.slice(0, 8).map((l) => (
-            <button key={l} type="button" onClick={() => setLocation(l)} className={cx("rounded-full px-2.5 py-0.5 text-xs font-medium transition", location === l ? "bg-brand text-brand-ink" : "bg-bg-2 text-fg-2 hover:bg-line")}>{l}</button>
-          ))}
-        </div>
-      )}
+      <PlaceChips locations={locations} value={location} onPick={setLocation} />
       {state?.error && <Alert>{state.error}</Alert>}
       {state?.message && <Alert tone="ok">{state.message}</Alert>}
       <div className="flex gap-2">
@@ -187,6 +180,20 @@ export function ReceiveParcelForm({ units, carriers, locations, labelUnits, resi
         {onDone && <Button type="button" variant="ghost" size="sm" onClick={onDone}>Fechar</Button>}
       </div>
     </form>
+  );
+}
+
+/** Atalhos dos locais de guarda: um toque preenche. Sem locais, explica onde cadastrar. */
+export function PlaceChips({ locations, value, onPick }: { locations: string[]; value: string; onPick: (l: string) => void }) {
+  if (!locations.length)
+    return <p className="-mt-2 text-xs text-muted">Nenhum local cadastrado ainda. O síndico cadastra em Estrutura → Encomendas; os que forem digitados aqui também viram atalho.</p>;
+  return (
+    <div className="-mt-2 flex flex-wrap items-center gap-1">
+      <span className="mr-1 text-xs text-muted">Locais:</span>
+      {locations.slice(0, 12).map((l) => (
+        <button key={l} type="button" onClick={() => onPick(l)} className={cx("rounded-full px-2.5 py-1 text-xs font-medium transition", value === l ? "bg-brand text-brand-ink" : "bg-bg-2 text-fg-2 hover:bg-line")}>{l}</button>
+      ))}
+    </div>
   );
 }
 

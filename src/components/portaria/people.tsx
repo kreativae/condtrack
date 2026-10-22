@@ -30,31 +30,38 @@ export function GrantForm({ grant, person, personId, units, kinds, allowCondo, c
     return r;
   });
   const resident = kind === "resident";
+  // Tipo junto dos dados da pessoa (ao lado do telefone); "Para onde" ocupa a linha inteira
+  const kindField = (
+    <Field label="Tipo">
+      <Select name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
+        {kinds.map((k) => <option key={k} value={k}>{PERSON_KINDS[k].label}</option>)}
+      </Select>
+    </Field>
+  );
+  const personFields = !personId && (canEditPerson || !grant);
   return (
     <form {...form} className="space-y-4">
       {openAfter && <input type="hidden" name="open" value="1" />}
       {personId && <input type="hidden" name="personId" value={personId} />}
       {days.map((d) => <input key={d} type="hidden" name="weekdays" value={d} />)}
-      {!personId && (canEditPerson || !grant) && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nome"><Input name="name" required minLength={2} maxLength={120} defaultValue={person?.name} /></Field>
-          <Field label="Documento" hint="CPF ou RG. Se a pessoa já estiver cadastrada, o cadastro é reaproveitado."><Input name="document" maxLength={40} defaultValue={person?.document ?? ""} /></Field>
-          <Field label="Telefone (opcional)"><Input name="phone" maxLength={30} defaultValue={person?.phone ?? ""} /></Field>
-          {(kind === "provider" || kind === "delivery") && <Field label="Empresa / serviço"><Input name="company" maxLength={120} defaultValue={person?.company ?? ""} placeholder="Diarista, Eletricista Silva, Mercado Livre" /></Field>}
-        </div>
-      )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Tipo">
-          <Select name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-            {kinds.map((k) => <option key={k} value={k}>{PERSON_KINDS[k].label}</option>)}
-          </Select>
-        </Field>
+        {personFields && (
+          <>
+            <Field label="Nome"><Input name="name" required minLength={2} maxLength={120} defaultValue={person?.name} /></Field>
+            <Field label="Documento" hint="CPF ou RG. Se a pessoa já estiver cadastrada, o cadastro é reaproveitado."><Input name="document" maxLength={40} defaultValue={person?.document ?? ""} /></Field>
+            <Field label="Telefone (opcional)"><Input name="phone" maxLength={30} defaultValue={person?.phone ?? ""} /></Field>
+          </>
+        )}
+        {kindField}
+        {personFields && (kind === "provider" || kind === "delivery") && (
+          <Field label="Empresa / serviço" className="sm:col-span-2"><Input name="company" maxLength={120} defaultValue={person?.company ?? ""} placeholder="Diarista, Eletricista Silva, Mercado Livre" /></Field>
+        )}
         {grant || fixedUnit ? (
           <input type="hidden" name="unitId" value={grant?.unitId ?? fixedUnit ?? ""} />
         ) : units.length === 1 && !allowCondo ? (
           <input type="hidden" name="unitId" value={units[0].id} />
         ) : (
-          <Field label="Para onde" hint={allowCondo ? "Vazio = condomínio (áreas comuns, administração)." : undefined}>
+          <Field label="Para onde" className="sm:col-span-2" hint={allowCondo ? "Vazio = condomínio (áreas comuns, administração)." : undefined}>
             <UnitPicker units={units as UnitOption[]} name="unitId" allowEmptyLabel={allowCondo ? "Condomínio (áreas comuns, administração)" : undefined} />
           </Field>
         )}
