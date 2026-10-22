@@ -156,7 +156,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `components/portaria/quick.tsx`, fixa ao rolar, foco automático, "/" entra e Esc sai): unidade digitada ("502",
   "a502", "aurora 502"; regras em `src/lib/unit-search.ts`, testadas) abre o **cartão da unidade** (`?u=`,
   `portaria/unit-panel.tsx`: moradores com telefone, encomendas com "Entregar todas", autorizados com "Entrou",
-  últimas entradas; divide em colunas por `@container`); nome vai para a busca (`?q=`). Abaixo, os 4 atalhos
+  últimas entradas; divide em colunas por `@container`); nome vai para a busca (`?q=`). Abaixo, os 4 atalhos (no computador, em linha ao lado da busca; os números ficam na linha das abas)
   (`GateActions` em `components/portaria/gate-actions.tsx`: Encomenda R, Entrada E, Lote L, Pessoa P / Autorizar A,
   já com a unidade aberta; Esc fecha a unidade) abrem os formulários numa gaveta (`Sheet`: sobe de baixo no celular,
   janela no computador) e as fichas de números (`StatChips`). Aba Agora: no computador duas colunas (unidade, busca ou

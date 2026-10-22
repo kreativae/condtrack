@@ -327,22 +327,27 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
 
   return (
     <div className="mx-auto max-w-7xl animate-in">
-      {/* Topo fixo: a barra (unidade ou nome, tecla "/") e os números. Rolando a página, continua à mão. */}
+      {/* Topo fixo: a busca (unidade ou nome, tecla "/") e, no computador, os atalhos ao lado. Rolando, continua à mão. */}
       <div className="sticky top-[calc(3.5rem+var(--chrome,0rem))] z-20 -mx-4 mb-3 bg-bg/95 px-4 pb-3 pt-2 backdrop-blur lg:top-[calc(4rem+var(--chrome,0rem))] lg:mx-0 lg:px-0">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1 lg:w-60 lg:flex-none xl:w-64 2xl:w-[28rem]"><QuickBar units={units} initial={q} /></div>
-          <div className="hidden min-w-0 flex-1 lg:block"><StatChips items={chips} oneLine /></div>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1"><QuickBar units={units} initial={q} /></div>
+          <div className="hidden shrink-0 lg:block"><GateActions row unit={selected} units={units} carriers={carriers} locations={locations} residents={labelResidents} kinds={gateKinds} /></div>
         </div>
       </div>
 
-      <div className="mb-3"><GateActions unit={selected} units={units} carriers={carriers} locations={locations} residents={labelResidents} kinds={gateKinds} /></div>
+      {/* Celular: atalhos em blocos e números numa faixa que rola de lado */}
+      <div className="mb-3 lg:hidden"><GateActions shortcuts={false} unit={selected} units={units} carriers={carriers} locations={locations} residents={labelResidents} kinds={gateKinds} /></div>
       <div className="mb-3 lg:hidden"><StatChips items={chips} /></div>
 
-      <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
-        {tabs.map(([k, l]) => (
-          <Link key={k} href={k === "hoje" ? "/portaria" : `/portaria?aba=${k}`} className={cx("-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>{l}</Link>
-        ))}
-      </nav>
+      {/* Abas e, no computador, os números na mesma linha */}
+      <div className="mb-5 flex items-end gap-3 border-b border-line">
+        <nav className="flex shrink-0 gap-1 overflow-x-auto [scrollbar-width:none] max-lg:min-w-0 max-lg:flex-1">
+          {tabs.map(([k, l]) => (
+            <Link key={k} href={k === "hoje" ? "/portaria" : `/portaria?aba=${k}`} className={cx("-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>{l}</Link>
+          ))}
+        </nav>
+        <div className="ml-auto hidden min-w-0 pb-1 lg:block"><StatChips items={chips} oneLine /></div>
+      </div>
 
       {tab === "encomendas" ? (
         <ParcelsTab condoId={condoId} sp={sp} units={units} />

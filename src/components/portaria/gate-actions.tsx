@@ -59,8 +59,12 @@ type Action = "parcel" | "entry" | "batch" | "person";
  * Os quatro atalhos da portaria (Encomenda, Entrada, Lote, Pessoa), com teclas R, E, L e P (A com unidade aberta; Esc fecha a unidade).
  * Com uma unidade aberta (`unit`), encomenda, entrada e autorização já vêm com ela.
  */
-export function GateActions({ unit, units, carriers, locations, residents, kinds }: {
+export function GateActions({ unit, units, carriers, locations, residents, kinds, row, shortcuts = true }: {
   unit?: { id: string; label: string }; units: UnitOption[]; carriers: string[]; locations: string[]; residents: LabelResident[]; kinds: PersonKind[];
+  /** Em linha, ao lado da busca (computador): botões da altura da barra. */
+  row?: boolean;
+  /** Teclas R, E, L, P/A e Esc. Só uma cópia na página deve ligar (a do celular fica sem). */
+  shortcuts?: boolean;
 }) {
   const [open, setOpen] = useState<Action | null>(null);
   const router = useRouter();
@@ -68,6 +72,7 @@ export function GateActions({ unit, units, carriers, locations, residents, kinds
 
   // Teclas de atalho (fora de campos de texto); Esc fecha a unidade aberta
   useEffect(() => {
+    if (!shortcuts) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       // O alvo do evento (não o foco atual): o Esc que tira o foco da barra não deve fechar a unidade
@@ -87,7 +92,7 @@ export function GateActions({ unit, units, carriers, locations, residents, kinds
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, unitId]);
+  }, [router, unitId, shortcuts]);
 
   const short = unit?.label;
   const tiles: { key: Action; icon: typeof DoorOpen; label: string; kbd: string }[] = [
@@ -106,17 +111,25 @@ export function GateActions({ unit, units, carriers, locations, residents, kinds
 
   return (
     <>
-      <div className="grid grid-cols-4 gap-2">
+      <div className={row ? "flex gap-2" : "grid grid-cols-4 gap-2"}>
         {tiles.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setOpen(t.key)}
-            className="group relative flex flex-col items-center justify-center gap-1 rounded-2xl border border-line bg-surface px-1 py-2.5 text-xs font-medium text-fg-2 transition hover:border-brand/40 hover:text-brand sm:flex-row sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
+            title={`${t.label} (tecla ${t.kbd})`}
+            className={cx(
+              "group relative flex items-center justify-center rounded-2xl border border-line bg-surface font-medium text-fg-2 transition hover:border-brand/40 hover:text-brand",
+              row ? "h-14 gap-2 px-4 text-sm shadow-card" : "flex-col gap-1 px-1 py-2.5 text-xs sm:flex-row sm:gap-2 sm:px-3 sm:py-3 sm:text-sm",
+            )}
           >
             <t.icon className="size-5 text-fg group-hover:text-brand" />
             <span className="truncate">{t.label}</span>
-            <kbd className="absolute right-1.5 top-1.5 hidden rounded border border-line px-1 font-mono text-[10px] text-muted lg:block">{t.kbd}</kbd>
+            {row ? (
+              <kbd className="rounded border border-line px-1 font-mono text-[10px] text-muted">{t.kbd}</kbd>
+            ) : (
+              <kbd className="absolute right-1.5 top-1.5 hidden rounded border border-line px-1 font-mono text-[10px] text-muted lg:block">{t.kbd}</kbd>
+            )}
           </button>
         ))}
       </div>
