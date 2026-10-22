@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { readStored, readThumb } from "@/lib/storage";
 import { canView } from "@/lib/workflow";
+import { isGate } from "@/lib/booking";
 
 export async function GET(req: Request, ctx: RouteContext<"/api/media/[...path]">) {
   const user = await getCurrentUser();
@@ -10,7 +11,13 @@ export async function GET(req: Request, ctx: RouteContext<"/api/media/[...path]"
   const { path } = await ctx.params;
 
   const [folder] = path;
-  if (folder.startsWith("checklist-")) {
+  if (folder.startsWith("parcel-")) {
+    // Foto de encomenda: portaria/síndico/zelador do condomínio e quem mora na unidade
+    const parcel = await db.parcel.findUnique({ where: { id: folder.slice("parcel-".length) }, select: { condominiumId: true, unitId: true } });
+    const gate = isGate(user.role) && (user.role === "superadmin" || user.condominiumId === parcel?.condominiumId);
+    const lives = !!parcel && user.units.some((u) => u.unitId === parcel.unitId);
+    if (!parcel || !(gate || lives)) return new NextResponse("Not found", { status: 404 });
+  } else if (folder.startsWith("checklist-")) {
     // Fotos do checklist: pessoas do próprio condomínio (e superadmin)
     if (user.role !== "superadmin" && user.condominiumId !== folder.slice("checklist-".length)) return new NextResponse("Not found", { status: 404 });
   } else if (folder !== "brand") {

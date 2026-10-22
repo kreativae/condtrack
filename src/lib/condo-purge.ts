@@ -91,6 +91,7 @@ export async function purgeCondominiumData(id: string) {
   for (const o of orderIds) await deleteFolder(o).catch(() => null);
   await deleteFolder(`fin-${id}`).catch(() => null);
   await deleteFolder(`checklist-${id}`).catch(() => null);
+  for (const p of await db.parcel.findMany({ where: { condominiumId: id, photoUrl: { not: null } }, select: { id: true } })) await deleteFolder(`parcel-${p.id}`).catch(() => null);
   if (c.logoUrl?.startsWith("/api/media/")) await deleteFile(c.logoUrl).catch(() => null);
 
   await db.$transaction([

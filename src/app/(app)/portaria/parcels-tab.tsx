@@ -15,13 +15,19 @@ export async function ParcelsTab({ condoId, sp, units }: { condoId: string; sp: 
   const unitFilter = str(sp.unidade);
   const label = (id: string) => units.find((u) => u.id === id)?.label ?? "—";
   const now = new Date();
-  const [waiting, history, usedLocations] = await Promise.all([
+  const [waiting, history, usedLocations, unitRows, accounts, people] = await Promise.all([
     db.parcel.findMany({ where: { condominiumId: condoId, status: "waiting", ...(unitFilter && { unitId: unitFilter }) }, orderBy: { receivedAt: "asc" } }),
     view === "entregues"
       ? db.parcel.findMany({ where: { condominiumId: condoId, status: { not: "waiting" }, ...(unitFilter && { unitId: unitFilter }) }, orderBy: { deliveredAt: "desc" }, take: 100 })
       : [],
     db.parcel.findMany({ where: { condominiumId: condoId, location: { not: null } }, select: { location: true }, orderBy: { receivedAt: "desc" }, take: 500 }),
+    // Para ler a etiqueta: número e torre de cada unidade, e os nomes de quem mora em cada uma
+    db.unit.findMany({ where: { building: { condominiumId: condoId } }, select: { id: true, number: true, building: { select: { name: true } } } }),
+    db.userUnit.findMany({ where: { unit: { building: { condominiumId: condoId } }, user: { status: "active" } }, select: { unitId: true, user: { select: { name: true } } } }),
+    db.accessGrant.findMany({ where: { condominiumId: condoId, kind: "resident", unitId: { not: null } }, select: { unitId: true, person: { select: { name: true } } } }),
   ]);
+  const labelUnits = unitRows.map((u) => ({ id: u.id, number: u.number, building: u.building.name }));
+  const residents = [...accounts.map((a) => ({ name: a.user.name, unitId: a.unitId })), ...people.map((g) => ({ name: g.person.name, unitId: g.unitId! }))];
   const locations = locationSuggestions(usedLocations.map((p) => p.location));
   const what = (p: { carrier: string | null; description: string | null }) => [p.carrier, p.description].filter(Boolean).join(" · ") || "Encomenda";
   const base = (v: string) => `/portaria?aba=encomendas${v === "entregues" ? "&ver=entregues" : ""}${unitFilter ? `&unidade=${unitFilter}` : ""}`;
@@ -30,7 +36,7 @@ export async function ParcelsTab({ condoId, sp, units }: { condoId: string; sp: 
     <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
       <Card>
         <CardHeader title="Receber encomenda" subtitle="Quem mora na unidade recebe o aviso com o local onde ela ficou." />
-        <div className="p-5"><ReceiveParcelForm units={units} locations={locations} /></div>
+        <div className="p-5"><ReceiveParcelForm units={units} locations={locations} labelUnits={labelUnits} residents={residents} /></div>
       </Card>
 
       <Card>
@@ -59,7 +65,7 @@ export async function ParcelsTab({ condoId, sp, units }: { condoId: string; sp: 
                   key={p.id}
                   locations={locations}
                   p={{
-                    id: p.id, unit: label(p.unitId), recipient: p.recipient, what: what(p), volumes: p.volumes, location: p.location,
+                    id: p.id, unit: label(p.unitId), recipient: p.recipient, what: what(p), volumes: p.volumes, location: p.location, photo: p.photoUrl,
                     wait: waitLabel(p.receivedAt, now), overdue: parcelOverdue(p.receivedAt, now), receivedBy: p.receivedByName, receivedAt: fmtDateTime(p.receivedAt),
                   }}
                 />

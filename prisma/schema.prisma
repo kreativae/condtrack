@@ -972,6 +972,8 @@ model Parcel {
   carrier         String?
   description     String?
   volumes         Int         @default(1)
+  /// Foto da encomenda/etiqueta (/api/media/parcel-<id>/...)
+  photoUrl        String?
   /// Onde está guardada (ex.: "Armário 3", "Prateleira B")
   location        String?
   notes           String?

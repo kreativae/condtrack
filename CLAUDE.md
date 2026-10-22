@@ -160,6 +160,12 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   local continuam preenchidos para registrar vários seguidos), dar baixa com quem retirou, devolver com motivo, trocar
   o local. Moradores da unidade recebem `parcel_received` (com o local) e `parcel_delivered`. Parada há 7 dias ou mais
   fica em destaque (`PARCEL_OVERDUE_DAYS`). O morador vê as suas em Minha unidade e o total no início.
+  Foto da etiqueta (`Parcel.photoUrl`, pasta `parcel-<id>`; a rota de mídias libera só para quem atende no condomínio e
+  quem mora na unidade). Leitura automática no navegador do porteiro (sem custo, sem carga no servidor): a foto é
+  reduzida (JPEG anexado) e limpa por `cleanForOcr()` (preto e branco Otsu, endireita até ±10° com `skewAngle()`, apaga
+  código de barras e linhas longas: sem isso o tesseract.js lê lixo), o tesseract.js (`por`, baixado do CDN na
+  primeira vez) extrai o texto e `parseLabel()` (`src/lib/parcel-label.ts`, testado) acha transportadora, rastreio,
+  destinatário e unidade, cruzando com moradores com conta e cadastrados na portaria. O porteiro confere antes de salvar.
   Datas no fuso de Brasília (`brt()`/`brtParts()`).
 - **Fotos reduzidas**: listas e cartões usam `thumb(url, 480|800|1200)` (`src/lib/media-url.ts`) → `/api/media/...?w=`,
   que gera WebP com o sharp (`readThumb` em `storage.ts`) e guarda em `UPLOAD_DIR/_thumbs` (no disco). A visualização

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Contact, MapPin } from "lucide-react";
 import { parcelOverdue, waitLabel } from "@/lib/parcels";
+import { thumb } from "@/lib/media-url";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { PERSON_KINDS, type PersonKind } from "@/lib/booking";
@@ -50,6 +51,12 @@ export default async function MyUnitPage() {
             <ul className="divide-y divide-line">
               {waitingParcels.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3">
+                  {p.photoUrl && (
+                    <a href={p.photoUrl} target="_blank" rel="noreferrer" title="Ver a foto" className="shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={thumb(p.photoUrl, 480)} alt="" className="size-11 rounded-lg object-cover ring-1 ring-line" />
+                    </a>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{[p.carrier, p.description].filter(Boolean).join(" · ") || "Encomenda"}{p.volumes > 1 && ` · ${p.volumes} volumes`}</p>
                     <p className="text-xs text-muted">{p.recipient ? `Para ${p.recipient} · ` : ""}{units.length > 1 && `${units.find((u) => u.id === p.unitId)?.label} · `}recebida {fmtDateTime(p.receivedAt)}</p>

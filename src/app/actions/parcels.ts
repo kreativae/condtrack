@@ -9,6 +9,7 @@ import { unitLabel } from "@/lib/units";
 import { brtParts } from "@/lib/booking";
 import { gateCondo } from "@/lib/booking-server";
 import { normalizeLocation } from "@/lib/parcels";
+import { ALLOWED_MIME, saveFile } from "@/lib/storage";
 
 export type ParcelState = { error?: string; ok?: boolean; message?: string } | undefined;
 
@@ -43,7 +44,16 @@ export async function receiveParcel(_prev: ParcelState, form: FormData): Promise
     notes: clip(form.get("notes"), 500),
     volumes,
   };
-  const p = await db.parcel.create({ data: { ...data, condominiumId: condoId, unitId, receivedById: user.id, receivedByName: user.name } });
+  const photo = form.get("photo");
+  const hasPhoto = photo instanceof File && photo.size > 0;
+  if (hasPhoto && !ALLOWED_MIME.includes(photo.type)) return { error: "A foto precisa ser JPG, PNG ou WEBP." };
+  if (hasPhoto && photo.size > 2 * 1024 * 1024) return { error: "Foto muito grande (máx. 2 MB)." };
+  let p = await db.parcel.create({ data: { ...data, condominiumId: condoId, unitId, receivedById: user.id, receivedByName: user.name } });
+  // A foto fica na pasta da própria encomenda (a rota de mídias confere quem pode ver)
+  if (hasPhoto) {
+    const photoUrl = await saveFile(photo, `parcel-${p.id}`).catch(() => null);
+    if (photoUrl) p = await db.parcel.update({ where: { id: p.id }, data: { photoUrl } });
+  }
   await audit(user, "receive", "parcel", p.id, { new: { unidade: unitLabel(unit), local: data.location, volumes }, condominiumId: condoId });
 
   const to = await residentsOf(unitId);

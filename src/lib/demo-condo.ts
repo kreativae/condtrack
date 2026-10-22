@@ -658,6 +658,7 @@ export async function deleteDemoCondominium(id: string) {
   const orders = await db.serviceOrder.findMany({ where: { condominiumId: id }, select: { id: true } });
   const orderIds = orders.map((o) => o.id);
   for (const o of orderIds) await deleteFolder(o).catch(() => null);
+  for (const p of await db.parcel.findMany({ where: { condominiumId: id, photoUrl: { not: null } }, select: { id: true } })) await deleteFolder(`parcel-${p.id}`).catch(() => null);
 
   // Pessoas fictícias: e-mail da demonstração e nenhum vínculo com outro condomínio
   const fake = await db.user.findMany({
