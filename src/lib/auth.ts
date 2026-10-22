@@ -56,8 +56,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!session) return null;
   let user = await loadUser(session.uid);
   if (!user || user.status !== "active") return null;
-  // Condomínio ativo arquivado: passa para outro vínculo; sem nenhum, a sessão não vale mais
-  if (user.role !== "superadmin" && user.condominium?.deletedAt) {
+  // Sem condomínio ativo (vínculo removido) ou com ele arquivado: passa para outro vínculo; sem nenhum, a sessão não vale mais
+  if (user.role !== "superadmin" && (!user.condominium || user.condominium.deletedAt)) {
     const other = await db.membership.findFirst({ where: { userId: user.id, condominium: { deletedAt: null } }, orderBy: { createdAt: "asc" } });
     if (!other) return null;
     await db.user.update({ where: { id: user.id }, data: { condominiumId: other.condominiumId, role: other.role, permissions: other.permissions } });
