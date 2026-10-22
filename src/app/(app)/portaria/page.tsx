@@ -13,7 +13,7 @@ import { ArrivalButton } from "../reservas/booking-ui";
 import { ContactAgenda } from "./agenda";
 import { ParcelsTab } from "./parcels-tab";
 import { UnitPanel } from "./unit-panel";
-import { BatchReceive, QuickBar, UnitFilter } from "@/components/portaria/quick";
+import { BatchReceive, GuestAccordion, QuickBar, UnitFilter } from "@/components/portaria/quick";
 import { locationSuggestions } from "@/lib/parcels";
 
 export const metadata: Metadata = { title: "Portaria" };
@@ -242,15 +242,23 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
             <CardHeader title="Esperados hoje" subtitle="Convidados das reservas e quem tem autorização para hoje." />
             {todayBookings.map((b) => {
               const waiting = b.guests.filter((g) => !g.checkedInAt);
+              // Aberta só perto do horário: de 1 h antes do início até o fim da reserva
+              const soon = b.startAt.getTime() - 3600_000 <= now.getTime() && now.getTime() < b.endAt.getTime();
               return (
-                <div key={b.id} className="border-b border-line px-5 py-3">
-                  <Link href={`/reservas/${b.id}`} className="flex items-baseline gap-2 text-sm hover:text-brand">
-                    <span className="font-semibold">{b.commonArea.name}</span>
-                    <span className="text-xs text-muted">{brtParts(b.startAt).hm}–{brtParts(b.endAt).hm} · {b.unit ? unitLabel(b.unit, true) : "Condomínio"}</span>
-                    <span className="ml-auto shrink-0 text-xs text-muted">{b.guests.length - waiting.length} de {b.guests.length} chegaram</span>
-                  </Link>
-                  {waiting.length > 0 && (
-                    <ul className="mt-1 divide-y divide-line">
+                <GuestAccordion
+                  key={b.id}
+                  id={b.id}
+                  defaultOpen={soon}
+                  header={
+                    <span className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                      <span className="font-semibold">{b.commonArea.name}</span>
+                      <span className="text-xs text-muted">{brtParts(b.startAt).hm}–{brtParts(b.endAt).hm} · {b.unit ? unitLabel(b.unit, true) : "Condomínio"}</span>
+                      <span className="ml-auto shrink-0 text-xs text-muted">{b.guests.length - waiting.length} de {b.guests.length} chegaram</span>
+                    </span>
+                  }
+                >
+                  {waiting.length > 0 ? (
+                    <ul className="divide-y divide-line">
                       {waiting.slice(0, 12).map((g) => (
                         <li key={g.id} className="flex items-center gap-2 py-1.5 text-sm">
                           <span className="min-w-0 flex-1 truncate">{g.name}{g.document && <span className="text-xs text-muted"> · {g.document}</span>}</span>
@@ -259,9 +267,13 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
                         </li>
                       ))}
                     </ul>
+                  ) : (
+                    <p className="text-sm text-muted">Todos os convidados já chegaram.</p>
                   )}
-                  {waiting.length > 12 && <Link href={`/reservas/${b.id}`} className="mt-1 block text-xs font-medium text-brand hover:underline">Ver os outros {waiting.length - 12} convidados</Link>}
-                </div>
+                  <Link href={`/reservas/${b.id}`} className="mt-1 block text-xs font-medium text-brand hover:underline">
+                    {waiting.length > 12 ? `Ver os outros ${waiting.length - 12} convidados` : "Abrir a reserva"}
+                  </Link>
+                </GuestAccordion>
               );
             })}
             {expected.length > 0 && (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, CheckCheck, DoorOpen, Loader2, PackageCheck, PackagePlus, Search, UserPlus, Users, X } from "lucide-react";
+import { Building2, CheckCheck, ChevronDown, DoorOpen, Loader2, PackageCheck, PackagePlus, Search, UserPlus, Users, X } from "lucide-react";
 import { deliverUnitParcels, receiveParcel, type ParcelState } from "@/app/actions/parcels";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
@@ -232,6 +232,45 @@ export function UnitFilter({ units, value, param = "unidade", base, extra, condo
       {condoOption && (
         <Button type="button" size="sm" variant={value === "condominio" ? "brand" : "outline"} onClick={() => go(value === "condominio" ? "" : "condominio")}>Condomínio</Button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Sanfona da lista de convidados de uma reserva ("Esperados hoje"). Abre sozinha perto do horário (defaultOpen);
+ * o que o porteiro abrir ou fechar fica lembrado neste aparelho, então marcar "Chegou" (que recarrega a página)
+ * não fecha a lista.
+ */
+export function GuestAccordion({ id, defaultOpen, header, children }: { id: string; defaultOpen: boolean; header: React.ReactNode; children: React.ReactNode }) {
+  const key = `gate_guests_${id}`;
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    // Lido depois de montar: o servidor não conhece a escolha guardada no aparelho
+    queueMicrotask(() => {
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved !== null) setOpen(saved === "1");
+      } catch {
+        /* sem armazenamento: fica o padrão */
+      }
+    });
+  }, [key]);
+  const toggle = () =>
+    setOpen((o) => {
+      try {
+        localStorage.setItem(key, o ? "0" : "1");
+      } catch {
+        /* ignora */
+      }
+      return !o;
+    });
+  return (
+    <div className="border-b border-line">
+      <button type="button" onClick={toggle} aria-expanded={open} className="flex w-full items-center gap-2 px-5 py-3 text-left hover:bg-bg-2">
+        <ChevronDown className={cx("size-4 shrink-0 text-muted transition-transform", !open && "-rotate-90")} />
+        <span className="min-w-0 flex-1">{header}</span>
+      </button>
+      {open && <div className="px-5 pb-3">{children}</div>}
     </div>
   );
 }
