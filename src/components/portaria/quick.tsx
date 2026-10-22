@@ -258,11 +258,21 @@ export function GuestAccordion({ id, defaultOpen, header, children }: { id: stri
       try {
         const saved = localStorage.getItem(key);
         if (saved !== null) setOpen(saved === "1");
+        // Pedida pelo endereço (ficha "entradas hoje" vinda de outra aba): abre
+        if (window.location.hash === `#${id}`) setOpen(true);
       } catch {
         /* sem armazenamento: fica o padrão */
       }
     });
-  }, [key]);
+  }, [key, id]);
+  // As fichas de números do topo pedem para abrir (ex.: "entradas hoje" abre a linha do tempo)
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === id) setOpen(true);
+    };
+    window.addEventListener("gate-open", onOpen);
+    return () => window.removeEventListener("gate-open", onOpen);
+  }, [id]);
   const toggle = () =>
     setOpen((o) => {
       try {

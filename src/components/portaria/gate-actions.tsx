@@ -123,14 +123,47 @@ export function GateActions({ unit, units, carriers, locations, residents, kinds
   );
 }
 
+/** Leva ao bloco do painel "Agora": rola até ele, abre se estiver recolhido e pisca o contorno para o olho achar. */
+function revealBlock(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return false;
+  window.dispatchEvent(new CustomEvent("gate-open", { detail: id }));
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.classList.add("ring-2", "ring-brand", "ring-offset-2", "ring-offset-bg");
+  setTimeout(() => el.classList.remove("ring-2", "ring-brand", "ring-offset-2", "ring-offset-bg"), 1600);
+  return true;
+}
+
 /** Fichas de números: uma faixa só (rola de lado no celular). Cada uma leva à lista dela. */
 export function StatChips({ items }: { items: { label: string; value: number; href: string; tone?: "brand" | "warn" }[] }) {
+  const router = useRouter();
+
+  // Chegou de outra aba com "#bloco" no endereço: mostra o bloco depois de montar
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id) setTimeout(() => revealBlock(id), 150);
+  }, []);
+
   return (
     <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
       {items.map((i) => (
         <a
           key={i.label}
-          href={i.href}
+          href={i.href.startsWith("#") ? `/portaria${i.href}` : i.href}
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+            e.preventDefault();
+            if (!i.href.startsWith("#")) return router.push(i.href);
+            // O bloco só existe na aba Agora; em outra aba (ou com busca aberta), volta para ela
+            const id = i.href.slice(1);
+            if (revealBlock(id)) return;
+            router.push(`/portaria${i.href}`);
+            // Espera a aba Agora aparecer (até 4 s) e então mostra o bloco
+            const started = Date.now();
+            const wait = setInterval(() => {
+              if (revealBlock(id) || Date.now() - started > 4000) clearInterval(wait);
+            }, 100);
+          }}
           className={cx(
             "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition hover:border-brand/40",
             i.value && i.tone === "warn" ? "border-warn/30 bg-warn/10 text-warn" : i.value && i.tone === "brand" ? "border-brand/30 bg-brand/10 text-brand" : "border-line bg-surface text-fg-2",
