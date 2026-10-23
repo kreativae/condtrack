@@ -111,6 +111,25 @@ export const ORDER_POOL: { title: string; desc: string; cat: string; area?: stri
   { title: "Pintura das vagas de visitantes", desc: "Numeração das vagas apagada.", cat: "Pintura", area: "Garagem", report: "Vagas renumeradas." },
 ];
 
+/**
+ * Serviços com fotos de verdade (public/demo/servicos/<photo>.jpg): entram nas OS que têm foto do depois
+ * (aprovadas, aguardando aprovação, aguardando validação e devolvida). O antes é a mesma foto envelhecida.
+ */
+export const DEMO_PHOTO_ORDERS: { photo: string; title: string; desc: string; cat: string; area: string; report: string }[] = [
+  { photo: "quadra-1", title: "Repintura da demarcação da quadra", desc: "Linhas apagadas e áreas azuis desbotadas pelo sol.", cat: "Pintura", area: "Quadra", report: "Piso lavado; linhas e áreas refeitas com tinta poliuretânica para quadras." },
+  { photo: "quadra-2", title: "Troca da rede de proteção da quadra", desc: "Rede rasgada no alto, bolas caindo no vizinho.", cat: "Serralheria", area: "Quadra", report: "Rede de proteção trocada e cabos de aço retensionados." },
+  { photo: "entrada-1", title: "Tratamento do forro de madeira da entrada", desc: "Madeira do forro desbotada e com manchas de umidade.", cat: "Pintura", area: "Hall de entrada", report: "Forro lixado e tratado com stain e verniz marítimo." },
+  { photo: "entrada-2", title: "Restauração do piso de pedra portuguesa", desc: "Pedras soltas e encardidas no acesso principal.", cat: "Limpeza", area: "Hall de entrada", report: "Pedras soltas reassentadas, rejunte refeito e lavagem com hidrojato." },
+  { photo: "academia-1", title: "Pintura dos aparelhos da academia ao ar livre", desc: "Ferrugem nas barras e bancos de madeira ressecados.", cat: "Pintura", area: "Academia", report: "Estrutura lixada e pintada com esmalte automotivo; bancos tratados com verniz." },
+  { photo: "academia-2", title: "Piso emborrachado da pista de caminhada", desc: "Placas soltas e faixas da pista apagadas.", cat: "Pintura", area: "Academia", report: "Placas soltas recoladas e faixas da pista repintadas." },
+  { photo: "praca-1", title: "Restauração da rosa dos ventos", desc: "Mosaico da praça com pedras soltando.", cat: "Limpeza", area: "Praça", report: "Mosaico refeito nas falhas e piso lavado e impermeabilizado." },
+  { photo: "praca-2", title: "Paisagismo da praça", desc: "Canteiros secos e floreiras sem plantas.", cat: "Jardinagem", area: "Praça", report: "Floreiras replantadas com espadas-de-são-jorge e canteiros adubados." },
+  { photo: "playground-1", title: "Manutenção do parquinho de madeira", desc: "Madeira ressecada e cordas da ponte desgastadas.", cat: "Pintura", area: "Playground", report: "Madeira lixada e envernizada; cordas da ponte e da rede trocadas." },
+  { photo: "playground-2", title: "Piso emborrachado do playground", desc: "Placas soltando perto do escorregador.", cat: "Limpeza", area: "Playground", report: "Placas recolocadas e piso lavado e desinfetado." },
+  { photo: "piscina-1", title: "Tratamento e limpeza da piscina", desc: "Água turva depois das chuvas.", cat: "Limpeza", area: "Piscina", report: "Aspiração, choque de cloro e ajuste de pH; filtro retrolavado." },
+  { photo: "piscina-2", title: "Rejunte das pastilhas da piscina", desc: "Rejunte escurecido e pastilhas soltas na borda.", cat: "Limpeza", area: "Piscina", report: "Pastilhas recolocadas e rejunte epóxi refeito na linha d'água." },
+];
+
 /** Status de cada OS sorteada (a ordem segue a linha do tempo: as mais antigas são as aprovadas). */
 export const ORDER_STATUSES = [
   "approved", "approved", "approved", "approved", "approved", "approved", "approved", "approved", "approved",
@@ -118,7 +137,7 @@ export const ORDER_STATUSES = [
 ] as const;
 
 export const RATING_COMMENTS: Record<number, string[]> = {
-  5: ["Excelente acabamento.", "Ficou ótimo, muito caprichado.", "Rápido e limpo. Recomendo.", "Garagem ficou outra."],
+  5: ["Excelente acabamento.", "Ficou ótimo, muito caprichado.", "Rápido e limpo. Recomendo.", "Ficou como novo."],
   4: ["Resolvido, mas demorou um pouco.", "Bom serviço, faltou recolher o entulho.", "Ficou bom."],
   3: ["Resolveu, mas precisou voltar duas vezes."],
 };
