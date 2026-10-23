@@ -6,7 +6,8 @@ import { nowMs } from "@/lib/format";
 import type { CurrentUser } from "@/lib/auth";
 import { fmtHours } from "@/lib/metrics";
 import { RankBars } from "@/components/charts";
-import { FeedCard, feedInclude } from "@/components/feed-card";
+import { feedInclude } from "@/components/feed-card";
+import { ServiceCard } from "@/components/service-card";
 import { Card, CardHeader, PageHeader, Stat } from "@/components/ui";
 import { unitLabel } from "@/lib/units";
 
@@ -18,7 +19,7 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
   const startOfYear = new Date(new Date().getFullYear(), 0, 1);
 
   const [recent, month, year, times, ratings, byCat, cats] = await Promise.all([
-    db.serviceOrder.findMany({ where: delivered, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 3 }),
+    db.serviceOrder.findMany({ where: delivered, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }),
     db.serviceOrder.count({ where: { ...delivered, approvedAt: { gte: since30 } } }),
     db.serviceOrder.count({ where: { ...delivered, approvedAt: { gte: startOfYear } } }),
     db.serviceOrder.findMany({ where: delivered, select: { createdAt: true, approvedAt: true }, take: 200, orderBy: { approvedAt: "desc" } }),
@@ -71,7 +72,7 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
             <h2 className="font-display text-xl font-semibold">Últimos serviços entregues</h2>
             <Link href="/feed" className="text-sm font-medium text-brand hover:underline">Ver todos</Link>
           </div>
-          {recent.map((o) => <FeedCard key={o.id} o={o} />)}
+          {recent.length > 0 && <div className="grid gap-4 sm:grid-cols-2">{recent.map((o) => <ServiceCard key={o.id} o={o} />)}</div>}
           {!recent.length && <Card className="p-10 text-center text-sm text-muted">Nenhum serviço entregue ainda.</Card>}
         </section>
         <aside>

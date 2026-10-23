@@ -411,7 +411,7 @@ async function Agenda({ condoId, sp, manage }: { condoId: string; sp: SP; manage
       </form>
 
       {ramos.length > 1 && (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:-mx-1 sm:flex-wrap sm:px-1">
           <Link href={href({ ramo: "" })} className={cx("inline-flex shrink-0 items-center gap-2 rounded-2xl py-1.5 pl-1.5 pr-3 text-sm ring-1 transition", !ramo ? "bg-brand-soft text-brand ring-brand" : "bg-surface text-fg-2 ring-line hover:ring-line-strong")}>
             <span className="grid size-7 place-items-center rounded-xl bg-bg-2 text-xs font-semibold">{all.length}</span>Todos
           </Link>
