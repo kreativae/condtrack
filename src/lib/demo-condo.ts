@@ -11,13 +11,13 @@ import { loadAssembly, minutesDraft } from "./assembly-server";
 import { DEFAULT_OPTIONS } from "./assembly";
 import { docKey } from "./booking";
 import {
-  ACCENTS, ANNOUNCEMENTS, ASSEMBLY_NEXT, ASSEMBLY_PAST, CHECKLIST_ISSUES, CHECKLIST_NOTES, CITIES, CONDO_NAMES, FIRST_F, FIRST_M,
+  ACCENTS, ANNOUNCEMENTS, ASSEMBLY_NEXT, ASSEMBLY_PAST, CHECKLIST_ISSUES, CHECKLIST_NOTES, CITIES, CONDO_NAMES, DEMO_CONTACT_ROLES, DEMO_PAYMENT_TERMS, DEMO_SUPPLIERS, FIRST_F, FIRST_M,
   ONE_OFF_EXPENSES, ORDER_POOL, ORDER_STATUSES, PROVIDER_KINDS, RATING_COMMENTS, SURNAMES, TOWER_PAIRS, VENDORS,
   fakeCnpj, rng, slugifyName, type ProviderKind,
 } from "./demo-data";
 
 // Condomínio de demonstração com dados fictícios em todas as áreas (OS com antes/depois, financeiro do
-// ano, 3 semanas de checklist, manutenção, orçamento, assembleias, comunicados). Cada geração sai diferente
+// ano, 3 semanas de checklist, manutenção, orçamento, assembleias, comunicados, portaria, fornecedores). Cada geração sai diferente
 // (sorteio em demo-data.ts). Ninguém dos usuários fictícios consegue entrar: a senha é aleatória e descartada.
 
 const DAY = 86_400_000;
@@ -409,7 +409,120 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
     areas: Object.entries(areaRules).map(([n, rule]) => ({ id: areas[n], name: n, ...rule })),
   });
 
+  // ───── Fornecedores: agenda e orçamentos (aguardando, comparação do mesmo serviço, aprovados e recusados)
+  await seedSuppliers({ cid, r, person, now, ddd: place.ddd, size: U / 64, caretaker, syndic });
+
   return condo;
+}
+
+/** PDF de uma página com o texto do orçamento fictício (Helvetica, sem biblioteca). */
+function demoQuotePdf(lines: string[]) {
+  const latin = (t: string) => t.replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[^\x20-\xff]/g, "").replace(/[\\()]/g, "\\$&");
+  const wrap = (t: string, n = 88) => t.split(" ").reduce<string[]>((acc, w) => {
+    const last = acc[acc.length - 1];
+    if (last !== undefined && (last + " " + w).length <= n) acc[acc.length - 1] = `${last} ${w}`;
+    else acc.push(w);
+    return acc;
+  }, []);
+  const body = lines.flatMap((l, i) => (i === 0 ? [l] : wrap(l))).map((l, i) => `BT /F1 ${i === 0 ? 16 : 11} Tf 56 ${780 - i * 20} Td (${latin(l)}) Tj ET`).join("\n");
+  const objs = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${Buffer.byteLength(body, "latin1")} >>\nstream\n${body}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+  ];
+  let out = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objs.forEach((o, i) => {
+    offsets.push(Buffer.byteLength(out, "latin1"));
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(out, "latin1");
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, "latin1");
+}
+
+/**
+ * Fornecedores fictícios: 8 ramos sorteados, um serviço com 3 orçamentos para comparar (um com a validade vencida)
+ * e um orçamento por fornecedor nos outros ramos (aprovados, recusados, aguardando e um cancelado), cada um com PDF.
+ */
+async function seedSuppliers(c: {
+  cid: string; r: Rng; person: (female: boolean) => string; now: number; ddd: string; size: number;
+  caretaker: { id: string; name: string }; syndic: { id: string; name: string };
+}) {
+  const { cid, r, now } = c;
+  const slug = (n: string) => slugifyName(n).replace(/-/g, "");
+  const phone = () => `(${c.ddd}) 9${r.int(8100, 9999)}-${String(r.int(0, 9999)).padStart(4, "0")}`;
+  const kinds = r.shuffle(DEMO_SUPPLIERS).slice(0, 8);
+  // O ramo da comparação precisa de 3 fornecedores
+  const compare = kinds.find((k) => k.names.length >= 3) ?? kinds[0];
+
+  type Made = { id: string; name: string; contact: string };
+  const made = new Map<string, Made[]>();
+  for (const k of kinds) {
+    const names = r.shuffle(k.names).slice(0, k === compare ? 3 : r.int(1, 2));
+    for (const name of names) {
+      const contact = c.person(r.next() < 0.4);
+      const s = await db.supplier.create({
+        data: {
+          condominiumId: cid, name, category: k.category, contactName: `${contact} (${r.pick(DEMO_CONTACT_ROLES)})`,
+          phone: phone(), email: `orcamento.${slug(name)}@example.com`, document: fakeCnpj(r),
+          address: r.next() < 0.6 ? `Rua ${r.pick(SURNAMES)}, ${r.int(10, 1800)} (fictício)` : null,
+          notes: r.next() < 0.4 ? r.pick(["Atende de segunda a sábado, das 8h às 18h.", "Já prestou serviço no condomínio; pontual.", "Pede visita técnica antes de orçar.", "Emite nota fiscal eletrônica."]) : null,
+          rating: r.next() < 0.7 ? r.int(3, 5) : null,
+          createdById: c.caretaker.id, createdByName: c.caretaker.name, createdAt: new Date(now - r.int(40, 120) * DAY),
+        },
+      });
+      made.set(k.category, [...(made.get(k.category) ?? []), { id: s.id, name, contact }]);
+    }
+  }
+
+  const pdfFor = async (quoteId: string, supplier: string, title: string, desc: string, cents: number, deadline: string, pay: string, at: Date) => {
+    const brl = (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const lines = [supplier, `Orçamento: ${title}`, `Data: ${at.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`, desc, `Valor total: ${brl}`, `Prazo de execução: ${deadline}`, `Pagamento: ${pay}`, "", "Documento fictício gerado para o condomínio de demonstração do Condtrack."];
+    const buf = demoQuotePdf(lines);
+    const url = await saveGenerated(`quote-${cid}`, `${quoteId}.pdf`, buf, "application/pdf");
+    await db.supplierQuoteFile.create({ data: { quoteId, url, fileName: `Orçamento ${supplier}.pdf`, mimeType: "application/pdf", sizeBytes: buf.length, uploadedById: c.caretaker.id, createdAt: at } });
+  };
+  const quote = async (sup: Made, svc: (typeof DEMO_SUPPLIERS)[number]["services"][number], status: string, ageDays: number, opts: { cents?: number; expired?: boolean } = {}) => {
+    const createdAt = new Date(now - ageDays * DAY - r.int(1, 8) * 3_600_000);
+    // Orçamento de verdade vem em valor redondo (dezenas de reais)
+    const cents = opts.cents ?? Math.round(r.vary(Math.round(svc.cents * Math.max(c.size, 0.6)), 0.15) / 1000) * 1000;
+    const pay = r.pick(DEMO_PAYMENT_TERMS);
+    const validUntil = new Date((opts.expired ? now - r.int(1, 5) * DAY : createdAt.getTime() + r.pick([15, 30, 45]) * DAY));
+    const decided = status !== "pending";
+    const decidedAt = decided ? new Date(Math.min(now - DAY / 2, createdAt.getTime() + r.int(1, 4) * DAY)) : null;
+    const q = await db.supplierQuote.create({
+      data: {
+        condominiumId: cid, supplierId: sup.id, title: svc.title, description: svc.desc, amountCents: cents, validUntil, deadline: svc.deadline, paymentTerms: pay,
+        status, createdById: c.caretaker.id, createdByName: c.caretaker.name, createdAt,
+        ...(decided && {
+          decidedAt,
+          decidedById: status === "cancelled" ? c.caretaker.id : c.syndic.id,
+          decidedByName: status === "cancelled" ? c.caretaker.name : c.syndic.name,
+          decisionNote: status === "approved"
+            ? r.pick([null, "Aprovado. Combinar o início com o zelador.", "Aprovado dentro do previsto no orçamento do ano.", "Aprovado; pedir a nota fiscal no fim do serviço."])
+            : status === "rejected" ? r.pick(["Valor acima do previsto; pedir outra cotação.", "Prazo longo demais para esta época.", "Vamos esperar a assembleia para decidir."]) : null,
+        }),
+      },
+    });
+    await pdfFor(q.id, sup.name, svc.title, svc.desc, cents, svc.deadline, pay, createdAt);
+  };
+
+  // Comparação: mesmo serviço, 3 fornecedores, todos aguardando (o mais antigo com a validade vencida)
+  const svc = compare.services[0];
+  for (const [i, sup] of made.get(compare.category)!.entries()) await quote(sup, svc, "pending", r.int(1, 9) + i * 3, { expired: i === 2 });
+
+  // Demais ramos: um orçamento cada, com situações variadas
+  const statuses = r.shuffle(["approved", "approved", "approved", "rejected", "pending", "pending", "cancelled"]);
+  let n = 0;
+  for (const k of kinds) {
+    if (k === compare) continue;
+    const status = statuses[n++ % statuses.length];
+    await quote(made.get(k.category)![0], r.pick(k.services), status, status === "pending" ? r.int(0, 6) : r.int(8, 70));
+  }
 }
 
 type Rng = ReturnType<typeof rng>;
@@ -659,6 +772,7 @@ export async function deleteDemoCondominium(id: string) {
   const orderIds = orders.map((o) => o.id);
   for (const o of orderIds) await deleteFolder(o).catch(() => null);
   for (const p of await db.parcel.findMany({ where: { condominiumId: id, photoUrl: { not: null } }, select: { id: true } })) await deleteFolder(`parcel-${p.id}`).catch(() => null);
+  await deleteFolder(`quote-${id}`).catch(() => null);
 
   // Pessoas fictícias: e-mail da demonstração e nenhum vínculo com outro condomínio
   const fake = await db.user.findMany({

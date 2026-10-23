@@ -197,3 +197,42 @@ export function fakeCnpj(r: Rng) {
 
 export const slugifyName = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/** Fornecedores fictícios por ramo (nome, contato) e serviços que eles orçam (valor-base em centavos, para 64 unidades). */
+export const DEMO_SUPPLIERS: { category: string; names: string[]; services: { title: string; cents: number; desc: string; deadline: string }[] }[] = [
+  { category: "Pintura", names: ["Cores & Cia Pinturas", "Pincel de Ouro Pinturas", "Ágil Pinturas e Reformas", "Tinta Fina Acabamentos"], services: [
+    { title: "Pintura da fachada", cents: 16_500_000, desc: "Lavagem com hidrojateamento, tratamento de trincas, selador e duas demãos de tinta acrílica premium. Andaimes e balancins inclusos. Garantia de 3 anos.", deadline: "60 dias" },
+    { title: "Pintura das garagens", cents: 2_400_000, desc: "Pintura das paredes e faixas de demarcação das vagas com numeração.", deadline: "15 dias" },
+  ] },
+  { category: "Elétrica", names: ["Voltagem Instalações", "Faísca Elétrica", "Luz Certa Engenharia"], services: [
+    { title: "Troca da iluminação das áreas comuns por LED", cents: 1_380_000, desc: "Fornecimento e instalação de 120 luminárias LED com sensor de presença nos halls e escadas.", deadline: "20 dias" },
+    { title: "Revisão do quadro geral de energia", cents: 420_000, desc: "Reaperto, termografia e troca de disjuntores danificados. Laudo técnico com ART.", deadline: "5 dias" },
+  ] },
+  { category: "Hidráulica", names: ["Hidro Fácil", "Aqua Serviços Hidráulicos", "Cano Certo"], services: [
+    { title: "Troca da bomba d’água do reservatório", cents: 690_000, desc: "Bomba centrífuga 3 cv, quadro de comando e instalação. Retirada da bomba antiga.", deadline: "3 dias" },
+    { title: "Limpeza da caixa d’água", cents: 180_000, desc: "Limpeza e desinfecção dos reservatórios superior e inferior, com certificado.", deadline: "1 dia" },
+  ] },
+  { category: "Jardinagem", names: ["Verde Vivo Paisagismo", "Jardim & Arte", "Folha Nova Jardinagem"], services: [
+    { title: "Manutenção mensal do jardim", cents: 220_000, desc: "Poda, adubação, controle de pragas e reposição de mudas. 4 visitas por mês.", deadline: "Contrato de 12 meses" },
+  ] },
+  { category: "Portões e automação", names: ["Portão Express", "AutoGate Automação"], services: [
+    { title: "Troca do motor do portão da garagem", cents: 520_000, desc: "Motor deslizante industrial, central nova e 50 controles. Garantia de 1 ano.", deadline: "2 dias" },
+  ] },
+  { category: "Segurança e CFTV", names: ["Olho Vivo CFTV", "Alerta Sistemas de Segurança"], services: [
+    { title: "Ampliação das câmeras", cents: 1_150_000, desc: "8 câmeras full HD, gravador de 16 canais com 30 dias de gravação e acesso pelo celular.", deadline: "10 dias" },
+  ] },
+  { category: "Impermeabilização", names: ["Impermax Soluções", "Seca Laje Impermeabilização"], services: [
+    { title: "Impermeabilização da laje da cobertura", cents: 2_900_000, desc: "Manta asfáltica de 4 mm com proteção mecânica. Teste de estanqueidade de 72 horas. Garantia de 5 anos.", deadline: "25 dias" },
+  ] },
+  { category: "Dedetização", names: ["Praga Zero", "Dedetiza Já"], services: [
+    { title: "Dedetização e desratização semestral", cents: 160_000, desc: "Áreas comuns, garagens e caixas de esgoto. Certificado válido por 6 meses.", deadline: "1 dia" },
+  ] },
+  { category: "Extintores e incêndio", names: ["Fogo Seguro Extintores", "Brigada Total"], services: [
+    { title: "Recarga dos extintores", cents: 210_000, desc: "Recarga e teste hidrostático de 24 extintores, com selo do Inmetro.", deadline: "7 dias" },
+  ] },
+  { category: "Material de limpeza", names: ["Distribuidora Limpa Bem", "Atacado Brilho"], services: [
+    { title: "Material de limpeza do trimestre", cents: 145_000, desc: "Desinfetante, detergente, sacos de lixo, papel toalha e luvas para 3 meses.", deadline: "Entrega em 2 dias" },
+  ] },
+];
+export const DEMO_PAYMENT_TERMS = ["À vista com 5% de desconto", "50% na entrada e 50% na entrega", "3x sem juros no boleto", "30 dias após a conclusão", "Entrada + 5 parcelas mensais"];
+export const DEMO_CONTACT_ROLES = ["Comercial", "Proprietário", "Responsável técnico", "Atendimento"];
