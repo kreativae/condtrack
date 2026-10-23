@@ -18,6 +18,7 @@ export const DASHBOARD_SECTIONS: Record<Role, DashSection[]> = {
     { key: "finance", label: "Resumo financeiro" },
     { key: "pending", label: "Aprovações pendentes" },
     { key: "quotes", label: "Orçamentos para aprovar" },
+    { key: "delivered", label: "Serviços entregues" },
     { key: "status", label: "OS por status" },
     { key: "category", label: "OS por categoria" },
     { key: "areas", label: "Áreas com mais manutenção" },

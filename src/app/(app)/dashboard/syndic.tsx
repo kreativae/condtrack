@@ -14,12 +14,14 @@ import { FinanceSummary } from "@/components/finance-summary";
 import { DashboardSettings } from "@/components/dashboard-settings";
 import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
 import { fmtBRL } from "@/lib/finance";
+import { feedInclude } from "@/components/feed-card";
+import { ServiceShowcase } from "@/components/service-card";
 
 export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
   const show = dashboardVisibility(user.dashboardHidden);
   const where = { condominiumId: cid };
-  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, quotes] = await Promise.all([
+  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, quotes, delivered] = await Promise.all([
     orderMetrics(where),
     db.serviceOrder.findMany({ where: { ...where, status: "validated" }, include: orderListInclude, orderBy: { validatedAt: "asc" } }),
     db.serviceOrder.findMany({ where, include: orderListInclude, orderBy: { updatedAt: "desc" }, take: 6 }),
@@ -30,6 +32,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
     db.commonArea.findMany({ where }),
     db.user.findMany({ where: inCondo(cid, ["provider"]), select: { id: true, name: true } }),
     show("quotes") ? db.supplierQuote.findMany({ where: { ...where, status: "pending" }, include: { supplier: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
+    show("delivered") ? db.serviceOrder.findMany({ where: { ...where, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }) : [],
   ]);
   const name = (list: { id: string; name: string }[], id: string | null) => list.find((x) => x.id === id)?.name ?? "Sem categoria";
   const top = <T,>(rows: (T & { _count: number })[], key: (r: T) => string) =>
@@ -82,6 +85,16 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
             ))}
             {quotes.length > 5 && <Link href="/fornecedores" className="block px-4 py-2.5 text-center text-xs font-medium text-brand hover:bg-bg-2">Mais {quotes.length - 5}</Link>}
           </Card>
+        </section>
+      )}
+
+      {show("delivered") && delivered.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-4 flex items-center gap-3 font-display text-xl font-semibold">
+            Serviços entregues
+            <Link href="/feed" className="ml-auto text-xs font-medium text-brand hover:underline">Ver feed</Link>
+          </h2>
+          <ServiceShowcase items={delivered} />
         </section>
       )}
 
