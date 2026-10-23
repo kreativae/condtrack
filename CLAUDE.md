@@ -104,7 +104,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   torres, pessoas, empresas, OS, valores, pautas, porteiro, reservas com convidados, pessoas das unidades, entradas
   na portaria, fornecedores com cotações e orçamentos em PDF: uma em andamento com 3 para comparar, encerradas e no histórico, e chamados em todas as situações): bancos e sorteio com semente em `src/lib/demo-data.ts`.
   Botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
-  todas as áreas), vinculado como síndico ao e-mail digitado na janela. Marcados com `Condominium.demo`; só esses têm o botão
+  todas as áreas), vinculado como síndico ao e-mail digitado na janela. Na mesma janela, contas reais (opcionais) entram
+  no lugar das fictícias como zelador, porteiro, conselho, morador e prestador de manutenção geral: só ganham o vínculo
+  (`Membership`) e, conselho e morador, uma unidade como proprietários; senha e condomínio ativo não mudam. Os e-mails
+  ficam no Setting `demo_accounts` e voltam preenchidos (`lib/demo-accounts.ts`, testado). Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
 - **Manutenção preventiva** (`/manutencao`; superadmin e síndico editam, zelador vê): `MaintenancePlan`, regras de data em
   `src/lib/maintenance.ts` e motor em `maintenance-server.ts` (`runMaintenance`, chamado pelo cron a cada 15 min e ao abrir a

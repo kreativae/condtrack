@@ -7,6 +7,7 @@ import { orderMetrics, fmtHours } from "@/lib/metrics";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { SubscriptionBadge } from "@/components/billing/shared";
 import { DemoCondoButton } from "@/components/admin/demo-condo-button";
+import { DEMO_ACCOUNTS_KEY, parseDemoAccounts } from "@/lib/demo-accounts";
 import { PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
 import { fmtDateTime } from "@/lib/format";
 
@@ -23,10 +24,11 @@ export default async function CondosPage() {
     orderBy: { name: "asc" },
   });
   const metrics = await Promise.all(condos.map((c) => orderMetrics({ condominiumId: c.id })));
+  const demoAccounts = parseDemoAccounts((await db.setting.findUnique({ where: { key: DEMO_ACCOUNTS_KEY } }))?.value);
 
   return (
     <div className="animate-in">
-      <PageHeader eyebrow="Multi-condomínio" title="Condomínios" actions={<><DemoCondoButton /><LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton></>} />
+      <PageHeader eyebrow="Multi-condomínio" title="Condomínios" actions={<><DemoCondoButton saved={demoAccounts} /><LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton></>} />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {condos.map((c, i) => {
           const m = metrics[i];

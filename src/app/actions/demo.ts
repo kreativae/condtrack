@@ -3,27 +3,45 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { addGateDemo, createDemoCondominium, deleteDemoCondominium } from "@/lib/demo-condo";
 import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
+import { DEMO_ACCOUNTS_KEY, DEMO_SLOTS, normalizeDemoAccounts } from "@/lib/demo-accounts";
 
-export type DemoState = { error?: string } | null;
+/** `values`: o que foi digitado, para a janela não perder os e-mails quando volta com erro */
+export type DemoState = { error?: string; values?: Record<string, string> } | null;
 
-/** Cria o condomínio de demonstração e vincula a pessoa escolhida (pelo e-mail) como síndico. */
+/**
+ * Cria o condomínio de demonstração com o síndico escolhido pelo e-mail e, opcionalmente, contas reais para zelador,
+ * porteiro, conselho, morador e prestador (no lugar das fictícias). Os e-mails ficam salvos para a próxima vez.
+ */
 export async function createDemoCondo(_prev: DemoState, form: FormData): Promise<DemoState> {
   const me = await requireUser("superadmin");
-  const parsed = z.string().trim().toLowerCase().email().safeParse(form.get("email"));
-  if (!parsed.success) return { error: "Informe um e-mail válido." };
-  const email = parsed.data;
-  const target = await db.user.findUnique({ where: { email }, select: { role: true } });
-  if (!target) return { error: "Nenhum usuário com esse e-mail. Cadastre a pessoa antes em Usuários." };
-  if (target.role === "superadmin") return { error: "O superadmin já vê todos os condomínios; escolha outro usuário." };
+  const values = Object.fromEntries(DEMO_SLOTS.map((s) => [s.key, String(form.get(s.key) ?? "")]));
+  const { accounts, error } = normalizeDemoAccounts(values);
+  if (error) return { error, values };
 
-  const condo = await createDemoCondominium({ syndicEmail: email });
-  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, syndic: email }, condominiumId: condo.id });
+  // Cada e-mail precisa ser de uma conta ativa que não seja superadmin
+  const found = await db.user.findMany({ where: { email: { in: Object.values(accounts) } }, select: { email: true, role: true, status: true } });
+  for (const s of DEMO_SLOTS) {
+    const email = accounts[s.key];
+    if (!email) continue;
+    const u = found.find((x) => x.email === email);
+    if (!u) return { error: `${s.label}: nenhum usuário com ${email}. Cadastre a pessoa antes em Usuários.`, values };
+    if (u.role === "superadmin") return { error: `${s.label}: o superadmin já vê todos os condomínios; escolha outro usuário.`, values };
+    if (u.status !== "active") return { error: `${s.label}: a conta ${email} está desativada.`, values };
+  }
+
+  await db.setting.upsert({
+    where: { key: DEMO_ACCOUNTS_KEY },
+    create: { key: DEMO_ACCOUNTS_KEY, value: JSON.stringify(accounts), updatedById: me.id },
+    update: { value: JSON.stringify(accounts), updatedById: me.id },
+  });
+  const { syndic, ...real } = accounts;
+  const condo = await createDemoCondominium({ syndicEmail: syndic!, real });
+  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, contas: accounts }, condominiumId: condo.id });
   revalidatePath("/admin/condominios");
   redirect(`/admin/condominios/${condo.id}`);
 }

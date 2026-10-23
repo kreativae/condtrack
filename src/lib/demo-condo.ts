@@ -39,7 +39,11 @@ function scene(kind: "before" | "after", title: string, hue: number) {
 const at = (day: string, hhmm: string) => new Date(`${day}T${hhmm}:00-03:00`);
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export async function createDemoCondominium(opts: { syndicEmail: string }) {
+/**
+ * `real`: contas que já existem e entram no lugar das pessoas fictícias (zelador, porteiro, um conselheiro, um morador
+ * e o prestador de manutenção geral). Ganham só o vínculo com a demonstração: senha e condomínio ativo não mudam.
+ */
+export async function createDemoCondominium(opts: { syndicEmail: string; real?: Partial<Record<"caretaker" | "doorman" | "council" | "resident" | "provider", string>> }) {
   const now = Date.now();
   const today = spNow(now).date;
   const tag = randomBytes(3).toString("hex");
@@ -99,28 +103,43 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
     await db.membership.create({ data: { userId: u.id, condominiumId: cid, role } });
     return u;
   };
-  const caretaker = await mk(person(r.next() < 0.3), "zelador", "caretaker");
+  // Conta real no lugar da fictícia: só o vínculo com este condomínio (o perfil vale só aqui)
+  const realOr = async (email: string | undefined, role: string, fake: () => ReturnType<typeof mk>) => {
+    const u = email ? await db.user.findUnique({ where: { email } }) : null;
+    if (!u) return fake();
+    used.add(u.name);
+    await db.membership.upsert({
+      where: { userId_condominiumId: { userId: u.id, condominiumId: cid } },
+      create: { userId: u.id, condominiumId: cid, role },
+      update: { role },
+    });
+    return { ...u, role };
+  };
+  const real = opts.real ?? {};
+  const caretaker = await realOr(real.caretaker, "caretaker", () => mk(person(r.next() < 0.3), "zelador", "caretaker"));
   const providers = {} as Record<ProviderKind, Awaited<ReturnType<typeof mk>>>;
   for (const kind of Object.keys(PROVIDER_KINDS) as ProviderKind[]) {
     const n = person(r.next() < 0.4);
     const k = PROVIDER_KINDS[kind];
-    providers[kind] = await mk(n, kind, "provider", { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty });
+    const fake = () => mk(n, kind, "provider", { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty });
+    providers[kind] = kind === "geral" ? await realOr(real.provider, "provider", fake) : await fake();
   }
   const providerFor = (cat: string) => (Object.keys(PROVIDER_KINDS) as ProviderKind[]).map((k) => (PROVIDER_KINDS[k].cats as readonly string[]).includes(cat) ? providers[k] : null).find(Boolean) ?? providers.geral;
-  const council1 = await mk(person(true), "conselho1", "council");
+  const council1 = await realOr(real.council, "council", () => mk(person(true), "conselho1", "council"));
   const council2 = await mk(person(false), "conselho2", "council");
-  const res1 = await mk(person(true), "morador1", "resident");
+  const res1 = await realOr(real.resident, "resident", () => mk(person(true), "morador1", "resident"));
   const res2 = await mk(person(false), "morador2", "resident");
   const [uC1, uC2, uR1, uR2] = r.shuffle(units.map((_, i) => i)).slice(0, 4);
   await db.userUnit.createMany({
     data: [
       { userId: council1.id, unitId: units[uC1].id, role: "owner" },
       { userId: council2.id, unitId: units[uC2].id, role: "owner" },
-      { userId: res1.id, unitId: units[uR1].id, role: "tenant" },
+      // Morador de verdade entra como proprietário (vota nas assembleias); o fictício, como inquilino
+      { userId: res1.id, unitId: units[uR1].id, role: real.resident && res1.email === real.resident ? "owner" : "tenant" },
       { userId: res2.id, unitId: units[uR2].id, role: "owner" },
     ],
   });
-  const owners = new Map([[units[uC1].id, council1.id], [units[uC2].id, council2.id], [units[uR2].id, res2.id]]);
+  const owners = new Map([[units[uC1].id, council1.id], [units[uC2].id, council2.id], [units[uR2].id, res2.id], ...(real.resident && res1.email === real.resident ? [[units[uR1].id, res1.id] as [string, string]] : [])]);
 
   // Vínculo como síndico (com as permissões extras); o condomínio ativo dele não muda
   await db.membership.upsert({
@@ -397,7 +416,7 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   // ───── Portaria: porteiro, pessoas cadastradas nas unidades, reservas (passadas, de hoje e futuras) e entradas
   await seedGate({
     cid, r, person, now, today,
-    doorman: await mk(person(r.next() < 0.3), "porteiro", "doorman"),
+    doorman: await realOr(real.doorman, "doorman", () => mk(person(r.next() < 0.3), "porteiro", "doorman")),
     homes: [
       { unitId: units[uC1].id, userId: council1.id },
       { unitId: units[uC2].id, userId: council2.id },
@@ -882,8 +901,18 @@ export async function deleteDemoCondominium(id: string) {
     if (other) await activateMembership(u.id, other.condominiumId);
   }
 
+  // Avisos que apontam para o que vai sumir (contas reais vinculadas à demonstração também os recebem)
+  const refs = (await Promise.all([
+    db.ticket.findMany({ where: { condominiumId: id }, select: { id: true } }),
+    db.booking.findMany({ where: { condominiumId: id }, select: { id: true } }),
+    db.assembly.findMany({ where: { condominiumId: id }, select: { id: true } }),
+    db.supplierQuote.findMany({ where: { condominiumId: id }, select: { id: true } }),
+    db.parcel.findMany({ where: { condominiumId: id }, select: { id: true } }),
+  ])).flat().map((x) => x.id);
+
   await db.$transaction([
     db.notification.deleteMany({ where: { referenceType: "service_order", referenceId: { in: orderIds } } }),
+    db.notification.deleteMany({ where: { referenceId: { in: refs } } }),
     db.user.deleteMany({ where: { id: { in: fakeIds } } }),
     db.condominium.delete({ where: { id } }),
   ]);
