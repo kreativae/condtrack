@@ -1,15 +1,35 @@
 "use client";
 
 import { useFormSubmit } from "@/components/use-form-submit";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { createAnnouncement } from "@/app/actions/misc";
-import { Alert, Field, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Field, Input, Select, Textarea } from "@/components/ui";
+import { Sheet } from "@/components/portaria/gate-actions";
 import { SubmitButton } from "@/components/submit-button";
 
-export function AnnouncementForm() {
+/** Botão do cabeçalho que abre o formulário numa gaveta (sobe de baixo no celular, janela no computador). */
+export function NewAnnouncementButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}><Plus className="size-4" />Novo comunicado</Button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Novo comunicado">
+        <p className="mb-4 text-xs text-muted">Moradores e zeladoria serão notificados.</p>
+        <AnnouncementForm onDone={() => setOpen(false)} />
+      </Sheet>
+    </>
+  );
+}
+
+export function AnnouncementForm({ onDone }: { onDone?: () => void }) {
   const [state, form, pending] = useFormSubmit(createAnnouncement);
   const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => { if (state?.ok) ref.current?.reset(); }, [state]);
+  useEffect(() => {
+    if (!state?.ok) return;
+    ref.current?.reset();
+    onDone?.();
+  }, [state, onDone]);
   return (
     <form ref={ref} {...form} className="space-y-4">
       <Field label="Título"><Input name="title" required minLength={4} /></Field>

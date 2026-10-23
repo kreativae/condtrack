@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { CheckCheck, Megaphone, Plus } from "lucide-react";
+import { CheckCheck, Megaphone } from "lucide-react";
 import { db } from "@/lib/db";
 import { inCondo } from "@/lib/memberships";
 import { requireUser } from "@/lib/auth";
 import { DELETED_USER, fmtDateTime } from "@/lib/format";
 import { confirmRead } from "@/app/actions/misc";
-import { Badge, Card, CardHeader, Empty, PageHeader, buttonClass, type Tone } from "@/components/ui";
-import { AnnouncementForm } from "./form";
+import { Badge, Card, Empty, PageHeader, buttonClass, type Tone } from "@/components/ui";
+import { NewAnnouncementButton } from "./form";
 import { AnnouncementDeletePanel, DeleteOwnAnnouncement, RequestAnnouncementDelete } from "./delete-request";
 import { adminScope } from "@/lib/admin-scope-server";
 import { FrozenPage, FrozenTop, Pager, ScrollArea, pageParam, withPage } from "@/components/frozen";
@@ -27,7 +27,7 @@ export default async function AnnouncementsPage({ searchParams }: PageProps<"/co
   const condoId = admin ? (await adminScope(user))?.id : user.condominiumId;
   if (!condoId) {
     return (
-      <div className="mx-auto max-w-3xl animate-in">
+      <div className="animate-in">
         <PageHeader eyebrow="Mural de avisos" title="Comunicados" />
         <Card><Empty icon={<Megaphone className="size-8" />} title="Escolha um condomínio">Use o cartão do condomínio no menu para ver os comunicados dele.</Empty></Card>
       </div>
@@ -49,19 +49,19 @@ export default async function AnnouncementsPage({ searchParams }: PageProps<"/co
   const syndic = user.role === "syndic";
 
   const list = (
-    <ScrollArea className="space-y-4" footer={<Pager page={page} pageSize={PAGE} total={total} href={(p) => withPage("/comunicados", sp, p)} />}>
-      {items.length ? items.map((a) => {
+    <ScrollArea footer={<Pager page={page} pageSize={PAGE} total={total} href={(p) => withPage("/comunicados", sp, p)} />}>
+      {items.length ? <div className="grid gap-4 md:grid-cols-2">{items.map((a) => {
         const readBy: string[] = JSON.parse(a.readBy);
         const [label, tone] = CAT[a.category] ?? CAT.general;
         return (
-          <Card key={a.id} brand={a.priority === "high"} className="p-6">
+          <Card key={a.id} brand={a.priority === "high"} className="flex flex-col p-6">
             <div className="mb-3 flex items-center justify-between gap-3">
               <Badge tone={tone}>{label}</Badge>
               <span className="text-xs text-muted">{fmtDateTime(a.publishedAt)}</span>
             </div>
             <h2 className="font-display font-semibold text-xl">{a.title}</h2>
-            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-fg-2">{a.content}</p>
-            <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs text-muted">
+            <p className="mt-2 flex-1 whitespace-pre-line text-sm leading-relaxed text-fg-2">{a.content}</p>
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-muted">
               <span>{a.author?.name ?? DELETED_USER}</span>
               {syndic || admin ? (
                 <span className="flex items-center gap-1"><CheckCheck className="size-3.5" />Lido por {readBy.length} de {audience}</span>
@@ -87,39 +87,14 @@ export default async function AnnouncementsPage({ searchParams }: PageProps<"/co
             )}
           </Card>
         );
-      }) : <Card><Empty icon={<Megaphone className="size-8" />} title="Nenhum comunicado publicado" /></Card>}
+      })}</div> : <Card><Empty icon={<Megaphone className="size-8" />} title="Nenhum comunicado publicado" /></Card>}
     </ScrollArea>
   );
 
-  if (!syndic) {
-    return (
-      <div className="mx-auto max-w-3xl">
-        <FrozenPage>
-          <FrozenTop><PageHeader eyebrow="Mural de avisos" title="Comunicados" /></FrozenTop>
-          {list}
-        </FrozenPage>
-      </div>
-    );
-  }
-
   return (
     <FrozenPage>
-      <FrozenTop>
-        <PageHeader eyebrow="Mural de avisos" title="Comunicados" />
-        {/* Celular: formulário recolhível acima da lista */}
-        <details className="group mb-4 rounded-2xl border border-brand/30 bg-surface lg:hidden">
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm font-semibold text-brand"><Plus className="size-4" />Novo comunicado</summary>
-          <div className="max-h-[55dvh] overflow-auto border-t border-line p-5"><AnnouncementForm /></div>
-        </details>
-      </FrozenTop>
-      <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[1fr_380px]">
-        <div className="flex min-h-0 flex-col">{list}</div>
-        {/* Desktop: formulário fixo na lateral enquanto a lista rola */}
-        <Card brand className="hidden min-h-0 self-start overflow-auto lg:block lg:max-h-full">
-          <CardHeader title="Novo comunicado" subtitle="Moradores e zeladoria serão notificados." />
-          <div className="p-5"><AnnouncementForm /></div>
-        </Card>
-      </div>
+      <FrozenTop><PageHeader eyebrow="Mural de avisos" title="Comunicados" actions={syndic && <NewAnnouncementButton />} /></FrozenTop>
+      {list}
     </FrozenPage>
   );
 }
