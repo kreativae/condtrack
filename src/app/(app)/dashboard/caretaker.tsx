@@ -11,6 +11,8 @@ import { dayItemsForUi } from "@/lib/checklist-server";
 import { spNow } from "@/lib/checklist";
 import { DashboardSettings } from "@/components/dashboard-settings";
 import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
+import { feedInclude } from "@/components/feed-card";
+import { ServiceShowcase } from "@/components/service-card";
 
 import { nowMs } from "@/lib/format";
 
@@ -19,12 +21,13 @@ export async function CaretakerDashboard({ user }: { user: CurrentUser }) {
   const where = { condominiumId: user.condominiumId! };
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const [toValidate, urgent, inProgress, today, checklist] = await Promise.all([
+  const [toValidate, urgent, inProgress, today, checklist, delivered] = await Promise.all([
     db.serviceOrder.findMany({ where: { ...where, status: "completed" }, include: orderListInclude, orderBy: { completedAt: "asc" } }),
     db.serviceOrder.findMany({ where: { ...where, status: { in: ACTIVE_STATUSES }, OR: [{ priority: "urgent" }, { dueDate: { lt: new Date() } }] }, include: orderListInclude, orderBy: { dueDate: "asc" } }),
     db.serviceOrder.count({ where: { ...where, status: "in_progress" } }),
     db.serviceOrder.count({ where: { ...where, createdAt: { gte: startOfDay } } }),
     dayItemsForUi(user.condominiumId!, spNow(nowMs()).date),
+    show("delivered") ? db.serviceOrder.findMany({ where: { ...where, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }) : [],
   ]);
 
   return (
@@ -60,6 +63,16 @@ export async function CaretakerDashboard({ user }: { user: CurrentUser }) {
         )}
         {show("checklist") && <ChecklistToday items={checklist} canCheck condominiumId={user.condominiumId!} footer={<Link href="/checklist" className="text-xs font-medium text-brand hover:underline">Histórico do checklist →</Link>} />}
       </div>
+
+      {show("delivered") && delivered.length > 0 && (
+        <section className="mt-10">
+          <h2 className="mb-4 flex items-center gap-3 font-display text-xl font-semibold">
+            Serviços entregues
+            <Link href="/feed" className="ml-auto text-xs font-medium text-brand hover:underline">Ver feed</Link>
+          </h2>
+          <ServiceShowcase items={delivered} />
+        </section>
+      )}
     </div>
   );
 }
