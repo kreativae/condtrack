@@ -238,26 +238,18 @@ export function UnitFilter({ units, value, param = "unidade", base, extra, condo
 }
 
 /**
- * Sanfona da lista de convidados de uma reserva ("Esperados hoje"). Abre sozinha perto do horário (defaultOpen);
- * o que o porteiro abrir ou fechar fica lembrado neste aparelho, então marcar "Chegou" (que recarrega a página)
- * não fecha a lista.
+ * Sanfona da lista de convidados de uma reserva ("Esperados hoje") e da linha do tempo: sempre fechada ao abrir a
+ * página. Abre pelo clique, pelo endereço (#id) ou pelas fichas de números do topo; marcar "Chegou" atualiza a página
+ * sem remontar, então a lista aberta continua aberta.
  */
-export function GuestAccordion({ id, defaultOpen, header, children }: { id: string; defaultOpen: boolean; header: React.ReactNode; children: React.ReactNode }) {
-  const key = `gate_guests_${id}`;
-  const [open, setOpen] = useState(defaultOpen);
+export function GuestAccordion({ id, header, children }: { id: string; header: React.ReactNode; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
   useEffect(() => {
-    // Lido depois de montar: o servidor não conhece a escolha guardada no aparelho
+    // Pedida pelo endereço (ficha "entradas hoje" vinda de outra aba): abre
     queueMicrotask(() => {
-      try {
-        const saved = localStorage.getItem(key);
-        if (saved !== null) setOpen(saved === "1");
-        // Pedida pelo endereço (ficha "entradas hoje" vinda de outra aba): abre
-        if (window.location.hash === `#${id}`) setOpen(true);
-      } catch {
-        /* sem armazenamento: fica o padrão */
-      }
+      if (window.location.hash === `#${id}`) setOpen(true);
     });
-  }, [key, id]);
+  }, [id]);
   // As fichas de números do topo pedem para abrir (ex.: "entradas hoje" abre a linha do tempo)
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -266,15 +258,7 @@ export function GuestAccordion({ id, defaultOpen, header, children }: { id: stri
     window.addEventListener("gate-open", onOpen);
     return () => window.removeEventListener("gate-open", onOpen);
   }, [id]);
-  const toggle = () =>
-    setOpen((o) => {
-      try {
-        localStorage.setItem(key, o ? "0" : "1");
-      } catch {
-        /* ignora */
-      }
-      return !o;
-    });
+  const toggle = () => setOpen((o) => !o);
   return (
     <div className="border-b border-line">
       <button type="button" onClick={toggle} aria-expanded={open} className="flex w-full items-center gap-2 px-5 py-3 text-left hover:bg-bg-2">

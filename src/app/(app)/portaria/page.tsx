@@ -217,13 +217,10 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
         <CardHeader title={`Esperados hoje (${waitingGuests + expected.length})`} />
         {todayBookings.map((b) => {
           const waiting = b.guests.filter((g) => !g.checkedInAt);
-          // Aberta só perto do horário: de 1 h antes do início até o fim da reserva
-          const soon = b.startAt.getTime() - 3600_000 <= now.getTime() && now.getTime() < b.endAt.getTime();
           return (
             <GuestAccordion
               key={b.id}
               id={b.id}
-              defaultOpen={soon}
               header={
                 <span className="flex flex-wrap items-baseline gap-x-2 text-sm">
                   <span className="font-semibold">{b.commonArea.name}</span>
@@ -302,7 +299,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
       )}
 
       <div id="linha-do-tempo" className="scroll-mt-40 overflow-hidden rounded-2xl border border-line bg-surface">
-        <GuestAccordion id="linha-do-tempo" defaultOpen={false} header={<span className="text-sm font-semibold">Linha do tempo de hoje <span className="font-normal text-muted">({timeline.length})</span></span>}>
+        <GuestAccordion id="linha-do-tempo" header={<span className="text-sm font-semibold">Linha do tempo de hoje <span className="font-normal text-muted">({timeline.length})</span></span>}>
           {timeline.length ? (
             <ol>
               {timeline.map((t, i) => (

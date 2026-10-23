@@ -207,7 +207,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   encomendas aguardando à esquerda; painel "Agora" fixo à direita); no celular o "Agora" vem primeiro.
   **Recebimento em lote** (`BatchReceive`, tecla L: transportadora e local fixos, unidade + Enter registra e avisa).
   Nunca use `<select>` com as unidades na portaria: use `UnitPicker` (`components/portaria/unit-picker.tsx`) ou
-  `UnitFilter`. Busca de pessoas (só nomes, até 30), abas Agora ("Esperados hoje", "No condomínio agora" com Saiu, encomendas paradas, linha do tempo recolhida),
+  `UnitFilter`. Busca de pessoas (só nomes, até 30), abas Agora ("Esperados hoje" com as listas de convidados das reservas sempre fechadas ao abrir, "No condomínio agora" com Saiu, encomendas paradas, linha do tempo sempre fechada ao abrir),
   Agenda (`portaria/agenda.tsx`: todos os contatos A–Z, letra calculada no banco sem acento, filtros de torre, tipo,
   situação e "moradores com conta", 50 por página) e Pessoas por unidade.
   **Encomendas** (aba Encomendas da Portaria, `portaria/parcels-tab.tsx`; `Parcel`; regras em `src/lib/parcels.ts`,
