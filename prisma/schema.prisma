@@ -26,6 +26,8 @@ model Condominium {
   settings             String    @default("{}")
   active               Boolean   @default(true)
   osCounter            Int       @default(0)
+  /// Número do último chamado (#1, #2…)
+  ticketCounter        Int       @default(0)
   /// Horário limite do checklist do zelador ("HH:MM", fuso de Brasília); vazio = sem alerta
   checklistDeadline    String?
   /// Último dia (YYYY-MM-DD) em que o alerta de checklist atrasado foi enviado
@@ -75,6 +77,7 @@ model Condominium {
   suppliers        Supplier[]
   supplierQuotes   SupplierQuote[]
   quoteGroups      QuoteGroup[]
+  tickets          Ticket[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -105,6 +108,7 @@ model Unit {
   accessDests   AccessEntryUnit[]
   accessEntries AccessEntry[]
   parcels       Parcel[]
+  tickets       Ticket[]
 
   @@unique([buildingId, number])
 }
@@ -214,6 +218,7 @@ model CommonArea {
   checklistItems   ChecklistItem[]
   maintenancePlans MaintenancePlan[]
   bookings         Booking[]
+  tickets          Ticket[]
 }
 
 /// priority: urgent | high | medium | low
@@ -260,6 +265,7 @@ model ServiceOrder {
   approvedBy  User?            @relation("approvedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   media       ServiceMedia[]
   events      ServiceEvent[]
+  tickets     Ticket[]
 
   @@index([condominiumId, status])
   @@index([assignedToId, status])
@@ -1099,4 +1105,62 @@ model SupplierQuoteFile {
   quote        SupplierQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
   @@index([quoteId])
+}
+
+/// Chamado aberto por morador ou conselheiro para o síndico (problema, reclamação, sugestão).
+/// status: open → in_review → resolved | closed; ou converted (virou OS) → resolved quando a OS é aprovada.
+/// Quem abre só vê os próprios; síndico e superadmin veem todos do condomínio. Regras em src/lib/tickets.ts.
+model Ticket {
+  id             String          @id @default(cuid())
+  condominiumId  String
+  /// Número sequencial no condomínio (Condominium.ticketCounter)
+  number         Int
+  kind           String
+  title          String
+  description    String
+  /// Onde: common_area (commonAreaId) | unit (unitId) | null (sem local)
+  locationType   String?
+  commonAreaId   String?
+  unitId         String?
+  locationNote   String?
+  /// URLs /api/media/ticket-<condomínio>/<arquivo>
+  photos         String[]        @default([])
+  status         String          @default("open")
+  createdById    String?
+  createdByName  String
+  createdByRole  String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  serviceOrderId String?
+  convertedAt    DateTime?
+  closedAt       DateTime?
+  closedByName   String?
+  closeNote      String?
+  /// Primeira resposta de quem administra (tempo de resposta)
+  answeredAt     DateTime?
+  condominium    Condominium     @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  commonArea     CommonArea?     @relation(fields: [commonAreaId], references: [id], onDelete: SetNull)
+  unit           Unit?           @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  serviceOrder   ServiceOrder?   @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
+  messages       TicketMessage[]
+
+  @@unique([condominiumId, number])
+  @@index([condominiumId, status])
+  @@index([createdById])
+  @@index([serviceOrderId])
+}
+
+/// Conversa do chamado. system = registro automático (mudou a situação, virou OS…).
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  authorId   String?
+  authorName String
+  authorRole String
+  body       String
+  system     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }

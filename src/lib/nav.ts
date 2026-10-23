@@ -10,6 +10,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/dashboard", label: "Visão global", short: "Início", icon: "gauge", mobile: true },
     { href: "/admin/condominios", label: "Condomínios", icon: "building", mobile: true },
     { href: "/os", label: "Ordens de serviço", short: "OS", icon: "clipboard", mobile: true },
+    { href: "/chamados", label: "Chamados", icon: "inbox" },
     { href: "/feed", label: "Feed de serviços", icon: "sparkles" },
     { href: "/checklist", label: "Checklist", icon: "checklist" },
     { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
@@ -28,6 +29,7 @@ export const NAV: Record<Role, NavItem[]> = {
   syndic: [
     { href: "/dashboard", label: "Dashboard", icon: "gauge", mobile: true },
     { href: "/os", label: "Ordens de serviço", short: "OS", icon: "clipboard", mobile: true },
+    { href: "/chamados", label: "Chamados", icon: "inbox" },
     { href: "/feed", label: "Feed de serviços", short: "Feed", icon: "sparkles", mobile: true },
     { href: "/checklist", label: "Checklist", icon: "checklist" },
     { href: "/manutencao", label: "Manutenção preventiva", short: "Preventiva", icon: "wrench" },
@@ -74,6 +76,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/dashboard", label: "Início", icon: "home", mobile: true },
     { href: "/os", label: "Minhas solicitações", short: "Solicitações", icon: "clipboard", mobile: true },
     { href: "/os/nova", label: "Nova solicitação", short: "Nova", icon: "plus", mobile: true },
+    { href: "/chamados", label: "Chamados", icon: "inbox" },
     { href: "/feed", label: "Serviços do prédio", short: "Serviços", icon: "sparkles", mobile: true },
     { href: "/financeiro", label: "Financeiro", icon: "wallet" },
     { href: "/relatorios", label: "Relatórios", icon: "report" },
@@ -83,12 +86,13 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/minha-unidade", label: "Minha unidade", short: "Unidade", icon: "contact" },
     { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
   ],
-  // Morador: visualiza os serviços; vota em assembleia (proprietário), reserva áreas e cadastra pessoas da unidade
+  // Morador: visualiza os serviços; vota em assembleia (proprietário), reserva áreas, cadastra pessoas da unidade e abre chamados
   resident: [
     { href: "/dashboard", label: "Início", icon: "home", mobile: true },
     { href: "/feed", label: "Serviços entregues", short: "Serviços", icon: "sparkles", mobile: true },
     { href: "/reservas", label: "Reservas", icon: "calendar", mobile: true },
     { href: "/minha-unidade", label: "Minha unidade", short: "Unidade", icon: "contact", mobile: true },
+    { href: "/chamados", label: "Chamados", icon: "inbox" },
     { href: "/assembleias", label: "Assembleias", icon: "vote" },
     { href: "/meus-condominios", label: "Meus condomínios", short: "Prédios", icon: "buildings" },
   ],

@@ -67,7 +67,7 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
   );
 }
 
-type Variant = "brand" | "outline" | "ghost" | "danger" | "success";
+export type Variant = "brand" | "outline" | "ghost" | "danger" | "success";
 const variantClass: Record<Variant, string> = {
   brand: "btn-brand font-semibold",
   outline: "border border-line-strong bg-surface font-medium text-fg shadow-card hover:bg-bg-2",

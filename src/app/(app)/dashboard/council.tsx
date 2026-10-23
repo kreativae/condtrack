@@ -3,7 +3,8 @@ import { Megaphone, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth";
 import { orderListInclude } from "@/lib/orders";
-import { fmtRelative } from "@/lib/format";
+import { fmtRelative, nowMs } from "@/lib/format";
+import { TicketMiniList } from "@/components/tickets/ticket-mini-list";
 import { feedInclude } from "@/components/feed-card";
 import { ServiceShowcase } from "@/components/service-card";
 import { OrderList } from "@/components/order-list";
@@ -18,10 +19,11 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
   const show = dashboardVisibility(user.dashboardHidden);
   // Resumo financeiro só entra nas opções quando o conselho tem acesso
   const sections = DASHBOARD_SECTIONS.council.filter((s) => s.key !== "finance" || user.condominium?.councilFinanceAccess);
-  const [feed, mine, news] = await Promise.all([
+  const [feed, mine, news, tickets] = await Promise.all([
     db.serviceOrder.findMany({ where: { condominiumId: cid, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }),
     db.serviceOrder.findMany({ where: { requestedById: user.id, status: { notIn: ["cancelled"] } }, include: orderListInclude, orderBy: { createdAt: "desc" }, take: 5 }),
     db.announcement.findMany({ where: { condominiumId: cid }, orderBy: { publishedAt: "desc" }, take: 3 }),
+    show("tickets") ? db.ticket.findMany({ where: { condominiumId: cid, createdById: user.id }, orderBy: { createdAt: "desc" }, take: 4 }) : [],
   ]);
   const unit = user.units[0]?.unit;
 
@@ -34,7 +36,7 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
       />
       {/* Só quando o síndico liberou o Financeiro para o conselho */}
       {user.condominium?.councilFinanceAccess && show("finance") && <FinanceSummary condominiumId={cid} />}
-      <div className={cx("grid gap-8", show("feed") && (show("mine") || show("news")) && "lg:grid-cols-[1.5fr_1fr]")}>
+      <div className={cx("grid gap-8", show("feed") && (show("mine") || show("news") || show("tickets")) && "lg:grid-cols-[1.5fr_1fr]")}>
         {show("feed") && (
         <section className="space-y-6">
           <div className="flex items-center justify-between">
@@ -48,8 +50,15 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
           )}
         </section>
         )}
-        {(show("mine") || show("news")) && (
+        {(show("mine") || show("news") || show("tickets")) && (
         <aside className="space-y-6">
+          {show("tickets") && (
+          <Card>
+            <CardHeader title="Meus chamados" action={<Link href="/chamados/novo" className="text-xs font-medium text-brand hover:underline">Abrir chamado</Link>} />
+            <TicketMiniList items={tickets} now={new Date(nowMs())} empty="Problema, reclamação ou sugestão? Abra um chamado para o síndico." />
+            {tickets.length > 0 && <Link href="/chamados" className="block border-t border-line px-4 py-2.5 text-center text-xs font-medium text-brand hover:bg-bg-2">Ver todos</Link>}
+          </Card>
+          )}
           {show("mine") && (
           <div>
             <h2 className="mb-4 font-display font-semibold text-xl">Minhas solicitações</h2>

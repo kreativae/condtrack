@@ -102,7 +102,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `removeSyndic`).
 - **Condomínio de demonstração**: cada geração sai diferente (nome que ainda não existe, cidade, CNPJ válido fictício,
   torres, pessoas, empresas, OS, valores, pautas, porteiro, reservas com convidados, pessoas das unidades, entradas
-  na portaria e fornecedores com cotações e orçamentos em PDF: uma em andamento com 3 para comparar, encerradas e no histórico): bancos e sorteio com semente em `src/lib/demo-data.ts`.
+  na portaria, fornecedores com cotações e orçamentos em PDF: uma em andamento com 3 para comparar, encerradas e no histórico, e chamados em todas as situações): bancos e sorteio com semente em `src/lib/demo-data.ts`.
   Botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
   todas as áreas), vinculado como síndico ao e-mail digitado na janela. Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
@@ -135,6 +135,17 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   qualquer lugar da página abre a gaveta; fornecedor buscado ou criado ali (`quickSupplier`, reaproveita o mesmo nome).
   Ícone e cor por ramo em `components/suppliers/look.tsx` (só cores do tema). Campos com vários botões usam
   `FieldGroup` (no `Field`, que é `<label>`, clicar no texto aciona o 1º botão).
+- **Chamados** (`/chamados`; morador e conselho abrem, síndico e superadmin atendem): `Ticket` (número por condomínio em
+  `Condominium.ticketCounter`; tipo problem/complaint/neighbor/suggestion/other; local área comum, unidade ou nenhum;
+  fotos em `photos`, pasta `ticket-<condomínio>`, sobem por `/api/chamados/[id]/fotos`, fora do proxy, e a rota de mídias
+  libera só para quem vê o chamado) + `TicketMessage` (conversa; `system` = registro automático). open → in_review
+  (resposta do síndico já põe em análise) → resolved | closed (com motivo); quem abriu cancela enquanto aberto e reabre
+  até 30 dias. Quem abriu vê só os próprios. Regras puras em `src/lib/tickets.ts` (testadas), servidor em
+  `lib/tickets-server.ts`, ações em `actions/tickets.ts`. **Converter em OS**: `/os/nova?chamado=` vem preenchida;
+  `createOrder` liga o chamado (`linkTicketToOrder`, status converted) e copia as fotos para a OS (fase opening). A OS
+  aprovada resolve o chamado e avisa quem abriu; cancelada ou excluída devolve para análise (`syncTicketsWithOrder`,
+  chamado em `transitionOrder`, `adminUpdateOrder` e `adminDeleteOrder`). Avisos `ticket_*` em Mensagens; bloco
+  `tickets` nos painéis do síndico e do conselho, atalho no painel do morador. Entram no backup e nos dados da LGPD.
 - **Notificações no celular** (Web Push, `src/lib/push.ts`): toda notificação do app (canal "app" em Mensagens) também vai
   para os aparelhos inscritos (`PushDevice`), pelo `notify()`. Inscrição em Meu perfil (`perfil/push.tsx`); service worker
   em `public/sw.js` (sem cache de páginas). Endereços de inscrição só dos serviços oficiais (anti-SSRF, `actions/push.ts`).

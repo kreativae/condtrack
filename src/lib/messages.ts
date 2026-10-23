@@ -37,6 +37,14 @@ const BOOKING_VARS: Var[] = [
   { name: "convidados", desc: "Quantidade de convidados", sample: "35" },
 ];
 
+const TICKET_VARS: Var[] = [
+  V.condominio, V.autor,
+  { name: "numero", desc: "Número do chamado", sample: "#12" },
+  { name: "titulo", desc: "Assunto do chamado", sample: "Vazamento na garagem" },
+  { name: "tipo", desc: "Problema, reclamação, convivência…", sample: "Problema ou conserto" },
+  { name: "unidade", desc: "Unidade de quem abriu (a linha some quando não há)", sample: "Torre A · 101" },
+];
+
 const QUOTE_VARS: Var[] = [
   V.condominio, V.autor,
   { name: "servico", desc: "Serviço ou material orçado", sample: "Pintura da fachada" },
@@ -47,7 +55,7 @@ const QUOTE_VARS: Var[] = [
 
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") || key.startsWith("parcel") ? "Reservas e portaria" : key.startsWith("quote") ? "Fornecedores" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") || key.startsWith("parcel") ? "Reservas e portaria" : key.startsWith("quote") ? "Fornecedores" : key.startsWith("ticket") ? "Chamados" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -153,6 +161,12 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "quem", desc: "Quem retirou", sample: "Ana Souza" },
     { name: "hora", desc: "Horário da retirada", sample: "18:40" },
   ]),
+  notification("ticket_created", "Novo chamado de morador", "Síndico", "Chamado {numero}: {titulo}", "{autor} abriu um chamado ({tipo}).\n{unidade}\nResponda ou converta em OS em Chamados.", TICKET_VARS),
+  notification("ticket_reply", "Nova mensagem no chamado", "Quem abriu ou o síndico", "Chamado {numero}: nova mensagem", "{autor} respondeu em “{titulo}”:\n“{mensagem}”", [...TICKET_VARS, { name: "mensagem", desc: "Texto da mensagem", sample: "Vamos enviar alguém amanhã de manhã." }]),
+  notification("ticket_converted", "Chamado virou ordem de serviço", "Quem abriu o chamado", "Chamado {numero} virou ordem de serviço", "{autor} abriu a ordem de serviço {protocolo} para resolver “{titulo}”. Você recebe um aviso quando o serviço for concluído.", [...TICKET_VARS, V.protocolo]),
+  notification("ticket_resolved", "Chamado resolvido", "Quem abriu o chamado", "Chamado {numero} resolvido", "“{titulo}” foi marcado como resolvido por {autor}.\n{comentario}", [...TICKET_VARS, V.comentario]),
+  notification("ticket_closed", "Chamado encerrado sem resolver", "Quem abriu o chamado", "Chamado {numero} encerrado", "{autor} encerrou o chamado “{titulo}”.\nMotivo: {comentario}", [...TICKET_VARS, V.comentario]),
+  notification("ticket_reopened", "Chamado reaberto ou cancelado", "Síndico", "Chamado {numero} {situacao}", "O chamado “{titulo}” foi {situacao} por {autor}.\n{comentario}", [...TICKET_VARS, V.comentario, { name: "situacao", desc: "reaberto ou cancelado", sample: "reaberto" }]),
   notification("quote_created", "Novo orçamento para aprovar", "Síndico", "Orçamento para aprovar: {servico}", "{autor} cadastrou o orçamento de {fornecedor}: {valor}.\n{comparar}\nAprove ou recuse em Fornecedores.", QUOTE_VARS),
   notification("quote_decided", "Orçamento aprovado ou recusado", "Quem cadastrou o orçamento", "Orçamento {decisao}: {servico}", "{fornecedor} · {valor}: orçamento {decisao} por {autor}.\n{comentario}", [...QUOTE_VARS, V.comentario, { name: "decisao", desc: "aprovado ou recusado", sample: "aprovado" }]),
   notification("maint_order", "OS de manutenção preventiva aberta", "Síndico e zelador", "Manutenção preventiva: {titulo}", "{protocolo} · prevista para {vencimento}.", [

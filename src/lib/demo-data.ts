@@ -236,3 +236,16 @@ export const DEMO_SUPPLIERS: { category: string; names: string[]; services: { ti
 ];
 export const DEMO_PAYMENT_TERMS = ["À vista com 5% de desconto", "50% na entrada e 50% na entrega", "3x sem juros no boleto", "30 dias após a conclusão", "Entrada + 5 parcelas mensais"];
 export const DEMO_CONTACT_ROLES = ["Comercial", "Proprietário", "Responsável técnico", "Atendimento"];
+
+/** Chamados fictícios de moradores e conselho (área = nome de área comum da demonstração; unit = na unidade de quem abriu). */
+export const DEMO_TICKETS: { kind: string; title: string; desc: string; area?: string; unit?: true; reply: string; answer?: string }[] = [
+  { kind: "problem", title: "Lâmpada queimada na garagem", desc: "A lâmpada perto da vaga 32 está queimada há uns três dias. À noite fica bem escuro para manobrar.", area: "Garagem", reply: "Obrigada pelo aviso! O zelador vai trocar ainda hoje.", answer: "Obrigado!" },
+  { kind: "problem", title: "Interfone da unidade sem som", desc: "O interfone toca, mas não dá para ouvir a portaria. Já testei desligar e ligar de novo.", unit: true, reply: "Vamos verificar se o problema é na central ou no aparelho. Você estará em casa amanhã de manhã?", answer: "Estarei sim, depois das 9h." },
+  { kind: "complaint", title: "Academia com aparelhos sem manutenção", desc: "A esteira 2 está fazendo um barulho alto e o banco de supino está com o estofado rasgado.", area: "Academia", reply: "Já pedimos orçamento para a manutenção dos aparelhos. Enquanto isso, a esteira 2 ficará interditada." },
+  { kind: "neighbor", title: "Barulho depois das 22h", desc: "Quase todas as noites há som alto e arrastar de móveis no andar de cima, até depois da meia-noite.", unit: true, reply: "Vamos enviar uma notificação com o regimento interno. Se continuar, registre data e horário por aqui." },
+  { kind: "neighbor", title: "Carro ocupando a minha vaga", desc: "Um carro prata tem estacionado na minha vaga com frequência nos fins de semana.", area: "Garagem", reply: "A portaria vai identificar o veículo e avisar o responsável." },
+  { kind: "suggestion", title: "Bicicletário coberto", desc: "Muitos moradores usam bicicleta. Um bicicletário coberto na garagem ajudaria a organizar e proteger da chuva.", area: "Garagem", reply: "Ótima ideia! Vamos levar para a pauta da próxima assembleia." },
+  { kind: "suggestion", title: "Horário estendido da piscina no verão", desc: "Sugiro abrir a piscina até as 22h de dezembro a fevereiro.", area: "Piscina", reply: "Vamos avaliar o custo de iluminação e salva-vidas e trazemos uma resposta." },
+  { kind: "problem", title: "Infiltração no teto do hall", desc: "Apareceu uma mancha de umidade no teto do hall, perto do elevador social, depois da última chuva.", area: "Hall de entrada", reply: "Vamos abrir uma ordem de serviço para o prestador avaliar a impermeabilização." },
+  { kind: "other", title: "Segunda via do boleto do condomínio", desc: "Não recebi o boleto deste mês por e-mail. Como consigo a segunda via?", reply: "Enviamos a segunda via para o seu e-mail. Confira também a caixa de spam." },
+];

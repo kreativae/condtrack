@@ -9,7 +9,7 @@ export async function GET() {
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (me.impersonator) return NextResponse.json({ error: "Indisponível em modo de visualização." }, { status: 403 });
   const id = me.id;
-  const [user, memberships, units, requested, executed, comments, votes, checks, notes, notifications, devices, passkeys, logins] = await Promise.all([
+  const [user, memberships, units, requested, executed, comments, votes, checks, notes, notifications, devices, passkeys, logins, tickets] = await Promise.all([
     db.user.findUnique({
       where: { id },
       select: { name: true, email: true, phone: true, cpf: true, role: true, status: true, company: true, specialty: true, createdAt: true, lastLoginAt: true, termsAcceptedAt: true, termsVersion: true, totpEnabledAt: true },
@@ -26,6 +26,7 @@ export async function GET() {
     db.pushDevice.findMany({ where: { userId: id }, select: { name: true, createdAt: true, lastUsedAt: true } }),
     db.passkey.findMany({ where: { userId: id }, select: { name: true, createdAt: true, lastUsedAt: true } }),
     db.auditLog.findMany({ where: { userId: id, action: { in: ["login", "login_failed", "logout"] } }, select: { action: true, ipAddress: true, userAgent: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 500 }),
+    db.ticket.findMany({ where: { createdById: id }, select: { number: true, kind: true, title: true, description: true, status: true, createdAt: true, closedAt: true, closeNote: true, messages: { where: { authorId: id, system: false }, select: { body: true, createdAt: true } } }, orderBy: { createdAt: "asc" } }),
   ]);
   await audit(me, "privacy_export", "user", id);
   const body = {
@@ -40,6 +41,7 @@ export async function GET() {
     votos: votes.map((v) => ({ assembleia: v.assembly.title, item: v.item.title, voto: (JSON.parse(v.item.options) as string[])[v.option] ?? v.option, em: v.createdAt })),
     checklist: checks.map((c) => ({ dia: c.date, item: c.item.title, situacao: c.status, observacao: c.note })),
     anotacoes: notes,
+    chamados: tickets,
     notificacoes: notifications,
     aparelhosComNotificacao: devices,
     biometria: passkeys,

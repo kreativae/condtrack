@@ -16,6 +16,8 @@ type Props = {
   areas: Opt[];
   units: { id: string; label: string; condominiumId?: string }[];
   defaultUnitId?: string;
+  /** Chamado que vira esta OS: preenche os campos */
+  ticket?: { id: string; condominiumId: string; title: string; description: string; locationType: string | null; commonAreaId: string | null; unitId: string | null; locationNote: string | null };
 };
 
 const PRIORITIES = [
@@ -25,16 +27,16 @@ const PRIORITIES = [
   ["low", "Baixa", "bg-muted"],
 ] as const;
 
-export function NewOrderForm({ role, condos, categories: allCategories, areas: allAreas, units: allUnits, defaultUnitId }: Props) {
+export function NewOrderForm({ role, condos, categories: allCategories, areas: allAreas, units: allUnits, defaultUnitId, ticket }: Props) {
   const router = useRouter();
   // Superadmin escolhe o condomínio; as listas abaixo são filtradas por ele
-  const [condo, setCondo] = useState(condos.length === 1 ? condos[0].id : "");
+  const [condo, setCondo] = useState(ticket?.condominiumId ?? (condos.length === 1 ? condos[0].id : ""));
   const byCondo = <T extends { condominiumId?: string }>(list: T[]) => (role === "superadmin" ? list.filter((x) => x.condominiumId === condo) : list);
   const categories = byCondo(allCategories);
   const areas = byCondo(allAreas);
   const units = byCondo(allUnits);
   const [state, form, pending] = useFormSubmit(createOrder);
-  const [loc, setLoc] = useState<"common_area" | "unit">(role === "council" && units.length ? "unit" : "common_area");
+  const [loc, setLoc] = useState<"common_area" | "unit">(ticket ? (ticket.locationType === "common_area" || !ticket.unitId ? "common_area" : "unit") : role === "council" && units.length ? "unit" : "common_area");
   const [priority, setPriority] = useState("medium");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -60,6 +62,7 @@ export function NewOrderForm({ role, condos, categories: allCategories, areas: a
 
   return (
     <form {...form} className="space-y-6">
+      {ticket && <input type="hidden" name="ticketId" value={ticket.id} />}
       {role === "superadmin" && (
         <Field label="Condomínio">
           <Select name="condominiumId" required value={condo} onChange={(e) => setCondo(e.target.value)}>
@@ -69,10 +72,10 @@ export function NewOrderForm({ role, condos, categories: allCategories, areas: a
         </Field>
       )}
       <Field label={role === "council" ? "O que está acontecendo?" : "Título"}>
-        <Input name="title" required minLength={4} maxLength={120} placeholder="Ex.: Lâmpada queimada no corredor do 5º andar" />
+        <Input name="title" required minLength={4} maxLength={120} defaultValue={ticket?.title} placeholder="Ex.: Lâmpada queimada no corredor do 5º andar" />
       </Field>
       <Field label="Descrição detalhada">
-        <Textarea name="description" required minLength={10} placeholder="Onde fica, desde quando, o que você observou…" />
+        <Textarea name="description" required minLength={10} rows={ticket ? 6 : undefined} defaultValue={ticket?.description} placeholder="Onde fica, desde quando, o que você observou…" />
       </Field>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -112,17 +115,17 @@ export function NewOrderForm({ role, condos, categories: allCategories, areas: a
           ))}
         </div>
         {loc === "common_area" ? (
-          <Select key={condo} name="commonAreaId" required defaultValue="">
+          <Select key={condo} name="commonAreaId" required defaultValue={ticket?.commonAreaId ?? ""}>
             <option value="" disabled>Selecione a área…</option>
             {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </Select>
         ) : (
-          <Select key={condo} name="unitId" required defaultValue={defaultUnitId ?? ""}>
+          <Select key={condo} name="unitId" required defaultValue={ticket?.unitId ?? defaultUnitId ?? ""}>
             <option value="" disabled>Selecione a unidade…</option>
             {units.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
           </Select>
         )}
-        <Input name="locationNote" className="mt-2" placeholder="Complemento (ex.: próximo ao elevador social)" maxLength={200} />
+        <Input name="locationNote" className="mt-2" defaultValue={ticket?.locationNote ?? ""} placeholder="Complemento (ex.: próximo ao elevador social)" maxLength={200} />
       </fieldset>
 
       <div>
@@ -150,7 +153,7 @@ export function NewOrderForm({ role, condos, categories: allCategories, areas: a
       {state?.error && <Alert>{state.error}</Alert>}
       <div className="flex items-center justify-end gap-3 border-t border-line pt-6">
         {uploading && <span className="flex items-center gap-2 text-sm text-muted"><Loader2 className="size-4 animate-spin" />{uploading}</span>}
-        <SubmitButton pending={pending} disabled={busy} pendingText="Criando…">{role === "council" ? "Enviar solicitação" : "Abrir ordem de serviço"}</SubmitButton>
+        <SubmitButton pending={pending} disabled={busy} pendingText="Criando…">{role === "council" ? "Enviar solicitação" : ticket ? "Abrir OS do chamado" : "Abrir ordem de serviço"}</SubmitButton>
       </div>
     </form>
   );

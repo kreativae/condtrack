@@ -12,6 +12,7 @@ import { nextProtocol } from "@/lib/orders";
 import type { Role } from "@/lib/roles";
 import { can, canView, PRIORITY_META, STATUSES, STATUS_META, type OrderAction, type Priority, type Status, canDeleteMedia } from "@/lib/workflow";
 import { deleteFile, deleteFolder } from "@/lib/storage";
+import { copyTicketPhotos, linkTicketToOrder, syncTicketsWithOrder } from "@/lib/tickets-server";
 
 export type ActionState = { error?: string; ok?: boolean; id?: string } | undefined;
 
@@ -38,6 +39,8 @@ const createSchema = z.object({
   locationNote: z.string().trim().max(200).optional(),
   dueDate: z.string().optional(),
   condominiumId: z.string().optional(),
+  /** Chamado de morador que virou esta OS */
+  ticketId: z.string().optional(),
 });
 
 export async function createOrder(_: ActionState, form: FormData): Promise<ActionState> {
@@ -48,6 +51,11 @@ export async function createOrder(_: ActionState, form: FormData): Promise<Actio
 
   const condominiumId = user.role === "superadmin" ? d.condominiumId : user.condominiumId;
   if (!condominiumId) return fail("Selecione o condomínio.");
+  // Chamado: só quem atende converte, e só se ainda estiver aberto ou em análise
+  const ticket = d.ticketId
+    ? await db.ticket.findFirst({ where: { id: d.ticketId, condominiumId, status: { in: ["open", "in_review"] }, serviceOrderId: null }, select: { id: true, photos: true } })
+    : null;
+  if (d.ticketId && (!ticket || (user.role !== "syndic" && user.role !== "superadmin"))) return fail("Este chamado não pode mais virar OS (já foi convertido ou encerrado).");
 
   // Garantir que categoria/local pertencem ao condomínio
   if (d.categoryId && !(await db.serviceCategory.findFirst({ where: { id: d.categoryId, condominiumId } }))) return fail("Categoria inválida.");
@@ -88,7 +96,20 @@ export async function createOrder(_: ActionState, form: FormData): Promise<Actio
     return o;
   });
 
-  await audit(user, "create", "service_order", order.id, { new: { protocol: order.protocol, title: order.title }, condominiumId });
+  await audit(user, "create", "service_order", order.id, { new: { protocol: order.protocol, title: order.title, ticketId: ticket?.id }, condominiumId });
+  if (ticket && (await linkTicketToOrder(user, ticket.id, order))) {
+    // As fotos do chamado entram na OS como fotos da abertura
+    const copies = await copyTicketPhotos(ticket.photos, order.id).catch(() => []);
+    if (copies.length) {
+      await db.serviceMedia.createMany({
+        data: copies.map((c) => ({
+          serviceOrderId: order.id, type: "photo", phase: "opening", url: c.url, mimeType: c.mime, sizeBytes: c.size, uploadedById: user.id,
+          metadata: JSON.stringify({ source: "ticket", ticketId: ticket.id, receivedAt: new Date().toISOString() }),
+        })),
+      });
+    }
+    await db.serviceEvent.create({ data: { serviceOrderId: order.id, userId: user.id, type: "comment", comment: "Aberta a partir de um chamado de morador." } });
+  }
   await notify(
     { condominiumId, roles: ["syndic", "caretaker"], exclude: user.id },
     {
@@ -198,6 +219,7 @@ export async function transitionOrder(id: string, kind: keyof typeof TRANSITIONS
     { condominiumId: o.condominiumId, roles: target.roles, userIds: target.userIds, exclude: user.id },
     { type: t.template, vars: { protocolo: o.protocol, titulo: o.title, autor: user.name, comentario: comment }, ...orderLink(id) },
   );
+  if (kind === "approve" || kind === "cancel") await syncTicketsWithOrder(user, o, kind === "approve" ? "approved" : "cancelled", comment);
   revalidatePath(`/os/${id}`);
   revalidatePath("/feed");
   return { ok: true };
@@ -414,6 +436,7 @@ export async function adminUpdateOrder(id: string, _: ActionState, form: FormDat
       { type: "os_admin_update", vars: { protocolo: o.protocol, titulo: d.title, autor: user.name, status: STATUS_META[d.status].label }, ...orderLink(id) },
     );
   }
+  if (d.status !== o.status && (d.status === "approved" || d.status === "cancelled")) await syncTicketsWithOrder(user, o, d.status === "approved" ? "approved" : "cancelled", d.reason ?? "");
   revalidatePath(`/os/${id}`);
   revalidatePath("/os");
   revalidatePath("/feed");
@@ -543,6 +566,7 @@ export async function adminDeleteOrder(id: string, _prev: ActionState, form: For
   const o = await db.serviceOrder.findUnique({ where: { id }, include: { _count: { select: { media: true, events: true } } } });
   if (!o) return fail("OS não encontrada.");
   if (String(form.get("confirm") ?? "").trim().toUpperCase() !== o.protocol) return fail(`Digite ${o.protocol} para confirmar.`);
+  await syncTicketsWithOrder(user, o, "deleted");
   await db.serviceOrder.delete({ where: { id } });
   await deleteFolder(id);
   await db.notification.deleteMany({ where: { referenceType: "service_order", referenceId: id } });

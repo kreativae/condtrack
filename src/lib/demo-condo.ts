@@ -11,7 +11,7 @@ import { loadAssembly, minutesDraft } from "./assembly-server";
 import { DEFAULT_OPTIONS } from "./assembly";
 import { docKey } from "./booking";
 import {
-  ACCENTS, ANNOUNCEMENTS, ASSEMBLY_NEXT, ASSEMBLY_PAST, CHECKLIST_ISSUES, CHECKLIST_NOTES, CITIES, CONDO_NAMES, DEMO_CONTACT_ROLES, DEMO_PAYMENT_TERMS, DEMO_SUPPLIERS, FIRST_F, FIRST_M,
+  ACCENTS, ANNOUNCEMENTS, ASSEMBLY_NEXT, ASSEMBLY_PAST, CHECKLIST_ISSUES, CHECKLIST_NOTES, CITIES, CONDO_NAMES, DEMO_CONTACT_ROLES, DEMO_PAYMENT_TERMS, DEMO_SUPPLIERS, DEMO_TICKETS, FIRST_F, FIRST_M,
   ONE_OFF_EXPENSES, ORDER_POOL, ORDER_STATUSES, PROVIDER_KINDS, RATING_COMMENTS, SURNAMES, TOWER_PAIRS, VENDORS,
   fakeCnpj, rng, slugifyName, type ProviderKind,
 } from "./demo-data";
@@ -412,7 +412,73 @@ export async function createDemoCondominium(opts: { syndicEmail: string }) {
   // ───── Fornecedores: agenda e orçamentos (aguardando, comparação do mesmo serviço, aprovados e recusados)
   await seedSuppliers({ cid, r, person, now, ddd: place.ddd, size: U / 64, caretaker, syndic });
 
+  // ───── Chamados de moradores e conselho: aguardando, em conversa, que viraram OS, resolvidos e encerrados
+  await seedTickets({
+    cid, r, now, syndic, areas,
+    authors: [
+      { user: res1, unitId: units[uR1].id }, { user: res2, unitId: units[uR2].id },
+      { user: council1, unitId: units[uC1].id }, { user: council2, unitId: units[uC2].id },
+    ],
+  });
+
   return condo;
+}
+
+/**
+ * Chamados fictícios: dois aguardando resposta, dois em conversa, um que virou uma OS em andamento, um resolvido
+ * pela OS aprovada, um resolvido direto e um encerrado com motivo.
+ */
+async function seedTickets(c: {
+  cid: string; r: Rng; now: number; syndic: { id: string; name: string }; areas: Record<string, string>;
+  authors: { user: { id: string; name: string; role: string }; unitId: string }[];
+}) {
+  const { cid, r, now, syndic } = c;
+  const pool = r.shuffle(DEMO_TICKETS);
+  const live = await db.serviceOrder.findFirst({ where: { condominiumId: cid, status: "in_progress" }, select: { id: true, protocol: true, title: true, description: true, createdAt: true, commonAreaId: true } });
+  const done = await db.serviceOrder.findFirst({ where: { condominiumId: cid, status: "approved" }, orderBy: { approvedAt: "desc" }, select: { id: true, protocol: true, title: true, description: true, createdAt: true, approvedAt: true, commonAreaId: true } });
+  // Situação de cada chamado, na ordem do sorteio
+  const plan = ["open", "open", "in_review", "in_review", "converted", "resolved_os", "resolved", "closed"] as const;
+  let n = 0;
+  for (const [i, state] of plan.entries()) {
+    const os = state === "converted" ? live : state === "resolved_os" ? done : null;
+    if ((state === "converted" || state === "resolved_os") && !os) continue;
+    const tpl = pool[i % pool.length];
+    const a = c.authors[i % c.authors.length];
+    const hours = state === "open" ? r.int(2, 30) : os ? Math.max(30, (now - os.createdAt.getTime()) / 3600_000 + r.int(3, 20)) : r.int(40, 400);
+    const created = new Date(now - hours * 3600_000);
+    const answered = state === "open" ? null : new Date(created.getTime() + r.int(1, 20) * 3600_000);
+    const closed = state === "resolved" || state === "closed" ? new Date(answered!.getTime() + r.int(10, 72) * 3600_000) : state === "resolved_os" ? done!.approvedAt : null;
+    const title = os ? os.title : tpl.title;
+    const t = await db.ticket.create({
+      data: {
+        condominiumId: cid, number: ++n, kind: os ? "problem" : tpl.kind, title,
+        description: os ? os.description : tpl.desc,
+        locationType: os ? (os.commonAreaId ? "common_area" : null) : tpl.area && c.areas[tpl.area] ? "common_area" : tpl.unit ? "unit" : null,
+        commonAreaId: os ? os.commonAreaId : tpl.area ? c.areas[tpl.area] ?? null : null,
+        unitId: a.unitId,
+        status: state === "resolved_os" ? "resolved" : state,
+        createdById: a.user.id, createdByName: a.user.name, createdByRole: a.user.role,
+        createdAt: created, answeredAt: answered, serviceOrderId: os?.id ?? null, convertedAt: os ? answered : null,
+        closedAt: closed, closedByName: closed ? syndic.name : null,
+        closeNote: state === "closed" ? "Não é responsabilidade do condomínio: o reparo é da unidade. Indicamos um prestador por mensagem." : state === "resolved_os" ? `Serviço concluído pela OS ${os!.protocol}.` : state === "resolved" ? "Resolvido. Obrigado por avisar!" : null,
+      },
+    });
+    const msgs: { by: "s" | "a" | "sys"; body: string; at: Date }[] = [];
+    if (answered) msgs.push({ by: "s", body: os ? "Vamos abrir uma ordem de serviço para resolver." : tpl.reply, at: answered });
+    if (answered && tpl.answer && !os) msgs.push({ by: "a", body: tpl.answer, at: new Date(answered.getTime() + r.int(1, 6) * 3600_000) });
+    if (os && answered) msgs.push({ by: "sys", body: `Virou a ordem de serviço ${os.protocol}.`, at: new Date(answered.getTime() + 60_000) });
+    if (state === "resolved_os" && closed) msgs.push({ by: "sys", body: `A OS ${os!.protocol} foi concluída e aprovada. Chamado resolvido.`, at: closed });
+    if (state === "resolved" && closed) msgs.push({ by: "sys", body: "Chamado resolvido.\nResolvido. Obrigado por avisar!", at: closed });
+    if (state === "closed" && closed) msgs.push({ by: "sys", body: "Chamado encerrado sem resolver.\nNão é responsabilidade do condomínio: o reparo é da unidade. Indicamos um prestador por mensagem.", at: closed });
+    if (msgs.length) {
+      await db.ticketMessage.createMany({
+        data: msgs.map((m) => m.by === "a"
+          ? { ticketId: t.id, authorId: a.user.id, authorName: a.user.name, authorRole: a.user.role, body: m.body, createdAt: m.at }
+          : { ticketId: t.id, authorId: syndic.id, authorName: syndic.name, authorRole: "syndic", body: m.body, system: m.by === "sys", createdAt: m.at }),
+      });
+    }
+  }
+  await db.condominium.update({ where: { id: cid }, data: { ticketCounter: n } });
 }
 
 /** PDF de uma página com o texto do orçamento fictício (Helvetica, sem biblioteca). */
@@ -800,6 +866,7 @@ export async function deleteDemoCondominium(id: string) {
   for (const o of orderIds) await deleteFolder(o).catch(() => null);
   for (const p of await db.parcel.findMany({ where: { condominiumId: id, photoUrl: { not: null } }, select: { id: true } })) await deleteFolder(`parcel-${p.id}`).catch(() => null);
   await deleteFolder(`quote-${id}`).catch(() => null);
+  await deleteFolder(`ticket-${id}`).catch(() => null);
 
   // Pessoas fictícias: e-mail da demonstração e nenhum vínculo com outro condomínio
   const fake = await db.user.findMany({

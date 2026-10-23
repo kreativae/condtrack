@@ -33,5 +33,5 @@ export const config = {
   // /api/checklist (upload de foto, confere a sessão) e /api/cron (CRON_SECRET) também se autenticam sozinhos.
   // /api/financeiro (anexos e exportação) confere a sessão e o acesso ao Financeiro em cada rota.
   // /api/fornecedores (arquivos dos orçamentos) também confere a sessão e o condomínio em cada rota.
-  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/financeiro|api/fornecedores|api/cron|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico|sw.js|icon-192.png|icon-512.png|apple-icon.png|badge-96.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/financeiro|api/fornecedores|api/chamados|api/cron|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico|sw.js|icon-192.png|icon-512.png|apple-icon.png|badge-96.png).*)"],
 };

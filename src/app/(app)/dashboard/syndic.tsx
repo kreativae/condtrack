@@ -16,12 +16,14 @@ import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
 import { fmtBRL } from "@/lib/finance";
 import { feedInclude } from "@/components/feed-card";
 import { ServiceShowcase } from "@/components/service-card";
+import { TicketMiniList } from "@/components/tickets/ticket-mini-list";
+import { nowMs } from "@/lib/format";
 
 export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
   const show = dashboardVisibility(user.dashboardHidden);
   const where = { condominiumId: cid };
-  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, quotes, delivered] = await Promise.all([
+  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, quotes, delivered, tickets] = await Promise.all([
     orderMetrics(where),
     db.serviceOrder.findMany({ where: { ...where, status: "validated" }, include: orderListInclude, orderBy: { validatedAt: "asc" } }),
     db.serviceOrder.findMany({ where, include: orderListInclude, orderBy: { updatedAt: "desc" }, take: 6 }),
@@ -33,6 +35,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
     db.user.findMany({ where: inCondo(cid, ["provider"]), select: { id: true, name: true } }),
     show("quotes") ? db.supplierQuote.findMany({ where: { ...where, status: "pending" }, include: { supplier: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
     show("delivered") ? db.serviceOrder.findMany({ where: { ...where, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }) : [],
+    show("tickets") ? db.ticket.findMany({ where: { ...where, status: { in: ["open", "in_review"] } }, orderBy: { createdAt: "asc" } }) : [],
   ]);
   const name = (list: { id: string; name: string }[], id: string | null) => list.find((x) => x.id === id)?.name ?? "Sem categoria";
   const top = <T,>(rows: (T & { _count: number })[], key: (r: T) => string) =>
@@ -64,6 +67,19 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
         <section className="mb-8">
           <h2 className="mb-4 flex items-center gap-3 font-display font-semibold text-xl">Aprovações pendentes <span className="font-num text-sm text-brand">{pending.length}</span></h2>
           <OrderList orders={pending} />
+        </section>
+      )}
+
+      {show("tickets") && tickets.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-4 flex items-center gap-3 font-display text-xl font-semibold">
+            Chamados dos moradores <span className="font-num text-sm text-brand">{tickets.length}</span>
+            <Link href="/chamados" className="ml-auto text-xs font-medium text-brand hover:underline">Ver todos</Link>
+          </h2>
+          <Card>
+            <TicketMiniList items={tickets.slice(0, 5)} showAuthor now={new Date(nowMs())} />
+            {tickets.length > 5 && <Link href="/chamados" className="block border-t border-line px-4 py-2.5 text-center text-xs font-medium text-brand hover:bg-bg-2">Mais {tickets.length - 5}</Link>}
+          </Card>
         </section>
       )}
 

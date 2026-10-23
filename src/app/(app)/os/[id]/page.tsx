@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { activateMembership } from "@/lib/memberships";
 import Link from "next/link";
-import { ArrowLeft, CalendarClock, Pencil, Check, Clock, MapPin, Package, Star, Tag, User as UserIcon } from "lucide-react";
+import { ArrowLeft, CalendarClock, Pencil, Check, Clock, Inbox, MapPin, Package, Star, Tag, User as UserIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { inCondo } from "@/lib/memberships";
 import { requireUser } from "@/lib/auth";
@@ -94,6 +94,8 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
   const lastRejection = status === "rejected" ? [...o.events].reverse().find((e) => e.type === "rejection") : null;
   const phases: Phase[] = ["opening", "before", "after"];
   const canComment = user.role === "council" ? o.requestedById === user.id : user.role !== "resident";
+  // Chamado de morador que virou esta OS (só quem atende chamados abre o link)
+  const ticket = user.role === "syndic" || user.role === "superadmin" ? await db.ticket.findFirst({ where: { serviceOrderId: o.id }, select: { id: true, number: true, createdByName: true } }) : null;
 
   return (
     <div className="animate-in">
@@ -122,6 +124,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
             </span>
           )}
           {user.role === "superadmin" && <span className="text-muted">· {o.condominium.name}</span>}
+          {ticket && <Link href={`/chamados/${ticket.id}`} className="flex items-center gap-2 font-medium text-brand hover:underline"><Inbox className="size-4" />Chamado #{ticket.number} de {ticket.createdByName}</Link>}
         </div>
       </header>
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createElement } from "react";
-import { CalendarDays, Contact } from "lucide-react";
+import { CalendarDays, Contact, Inbox } from "lucide-react";
 import { fmtPeriod } from "@/lib/booking";
 import { db } from "@/lib/db";
 import { nowMs } from "@/lib/format";
@@ -38,7 +38,10 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
     .sort((a, b) => b.value - a.value);
   const unit = user.units[0]?.unit;
   const unitIds = user.units.filter((u) => u.unit.building.condominiumId === cid).map((u) => u.unitId);
-  const parcels = await db.parcel.count({ where: { unitId: { in: unitIds }, status: "waiting" } });
+  const [parcels, openTickets] = await Promise.all([
+    db.parcel.count({ where: { unitId: { in: unitIds }, status: "waiting" } }),
+    db.ticket.count({ where: { condominiumId: cid, createdById: user.id, status: { in: ["open", "in_review", "converted"] } } }),
+  ]);
   const next = await db.booking.findFirst({
     where: { condominiumId: cid, status: { in: ["pending", "approved"] }, endAt: { gt: new Date() }, OR: [{ requestedById: user.id }, { unitId: { in: unitIds } }] },
     include: { commonArea: { select: { name: true } } },
@@ -52,7 +55,7 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
         title={`Olá, ${user.name.split(" ")[0]}`}
         description="Acompanhe tudo o que foi feito no seu condomínio."
       />
-      <div className="mb-6 grid gap-3 sm:grid-cols-2">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Link href="/reservas" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
           <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><CalendarDays className="size-5" /></span>
           <span className="min-w-0 flex-1"><b className="block text-sm">Reservas</b><span className="text-xs text-muted">{next ? `Próxima: ${next.commonArea.name}, ${fmtPeriod(next.startAt, next.endAt)}` : "Salão, churrasqueira e outros espaços"}</span></span>
@@ -60,6 +63,10 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
         <Link href="/minha-unidade" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
           <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><Contact className="size-5" /></span>
           <span className="min-w-0 flex-1"><b className="block text-sm">Minha unidade</b><span className={parcels ? "text-xs font-medium text-brand" : "text-xs text-muted"}>{parcels ? `${parcels} encomenda(s) aguardando na portaria` : "Moradores, visitantes, prestadores e encomendas"}</span></span>
+        </Link>
+        <Link href={openTickets ? "/chamados" : "/chamados/novo"} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><Inbox className="size-5" /></span>
+          <span className="min-w-0 flex-1"><b className="block text-sm">Chamados</b><span className={openTickets ? "text-xs font-medium text-brand" : "text-xs text-muted"}>{openTickets ? `${openTickets} chamado(s) em andamento` : "Problema, reclamação ou sugestão para o síndico"}</span></span>
         </Link>
       </div>
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
