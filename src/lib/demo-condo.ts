@@ -15,7 +15,7 @@ import {
   ONE_OFF_EXPENSES, ORDER_POOL, ORDER_STATUSES, PROVIDER_KINDS, RATING_COMMENTS, SURNAMES, TOWER_PAIRS, VENDORS,
   fakeCnpj, rng, slugifyName, type ProviderKind,
 } from "./demo-data";
-import { DEMO_PASSWORD } from "./demo-accounts";
+import { DEMO_PASSWORD, isExternalDemoEmail } from "./demo-accounts";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -971,6 +971,12 @@ export async function deleteDemoCondominium(id: string) {
   });
   const fakeIds = fake.map((u) => u.id);
 
+  // Contas da série externa (sindicoN@…) só desta demonstração: saem junto, liberando o número para a próxima
+  const external = (await db.user.findMany({
+    where: { email: { endsWith: "@condtrack.app" }, role: { not: "superadmin" }, memberships: { some: { condominiumId: id }, every: { condominiumId: id } } },
+    select: { id: true, email: true },
+  })).filter((u) => isExternalDemoEmail(u.email));
+
   // Pessoas reais com a demonstração ativa: ativa outro vínculo (ou fica sem condomínio)
   const active = await db.user.findMany({ where: { condominiumId: id, id: { notIn: fakeIds } }, select: { id: true } });
   for (const u of active) {
@@ -993,5 +999,11 @@ export async function deleteDemoCondominium(id: string) {
     db.user.deleteMany({ where: { id: { in: fakeIds } } }),
     db.condominium.delete({ where: { id } }),
   ]);
-  return { name: condo.name, people: fakeIds.length, orders: orderIds.length };
+  // Conta presa a algum registro de fora: fica desativada com outro e-mail, para o número ficar livre mesmo assim
+  for (const u of external) {
+    await db.user.delete({ where: { id: u.id } }).catch(() =>
+      db.user.update({ where: { id: u.id }, data: { status: "inactive", email: `${u.email.split("@")[0]}.${u.id.slice(-6)}@removido.condtrack.app` } }).catch(() => null),
+    );
+  }
+  return { name: condo.name, people: fakeIds.length + external.length, orders: orderIds.length };
 }

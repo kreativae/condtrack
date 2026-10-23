@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_DEFAULT_ACCOUNTS, externalDemoAccounts, nextExternalNumber, normalizeDemoAccounts, parseDemoAccounts } from "../demo-accounts";
+import { DEMO_DEFAULT_ACCOUNTS, externalDemoAccounts, isExternalDemoEmail, nextExternalNumber, normalizeDemoAccounts, parseDemoAccounts } from "../demo-accounts";
 
 describe("contas reais na demonstração", () => {
   it("limpa os e-mails e ignora os perfis em branco", () => {
@@ -45,5 +45,12 @@ describe("demonstração externa (contas numeradas)", () => {
     // Já existe uma conta da série 2 (de outro uso): pula a série inteira
     expect(nextExternalNumber(["sindico2@condtrack.app"])).toBe(1);
     expect(nextExternalNumber(["conselho1@condtrack.app", "sindico2@condtrack.app", "morador4@condtrack.app"])).toBe(3);
+  });
+
+  it("reconhece só as contas das séries externas (as que são apagadas com a demonstração)", () => {
+    expect(isExternalDemoEmail("Zelador12@condtrack.app")).toBe(true);
+    expect(isExternalDemoEmail("sindico@condtrack.app")).toBe(false);
+    expect(isExternalDemoEmail("sindico1@outro.com")).toBe(false);
+    expect(isExternalDemoEmail("joao1@condtrack.app")).toBe(false);
   });
 });

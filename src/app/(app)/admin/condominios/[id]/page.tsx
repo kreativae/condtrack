@@ -15,6 +15,7 @@ import { ArchiveCondoButton, ForceDeleteCondoButton, PurgeCondoButton, RestoreCo
 import { fmtDateTime } from "@/lib/format";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { LAYOUTS, type Layout } from "@/lib/units";
+import { DEMO_PASSWORD } from "@/lib/demo-accounts";
 
 export const metadata: Metadata = { title: "Condomínio" };
 // Excluir uma demonstração apaga as mídias de cada OS
@@ -35,6 +36,14 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
     db.user.findMany({ where: { memberships: { some: { condominiumId: id, role: "syndic" } } }, select: { id: true, name: true, email: true, avatarUrl: true }, orderBy: { name: "asc" } }),
     db.booking.count({ where: { condominiumId: id } }),
   ]);
+  // Demonstração: as contas de verdade usadas nos perfis (as fictícias são @demo.condtrack.app)
+  const demoLogins = c.demo
+    ? await db.membership.findMany({
+        where: { condominiumId: id, user: { email: { not: { endsWith: "@demo.condtrack.app" } }, role: { not: "superadmin" } } },
+        select: { role: true, user: { select: { email: true } } },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
 
   return (
     <div className="animate-in">
@@ -68,6 +77,19 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
             <CardHeader title="Síndicos" subtitle="Quem administra e aprova os pedidos do superadmin" />
             <SyndicsCard condoId={c.id} syndics={syndics} />
           </Card>
+          {demoLogins.length > 0 && (
+            <Card>
+              <CardHeader title="Contas para entrar" subtitle={`Criadas pela demonstração com a senha ${DEMO_PASSWORD} (contas que já existiam mantêm a senha delas).`} />
+              <ul className="divide-y divide-line text-sm">
+                {demoLogins.map((l) => (
+                  <li key={l.user.email} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <span className="text-muted">{ROLE_LABEL[l.role as Role]}</span>
+                    <span className="min-w-0 break-all text-right font-mono text-[13px]">{l.user.email}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
           {!c.deletedAt && bookings === 0 && (
             <Card>
               <CardHeader title="Dados de apresentação" subtitle="Portaria e reservas fictícias, para mostrar o sistema. Só aparece enquanto não houver reservas." />

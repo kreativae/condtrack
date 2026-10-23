@@ -46,25 +46,23 @@ export function DemoCondoButton({ saved, nextExternal }: { saved: DemoAccounts; 
                 Cria um condomínio com nome sorteado e dados fictícios em todas as páginas: ordens de serviço, financeiro,
                 checklist, comunicados, assembleias, portaria, fornecedores e chamados.
               </p>
-              <input type="hidden" name="mode" value={mode} />
-              <div role="radiogroup" aria-label="Tipo de demonstração" className="grid grid-cols-2 gap-2">
+              {/* Rádios de verdade: o tipo escolhido vai no próprio formulário */}
+              <fieldset className="grid grid-cols-2 gap-2">
+                <legend className="sr-only">Tipo de demonstração</legend>
                 {MODES.map((m) => (
-                  <button
+                  <label
                     key={m.key}
-                    type="button"
-                    role="radio"
-                    aria-checked={mode === m.key}
-                    onClick={() => setMode(m.key)}
-                    className={cx("flex items-center gap-3 rounded-2xl border p-3 text-left transition", mode === m.key ? "border-brand bg-brand/5 ring-1 ring-brand" : "border-line hover:bg-bg-2")}
+                    className={cx("flex cursor-pointer items-center gap-3 rounded-2xl border p-3 text-left transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand", mode === m.key ? "border-brand bg-brand/5 ring-1 ring-brand" : "border-line hover:bg-bg-2")}
                   >
+                    <input type="radio" name="mode" value={m.key} checked={mode === m.key} onChange={() => setMode(m.key)} className="sr-only" />
                     <m.icon className={cx("size-5 shrink-0", mode === m.key ? "text-brand" : "text-muted")} />
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold">{m.label}</span>
                       <span className="block truncate text-xs text-muted">{m.hint}</span>
                     </span>
-                  </button>
+                  </label>
                 ))}
-              </div>
+              </fieldset>
               {mode === "internal" ? (
                 <>
                   <Field label="Síndico" hint={`Se a conta não existir, é criada com a senha ${DEMO_PASSWORD}. Contas que já existem mantêm a senha.`}>

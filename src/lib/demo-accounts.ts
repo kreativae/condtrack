@@ -83,5 +83,8 @@ export function nextExternalNumber(emails: string[]) {
   return n;
 }
 
+/** Conta de uma série externa (sindico3@…): é apagada junto com a demonstração, liberando o número. */
+export const isExternalDemoEmail = (email: string) => EXTERNAL_RE.test(email.toLowerCase());
+
 /** Filtro para buscar no banco os e-mails das séries externas (o número exato sai de nextExternalNumber). */
 export const externalEmailFilter = () => ({ OR: Object.values(EXTERNAL_PREFIX).map((p) => ({ email: { startsWith: p, endsWith: `@${DEMO_EXTERNAL_DOMAIN}` } })) });

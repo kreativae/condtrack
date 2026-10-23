@@ -13,7 +13,7 @@ export function DeleteDemoButton({ id, name }: { id: string; name: string }) {
       variant="danger"
       disabled={pending}
       onClick={() => {
-        if (!confirm(`Excluir a demonstração “${name}”? Ordens de serviço, financeiro, checklist, comunicados e as pessoas fictícias serão apagados. Não dá para desfazer.`)) return;
+        if (!confirm(`Excluir a demonstração “${name}”? Ordens de serviço, financeiro, checklist, comunicados, as pessoas fictícias e as contas numeradas (sindicoN@…) só desta demonstração serão apagados. Não dá para desfazer.`)) return;
         start(() => deleteDemoCondo(id));
       }}
     >
