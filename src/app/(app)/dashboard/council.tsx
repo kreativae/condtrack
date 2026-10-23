@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth";
 import { orderListInclude } from "@/lib/orders";
 import { fmtRelative } from "@/lib/format";
-import { FeedCard, feedInclude } from "@/components/feed-card";
+import { feedInclude } from "@/components/feed-card";
+import { ServiceCard } from "@/components/service-card";
 import { OrderList } from "@/components/order-list";
 import { Card, CardHeader, LinkButton, PageHeader, cx } from "@/components/ui";
 import { unitLabel } from "@/lib/units";
@@ -18,7 +19,7 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
   // Resumo financeiro só entra nas opções quando o conselho tem acesso
   const sections = DASHBOARD_SECTIONS.council.filter((s) => s.key !== "finance" || user.condominium?.councilFinanceAccess);
   const [feed, mine, news] = await Promise.all([
-    db.serviceOrder.findMany({ where: { condominiumId: cid, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 3 }),
+    db.serviceOrder.findMany({ where: { condominiumId: cid, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }),
     db.serviceOrder.findMany({ where: { requestedById: user.id, status: { notIn: ["cancelled"] } }, include: orderListInclude, orderBy: { createdAt: "desc" }, take: 5 }),
     db.announcement.findMany({ where: { condominiumId: cid }, orderBy: { publishedAt: "desc" }, take: 3 }),
   ]);
@@ -40,7 +41,11 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
             <h2 className="font-display font-semibold text-xl">Serviços recentes no prédio</h2>
             <Link href="/feed" className="text-xs font-medium text-brand hover:underline">Ver feed</Link>
           </div>
-          {feed.map((o) => <FeedCard key={o.id} o={o} />)}
+          {feed.length ? (
+            <div className="grid gap-4 sm:grid-cols-2">{feed.map((o) => <ServiceCard key={o.id} o={o} />)}</div>
+          ) : (
+            <Card className="p-10 text-center text-sm text-muted">Nenhum serviço entregue ainda.</Card>
+          )}
         </section>
         )}
         {(show("mine") || show("news")) && (
