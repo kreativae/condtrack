@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { createPortal } from "react-dom";
 import { FlaskConical, Loader2, X } from "lucide-react";
 import { Alert, Button, Field, Input, buttonClass } from "@/components/ui";
-import { DEMO_SLOTS, type DemoAccounts } from "@/lib/demo-accounts";
+import { DEMO_PASSWORD, DEMO_SLOTS, type DemoAccounts } from "@/lib/demo-accounts";
 import { createDemoCondo, type DemoState } from "@/app/actions/demo";
 
 /**
@@ -39,12 +39,12 @@ export function DemoCondoButton({ saved }: { saved: DemoAccounts }) {
                 Cria um condomínio com nome sorteado e dados fictícios em todas as páginas: ordens de serviço, financeiro,
                 checklist, comunicados, assembleias, portaria, fornecedores e chamados.
               </p>
-              <Field label="Síndico" hint="A pessoa precisa já ter cadastro. A senha e o condomínio atual dela não mudam.">
+              <Field label="Síndico" hint={`Se a conta não existir, é criada com a senha ${DEMO_PASSWORD}. Contas que já existem mantêm a senha.`}>
                 <Input name="syndic" type="email" required autoFocus defaultValue={state?.values?.syndic ?? saved.syndic} placeholder="E-mail do síndico" />
               </Field>
               <div className="rounded-2xl bg-bg-2 p-4">
                 <p className="text-sm font-medium">Contas reais nos outros perfis</p>
-                <p className="mb-3 text-xs text-muted">Opcional. Cada conta ganha um vínculo com a demonstração (troca pelo cartão do menu). Em branco, entra uma pessoa fictícia. Os e-mails ficam salvos para a próxima vez.</p>
+                <p className="mb-3 text-xs text-muted">Cada conta ganha um vínculo com a demonstração (troca pelo cartão do menu); a que não existir é criada com a senha {DEMO_PASSWORD}. Em branco, entra uma pessoa fictícia. Os e-mails ficam salvos para a próxima vez.</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {DEMO_SLOTS.filter((s) => s.key !== "syndic").map((s) => (
                     <Field key={s.key} label={s.label}>

@@ -15,10 +15,12 @@ import {
   ONE_OFF_EXPENSES, ORDER_POOL, ORDER_STATUSES, PROVIDER_KINDS, RATING_COMMENTS, SURNAMES, TOWER_PAIRS, VENDORS,
   fakeCnpj, rng, slugifyName, type ProviderKind,
 } from "./demo-data";
+import { DEMO_PASSWORD } from "./demo-accounts";
 
 // Condomínio de demonstração com dados fictícios em todas as áreas (OS com antes/depois, financeiro do
 // ano, 3 semanas de checklist, manutenção, orçamento, assembleias, comunicados, portaria, fornecedores). Cada geração sai diferente
-// (sorteio em demo-data.ts). Ninguém dos usuários fictícios consegue entrar: a senha é aleatória e descartada.
+// (sorteio em demo-data.ts). Ninguém dos usuários fictícios consegue entrar: a senha é aleatória e descartada. Para entrar
+// em cada perfil, use as contas de teste (lib/demo-accounts.ts), criadas com a senha padrão quando não existem.
 
 const DAY = 86_400_000;
 
@@ -40,8 +42,9 @@ const at = (day: string, hhmm: string) => new Date(`${day}T${hhmm}:00-03:00`);
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * `real`: contas que já existem e entram no lugar das pessoas fictícias (zelador, porteiro, um conselheiro, um morador
- * e o prestador de manutenção geral). Ganham só o vínculo com a demonstração: senha e condomínio ativo não mudam.
+ * `real`: contas de verdade no lugar das pessoas fictícias (zelador, porteiro, um conselheiro, um morador e o prestador
+ * de manutenção geral). As que já existem ganham só o vínculo com a demonstração (senha não muda; o condomínio ativo
+ * só muda se não tiverem nenhum); as que não existem são criadas com a senha DEMO_PASSWORD. Vale também para o síndico.
  */
 export async function createDemoCondominium(opts: { syndicEmail: string; real?: Partial<Record<"caretaker" | "doorman" | "council" | "resident" | "provider", string>> }) {
   const now = Date.now();
@@ -49,8 +52,6 @@ export async function createDemoCondominium(opts: { syndicEmail: string; real?: 
   const tag = randomBytes(3).toString("hex");
   const r = rng(randomBytes(4).readUInt32BE(0));
   const passwordHash = await bcrypt.hash(randomBytes(24).toString("hex"), 10);
-  const syndic = await db.user.findUnique({ where: { email: opts.syndicEmail } });
-  if (!syndic) throw new Error(`Usuário ${opts.syndicEmail} não encontrado.`);
 
   // ───── Sorteio do perfil: nome que ainda não existe, cidade, torres, porte
   const taken = new Set((await db.condominium.findMany({ select: { name: true } })).map((c) => c.name));
@@ -103,26 +104,36 @@ export async function createDemoCondominium(opts: { syndicEmail: string; real?: 
     await db.membership.create({ data: { userId: u.id, condominiumId: cid, role } });
     return u;
   };
-  // Conta real no lugar da fictícia: só o vínculo com este condomínio (o perfil vale só aqui)
-  const realOr = async (email: string | undefined, role: string, fake: () => ReturnType<typeof mk>) => {
-    const u = email ? await db.user.findUnique({ where: { email } }) : null;
-    if (!u) return fake();
-    used.add(u.name);
+  // Conta real no lugar da fictícia: só o vínculo com este condomínio (o perfil vale só aqui). Sem cadastro, cria a
+  // conta de teste com a senha padrão; quem não tem condomínio ativo passa a ter este.
+  let demoHash: string | null = null;
+  const account = async (email: string, role: string, permissions = "", extra: { company?: string; specialty?: string } = {}) => {
+    let u = await db.user.findUnique({ where: { email } });
+    if (u) used.add(u.name);
+    else {
+      demoHash ??= await bcrypt.hash(DEMO_PASSWORD, 10);
+      u = await db.user.create({ data: { name: person(r.next() < 0.5), email, role, permissions, condominiumId: cid, passwordHash: demoHash, ...extra } });
+    }
     await db.membership.upsert({
       where: { userId_condominiumId: { userId: u.id, condominiumId: cid } },
-      create: { userId: u.id, condominiumId: cid, role },
-      update: { role },
+      create: { userId: u.id, condominiumId: cid, role, permissions },
+      update: { role, permissions },
     });
+    if (!u.condominiumId) await activateMembership(u.id, cid);
     return { ...u, role };
   };
+  const realOr = (email: string | undefined, role: string, fake: () => ReturnType<typeof mk>, extra?: { company?: string; specialty?: string }) =>
+    email ? account(email, role, "", extra) : fake();
   const real = opts.real ?? {};
+  // Síndico (com as permissões extras); o condomínio ativo dele só muda se não tiver nenhum
+  const syndic = await account(opts.syndicEmail, "syndic", "checklist_edit,audit");
   const caretaker = await realOr(real.caretaker, "caretaker", () => mk(person(r.next() < 0.3), "zelador", "caretaker"));
   const providers = {} as Record<ProviderKind, Awaited<ReturnType<typeof mk>>>;
   for (const kind of Object.keys(PROVIDER_KINDS) as ProviderKind[]) {
     const n = person(r.next() < 0.4);
     const k = PROVIDER_KINDS[kind];
     const fake = () => mk(n, kind, "provider", { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty });
-    providers[kind] = kind === "geral" ? await realOr(real.provider, "provider", fake) : await fake();
+    providers[kind] = kind === "geral" ? await realOr(real.provider, "provider", fake, { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty }) : await fake();
   }
   const providerFor = (cat: string) => (Object.keys(PROVIDER_KINDS) as ProviderKind[]).map((k) => (PROVIDER_KINDS[k].cats as readonly string[]).includes(cat) ? providers[k] : null).find(Boolean) ?? providers.geral;
   const council1 = await realOr(real.council, "council", () => mk(person(true), "conselho1", "council"));
@@ -141,12 +152,6 @@ export async function createDemoCondominium(opts: { syndicEmail: string; real?: 
   });
   const owners = new Map([[units[uC1].id, council1.id], [units[uC2].id, council2.id], [units[uR2].id, res2.id], ...(real.resident && res1.email === real.resident ? [[units[uR1].id, res1.id] as [string, string]] : [])]);
 
-  // Vínculo como síndico (com as permissões extras); o condomínio ativo dele não muda
-  await db.membership.upsert({
-    where: { userId_condominiumId: { userId: syndic.id, condominiumId: cid } },
-    create: { userId: syndic.id, condominiumId: cid, role: "syndic", permissions: "checklist_edit,audit" },
-    update: { role: "syndic", permissions: "checklist_edit,audit" },
-  });
 
   // ───── Categorias, áreas e itens do checklist
   const catDefs: [string, string, string][] = [

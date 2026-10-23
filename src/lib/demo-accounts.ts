@@ -11,6 +11,17 @@ export const DEMO_SLOTS = [
 export type DemoSlot = (typeof DEMO_SLOTS)[number]["key"];
 export type DemoAccounts = Partial<Record<DemoSlot, string>>;
 
+/** Contas de teste usadas por padrão. As que não existirem são criadas com DEMO_PASSWORD. */
+export const DEMO_DEFAULT_ACCOUNTS: DemoAccounts = {
+  syndic: "sindico@condtrack.app",
+  caretaker: "zelador@condtrack.app",
+  doorman: "porteiro@condtrack.app",
+  council: "conselho@condtrack.app",
+  resident: "morador@condtrack.app",
+  provider: "prestador@condtrack.app",
+};
+export const DEMO_PASSWORD = "condtrack123";
+
 /** Setting com os e-mails da última demonstração (só e-mails, JSON puro; só o superadmin lê). */
 export const DEMO_ACCOUNTS_KEY = "demo_accounts";
 
@@ -32,8 +43,9 @@ export function normalizeDemoAccounts(input: Partial<Record<string, unknown>>): 
   return { accounts };
 }
 
-/** Lê o Setting salvo (o que não for e-mail é ignorado). */
+/** Lê o Setting salvo (o que não for e-mail é ignorado); sem nada salvo, as contas de teste padrão. */
 export function parseDemoAccounts(raw: string | null | undefined): DemoAccounts {
+  if (raw == null) return DEMO_DEFAULT_ACCOUNTS;
   try {
     const v = JSON.parse(raw ?? "{}") as Record<string, unknown>;
     return Object.fromEntries(DEMO_SLOTS.flatMap((s) => (typeof v[s.key] === "string" && EMAIL.test(v[s.key] as string) ? [[s.key, v[s.key]]] : []))) as DemoAccounts;

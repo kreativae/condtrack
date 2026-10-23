@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDemoAccounts, parseDemoAccounts } from "../demo-accounts";
+import { DEMO_DEFAULT_ACCOUNTS, normalizeDemoAccounts, parseDemoAccounts } from "../demo-accounts";
 
 describe("contas reais na demonstração", () => {
   it("limpa os e-mails e ignora os perfis em branco", () => {
@@ -17,6 +17,8 @@ describe("contas reais na demonstração", () => {
   it("o Setting salvo só devolve e-mails dos perfis conhecidos", () => {
     expect(parseDemoAccounts('{"syndic":"s@x.co","caretaker":"nada","outro":"o@x.co"}')).toEqual({ syndic: "s@x.co" });
     expect(parseDemoAccounts("quebrado")).toEqual({});
-    expect(parseDemoAccounts(null)).toEqual({});
+    // Nada salvo ainda: as contas de teste padrão (uma por perfil, sem repetir)
+    expect(parseDemoAccounts(null)).toEqual(DEMO_DEFAULT_ACCOUNTS);
+    expect(normalizeDemoAccounts(DEMO_DEFAULT_ACCOUNTS).error).toBeUndefined();
   });
 });

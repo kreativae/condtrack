@@ -15,7 +15,8 @@ export type DemoState = { error?: string; values?: Record<string, string> } | nu
 
 /**
  * Cria o condomínio de demonstração com o síndico escolhido pelo e-mail e, opcionalmente, contas reais para zelador,
- * porteiro, conselho, morador e prestador (no lugar das fictícias). Os e-mails ficam salvos para a próxima vez.
+ * porteiro, conselho, morador e prestador (no lugar das fictícias). E-mail sem cadastro vira uma conta de teste com a
+ * senha padrão (DEMO_PASSWORD). Os e-mails ficam salvos para a próxima vez.
  */
 export async function createDemoCondo(_prev: DemoState, form: FormData): Promise<DemoState> {
   const me = await requireUser("superadmin");
@@ -29,7 +30,7 @@ export async function createDemoCondo(_prev: DemoState, form: FormData): Promise
     const email = accounts[s.key];
     if (!email) continue;
     const u = found.find((x) => x.email === email);
-    if (!u) return { error: `${s.label}: nenhum usuário com ${email}. Cadastre a pessoa antes em Usuários.`, values };
+    if (!u) continue; // conta de teste nova: criada na geração com a senha padrão
     if (u.role === "superadmin") return { error: `${s.label}: o superadmin já vê todos os condomínios; escolha outro usuário.`, values };
     if (u.status !== "active") return { error: `${s.label}: a conta ${email} está desativada.`, values };
   }
