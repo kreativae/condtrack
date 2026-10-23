@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Contact, MapPin } from "lucide-react";
+import { Contact, MapPin, Smartphone } from "lucide-react";
 import { parcelOverdue, waitLabel } from "@/lib/parcels";
 import { thumb } from "@/lib/media-url";
 import { db } from "@/lib/db";
@@ -42,10 +42,11 @@ export default async function MyUnitPage() {
   const doneParcels = parcels.filter((p) => p.status !== "waiting").slice(0, 10);
 
   return (
-    <div className="mx-auto max-w-4xl animate-in">
+    <div className="mx-auto max-w-6xl animate-in">
       {header}
-      <div className="space-y-6">
-        <Card>
+      {/* Computador: a unidade à esquerda; encomendas e entradas na coluna da direita. Celular: encomendas, unidade, entradas */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr]">
+        <Card className="lg:col-start-2 lg:row-start-1">
           <CardHeader title={`Encomendas na portaria (${waitingParcels.length})`} subtitle="Você é avisado quando chega e quando alguém retira." />
           {waitingParcels.length ? (
             <ul className="divide-y divide-line">
@@ -82,17 +83,34 @@ export default async function MyUnitPage() {
             </details>
           )}
         </Card>
+        <div className="space-y-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
         {units.map((u) => {
           const mine = grants.filter((g) => g.unitId === u.id);
           const unitOpt = [{ id: u.id, label: u.label }];
+          const appUsers = accounts.filter((a) => a.unitId === u.id && a.user.status === "active");
+          const validToday = mine.filter((g) => g.kind !== "resident" && toGrantData(g, now).status === "today").length;
           return (
             <Card key={u.id}>
               <CardHeader title={u.label} subtitle={UNIT_ROLE[u.role] ? `Você: ${UNIT_ROLE[u.role].toLowerCase()}` : undefined} />
-              <div className="border-b border-line px-5 py-3">
-                <p className="text-xs font-medium text-muted">Com acesso ao app</p>
-                <p className="mt-1 text-sm">
-                  {accounts.filter((a) => a.unitId === u.id && a.user.status === "active").map((a) => `${a.user.name} (${UNIT_ROLE[a.role]?.toLowerCase() ?? ROLE_LABEL[a.user.role as Role]})`).join(" · ") || "—"}
-                </p>
+              {/* Resumo da unidade */}
+              <div className="grid grid-cols-2 gap-2 border-b border-line px-5 py-4 sm:grid-cols-4">
+                {[
+                  ...kinds.filter((k) => k !== "delivery").map((k) => ({ label: PERSON_KINDS[k].plural, value: mine.filter((g) => g.kind === k).length })),
+                  { label: "Valem hoje", value: validToday },
+                ].map((x) => (
+                  <div key={x.label} className="min-w-0 rounded-xl bg-bg-2 px-3 py-2">
+                    <p className="font-display text-lg font-semibold tabular-nums">{x.value}</p>
+                    <p className="truncate text-[11px] text-muted">{x.label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
+                <span className="mr-1 inline-flex items-center gap-1.5 text-xs font-medium text-muted"><Smartphone className="size-3.5" />Com acesso ao app</span>
+                {appUsers.length ? appUsers.map((a) => (
+                  <span key={a.userId} className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand">
+                    {a.user.name}<span className="font-normal opacity-75">{UNIT_ROLE[a.role]?.toLowerCase() ?? ROLE_LABEL[a.user.role as Role]}</span>
+                  </span>
+                )) : <span className="text-xs text-muted">—</span>}
               </div>
               {kinds.map((k) => {
                 const list = mine.filter((g) => g.kind === k);
@@ -127,16 +145,19 @@ export default async function MyUnitPage() {
             </Card>
           );
         })}
+        </div>
 
-        <Card>
+        <Card className="lg:col-start-2 lg:row-start-2">
           <CardHeader title="Últimas entradas na portaria" subtitle="Você recebe um aviso quando alguém chega para a sua unidade." />
           {entries.length ? (
-            <ul className="divide-y divide-line">
+            <ul className="max-h-[480px] divide-y divide-line overflow-auto overscroll-contain">
               {entries.map((e) => (
-                <li key={e.id} className="flex flex-wrap items-baseline gap-x-3 px-5 py-2.5 text-sm">
-                  <span className="font-medium">{e.name}</span>
-                  <span className="text-xs text-muted">{ENTRY_KIND[e.kind] ?? e.kind}{units.length > 1 && ` · ${e.dests.filter((d) => ids.includes(d.unitId)).map((d) => units.find((x) => x.id === d.unitId)?.label).join(", ")}`}</span>
-                  <span className="ml-auto text-xs text-muted">{fmtDateTime(e.createdAt)} · {e.createdBy}</span>
+                <li key={e.id} className="px-5 py-2.5">
+                  <p className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium">{e.name}</span>
+                    <span className="shrink-0 text-xs text-muted">{ENTRY_KIND[e.kind] ?? e.kind}</span>
+                  </p>
+                  <p className="text-xs text-muted">{fmtDateTime(e.createdAt)} · {e.createdBy}{units.length > 1 && ` · ${e.dests.filter((d) => ids.includes(d.unitId)).map((d) => units.find((x) => x.id === d.unitId)?.label).join(", ")}`}</p>
                 </li>
               ))}
             </ul>
