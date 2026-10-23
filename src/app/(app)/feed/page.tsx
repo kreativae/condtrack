@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarCheck, CheckCircle2, Clock, MapPin, Sparkles, Star, Timer, Wrench } from "lucide-react";
+import { CalendarCheck, Clock, Sparkles, Star, Timer, Wrench } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { adminScope } from "@/lib/admin-scope-server";
 import { feedInclude, type FeedItem } from "@/components/feed-card";
-import { CategoryChip, ServiceCard, Stars, mediaOf, summary } from "@/components/service-card";
-import { BeforeAfter } from "@/components/before-after";
-import { Avatar, Card, Empty, PageHeader, Select, buttonClass, cx } from "@/components/ui";
+import { FeaturedService, ServiceCard, mediaOf } from "@/components/service-card";
+import { Card, Empty, PageHeader, Select, buttonClass, cx } from "@/components/ui";
 import { Pager, pageParam, withPage } from "@/components/frozen";
 import { categoryIcon } from "@/lib/category-icons";
-import { DELETED_USER, fmtDate, fmtRelative, nowMs } from "@/lib/format";
-import { locationLabel } from "@/lib/orders";
+import { nowMs } from "@/lib/format";
 import { FEED_PERIODS, averageDays, averageRating, monthOf, periodStart, type FeedPeriod } from "@/lib/feed";
 
 export const metadata: Metadata = { title: "Serviços do prédio" };
@@ -143,7 +141,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/feed">) {
         </Card>
       ) : (
         <div className="space-y-8">
-          {featured && <Featured o={featured} showCondo={showCondo} />}
+          {featured && <FeaturedService o={featured} showCondo={showCondo} />}
           {months.map((m) => (
             <section key={m.key}>
               <h2 className="mb-3 flex items-baseline gap-2 font-display text-lg font-semibold">
@@ -161,37 +159,4 @@ export default async function FeedPage({ searchParams }: PageProps<"/feed">) {
   );
 }
 
-/** O serviço mais recente com antes e depois: grande, com o comparador deslizante e o resumo completo. */
-function Featured({ o, showCondo }: { o: FeedItem; showCondo: boolean }) {
-  const { before, after } = mediaOf(o);
-  return (
-    <Card className="grid overflow-hidden lg:grid-cols-[1.25fr_1fr]">
-      <div className="p-3 lg:pr-0">
-        <BeforeAfter before={before!.url} after={after!.url} alt={o.title} />
-      </div>
-      <div className="flex flex-col gap-3 p-5 lg:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[11px] font-semibold text-brand">Mais recente</span>
-          <CategoryChip o={o} />
-        </div>
-        <Link href={`/os/${o.id}`} className="font-display text-2xl font-semibold leading-snug hover:text-brand">{o.title}</Link>
-        <p className="flex items-center gap-1.5 text-xs text-muted"><MapPin className="size-3.5 text-brand" />{locationLabel(o)}{showCondo && ` · ${o.condominium.name}`}</p>
-        {(o.serviceReport || o.description) && <p className="line-clamp-4 whitespace-pre-line text-sm text-fg-2">{o.serviceReport || o.description}</p>}
-        <div className="flex items-center gap-3 rounded-2xl bg-bg-2/70 p-3">
-          <Avatar name={o.assignedTo?.name ?? DELETED_USER} />
-          <div className="min-w-0 flex-1 text-sm">
-            <p className="truncate font-medium">{o.assignedTo?.name ?? DELETED_USER}{o.assignedTo?.company && <span className="font-normal text-muted"> · {o.assignedTo.company}</span>}</p>
-            <p className="truncate text-xs text-muted">{summary(o) || `Entregue ${o.approvedAt ? fmtRelative(o.approvedAt) : ""}`}</p>
-          </div>
-          <Stars n={o.rating} />
-        </div>
-        {o.ratingComment && <p className="text-sm italic text-fg-2">“{o.ratingComment}”</p>}
-        <p className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-xs text-muted">
-          <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-ok" />Validado por {o.validatedBy?.name ?? (o.validatedAt ? DELETED_USER : "—")}</span>
-          <span>Aprovado por {o.approvedBy?.name ?? DELETED_USER} em {fmtDate(o.approvedAt)}</span>
-        </p>
-      </div>
-    </Card>
-  );
-}
 

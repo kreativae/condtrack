@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { createElement } from "react";
-import { ImageOff, MapPin, PlayCircle, Star } from "lucide-react";
+import { CheckCircle2, ImageOff, MapPin, PlayCircle, Star } from "lucide-react";
 import type { FeedItem } from "./feed-card";
-import { Avatar, cx } from "./ui";
+import { BeforeAfter } from "./before-after";
+import { Avatar, Card, cx } from "./ui";
 import { categoryIcon } from "@/lib/category-icons";
-import { DELETED_USER, fmtRelative } from "@/lib/format";
+import { DELETED_USER, fmtDate, fmtRelative } from "@/lib/format";
 import { locationLabel } from "@/lib/orders";
 import { thumb } from "@/lib/media-url";
 import { resolvedIn, workTime } from "@/lib/feed";
@@ -84,5 +85,61 @@ export function ServiceCard({ o, showCondo = false }: { o: FeedItem; showCondo?:
         </div>
       </div>
     </Link>
+  );
+}
+
+/** O serviço mais recente com antes e depois: grande, com o comparador deslizante e o resumo completo. */
+export function FeaturedService({ o, showCondo = false, badge = "Mais recente" }: { o: FeedItem; showCondo?: boolean; badge?: string }) {
+  const { before, after } = mediaOf(o);
+  // A largura do lugar onde está (página inteira ou coluna do painel) decide se fica lado a lado
+  return (
+    <div className="@container">
+    <Card className="grid overflow-hidden @3xl:grid-cols-[1.25fr_1fr]">
+      <div className="p-3 @3xl:pr-0">
+        <BeforeAfter before={before!.url} after={after!.url} alt={o.title} />
+      </div>
+      <div className="flex flex-col gap-3 p-5 @3xl:p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[11px] font-semibold text-brand">{badge}</span>
+          <CategoryChip o={o} />
+        </div>
+        <Link href={`/os/${o.id}`} className="font-display text-2xl font-semibold leading-snug hover:text-brand">{o.title}</Link>
+        <p className="flex items-center gap-1.5 text-xs text-muted"><MapPin className="size-3.5 text-brand" />{locationLabel(o)}{showCondo && ` · ${o.condominium.name}`}</p>
+        {(o.serviceReport || o.description) && <p className="line-clamp-4 whitespace-pre-line text-sm text-fg-2">{o.serviceReport || o.description}</p>}
+        <div className="flex items-center gap-3 rounded-2xl bg-bg-2/70 p-3">
+          <Avatar name={o.assignedTo?.name ?? DELETED_USER} />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="truncate font-medium">{o.assignedTo?.name ?? DELETED_USER}{o.assignedTo?.company && <span className="font-normal text-muted"> · {o.assignedTo.company}</span>}</p>
+            <p className="truncate text-xs text-muted">{summary(o) || `Entregue ${o.approvedAt ? fmtRelative(o.approvedAt) : ""}`}</p>
+          </div>
+          <Stars n={o.rating} />
+        </div>
+        {o.ratingComment && <p className="text-sm italic text-fg-2">“{o.ratingComment}”</p>}
+        <p className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-xs text-muted">
+          <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-ok" />Validado por {o.validatedBy?.name ?? (o.validatedAt ? DELETED_USER : "—")}</span>
+          <span>Aprovado por {o.approvedBy?.name ?? DELETED_USER} em {fmtDate(o.approvedAt)}</span>
+        </p>
+      </div>
+    </Card>
+    </div>
+  );
+}
+
+/**
+ * Últimos serviços (painéis do morador e do conselho): o mais recente com antes e depois em destaque e os outros
+ * em cartões. Se adapta à largura de onde está (`@container`): coluna estreita empilha, página larga põe lado a lado.
+ */
+export function ServiceShowcase({ items, showCondo = false }: { items: FeedItem[]; showCondo?: boolean }) {
+  const featured = items.find((o) => { const m = mediaOf(o); return m.before?.type === "photo" && m.after?.type === "photo"; });
+  const rest = items.filter((o) => o !== featured);
+  return (
+    <div className="space-y-4">
+      {featured && <FeaturedService o={featured} showCondo={showCondo} />}
+      {rest.length > 0 && (
+        <div className="@container">
+          <div className="grid gap-4 @lg:grid-cols-2 @4xl:grid-cols-3">{rest.map((o) => <ServiceCard key={o.id} o={o} showCondo={showCondo} />)}</div>
+        </div>
+      )}
+    </div>
   );
 }

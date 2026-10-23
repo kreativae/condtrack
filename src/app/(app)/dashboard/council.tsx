@@ -5,7 +5,7 @@ import type { CurrentUser } from "@/lib/auth";
 import { orderListInclude } from "@/lib/orders";
 import { fmtRelative } from "@/lib/format";
 import { feedInclude } from "@/components/feed-card";
-import { ServiceCard } from "@/components/service-card";
+import { ServiceShowcase } from "@/components/service-card";
 import { OrderList } from "@/components/order-list";
 import { Card, CardHeader, LinkButton, PageHeader, cx } from "@/components/ui";
 import { unitLabel } from "@/lib/units";
@@ -42,7 +42,7 @@ export async function CouncilDashboard({ user }: { user: CurrentUser }) {
             <Link href="/feed" className="text-xs font-medium text-brand hover:underline">Ver feed</Link>
           </div>
           {feed.length ? (
-            <div className="grid gap-4 sm:grid-cols-2">{feed.map((o) => <ServiceCard key={o.id} o={o} />)}</div>
+            <ServiceShowcase items={feed} />
           ) : (
             <Card className="p-10 text-center text-sm text-muted">Nenhum serviço entregue ainda.</Card>
           )}
