@@ -37,14 +37,18 @@ export function ReportPicker({ groups }: { groups: PickGroup[] }) {
       <input type="hidden" name="ids" value={[...picked].join(",")} />
       <input type="hidden" name="obs" value={notes ? "1" : "0"} />
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <Field label="Título do relatório" hint="Ex.: Prestação de contas — Assembleia de novembro">
-          <Input name="titulo" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
-        </Field>
-        <label className="flex h-10 items-center gap-2 text-sm">
-          <input type="checkbox" checked={notes} onChange={(e) => setNotes(e.target.checked)} className="size-4 accent-[var(--brand)]" />
-          Incluir observações e motivos
-        </label>
+      {/* Dica fora da linha: assim a caixa de marcar fica alinhada com o campo do título */}
+      <div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+          <Field label="Título do relatório">
+            <Input name="titulo" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+          </Field>
+          <label className="flex h-10 items-center gap-2 whitespace-nowrap text-sm">
+            <input type="checkbox" checked={notes} onChange={(e) => setNotes(e.target.checked)} className="size-4 accent-[var(--brand)]" />
+            Incluir observações e motivos
+          </label>
+        </div>
+        <p className="mt-1 text-xs text-muted">Ex.: Prestação de contas — Assembleia de novembro</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
