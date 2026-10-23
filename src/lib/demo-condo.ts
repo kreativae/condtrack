@@ -39,28 +39,11 @@ function scene(kind: "before" | "after", title: string, hue: number) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500"><defs><linearGradient id="s" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><rect width="800" height="360" fill="${wall}"/>${marks}<rect y="360" width="800" height="140" fill="${floor}"/><text x="32" y="470" font-family="Helvetica,Arial,sans-serif" font-weight="600" font-size="28" fill="#fff" opacity=".85">${title.replace(/[<&>]/g, "")}</text><text x="768" y="470" text-anchor="end" font-family="Helvetica,Arial" font-size="18" letter-spacing="3" fill="#fff" opacity=".7">${dirty ? "ANTES" : "DEPOIS"}</text></svg>`;
 }
 
-/**
- * Foto de serviço da demonstração (public/demo/servicos): o depois é a foto; o antes, a mesma foto envelhecida
- * (mais escura, desbotada, com manchas). null se o arquivo não estiver no servidor (aí entra o desenho).
- */
-async function demoPhoto(name: string, r: Rng) {
-  const after = await readFile(path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "demo", "servicos", `${name}.jpg`)).catch(() => null);
-  if (!after) return null;
-  const { default: sharp } = await import("sharp");
-  const { width = 1600, height = 900 } = await sharp(after).metadata();
-  const spots = Array.from({ length: 28 }, () => {
-    const rx = r.int(width / 30, width / 9);
-    return `<ellipse cx="${r.int(0, width)}" cy="${r.int(height / 3, height)}" rx="${rx}" ry="${Math.round(rx * (0.3 + r.next() * 0.5))}" fill="#3a2f22" opacity="${(0.15 + r.next() * 0.3).toFixed(2)}"/>`;
-  }).join("");
-  const grime = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><defs><filter id="b"><feGaussianBlur stdDeviation="${Math.round(width / 70)}"/></filter></defs><g filter="url(#b)">${spots}</g></svg>`);
-  const before = await sharp(after)
-    .modulate({ brightness: 0.8, saturation: 0.35 })
-    .linear(0.82, 14)
-    .composite([{ input: grime, blend: "multiply" }])
-    .blur(0.7)
-    .jpeg({ quality: 74 })
-    .toBuffer();
-  return { before, after };
+/** Par de fotos de serviço da demonstração (public/demo/servicos). null se faltar arquivo no servidor (aí entra o desenho). */
+async function demoPhotos(beforeName: string, afterName: string) {
+  const file = (n: string) => readFile(path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "demo", "servicos", `${n}.jpg`)).catch(() => null);
+  const [before, after] = await Promise.all([file(beforeName), file(afterName)]);
+  return before && after ? { before, after } : null;
 }
 
 /** Data/hora no fuso de Brasília a partir de "YYYY-MM-DD" + "HH:MM". */
@@ -223,14 +206,14 @@ export async function createDemoCondominium(opts: { syndicEmail: string; real?: 
 
   // ───── Ordens de serviço dos últimos 4 meses (sorteadas do banco; todas as etapas)
   const requesters = [caretaker, caretaker, council1, council2, res1, res2];
-  // OS com foto do depois recebem os serviços com fotos de verdade; as demais, modelos do banco
-  const withPhoto = (st: string) => ["approved", "validated", "completed", "rejected"].includes(st);
+  // OS aprovadas (as do feed) recebem os serviços com fotos de verdade; as demais, modelos do banco
+  const withPhoto = (st: string) => st === "approved";
   const photoPool = r.shuffle(DEMO_PHOTO_ORDERS);
   const textPool = r.shuffle(ORDER_POOL);
-  const picked: { title: string; desc: string; cat: string; area?: string; unit?: true; report: string; photo?: string }[] =
+  const picked: { title: string; desc: string; cat: string; area?: string; unit?: true; report: string; before?: string; after?: string }[] =
     ORDER_STATUSES.map((st) => (withPhoto(st) && photoPool.length ? photoPool.shift()! : textPool.shift()!));
   // Datas: aprovadas espalhadas nos últimos 4 meses (mais antigas primeiro); as demais, recentes
-  const approvedDays = Array.from({ length: 9 }, () => r.int(15, 120)).sort((a, b) => b - a);
+  const approvedDays = Array.from({ length: ORDER_STATUSES.filter((s) => s === "approved").length }, () => r.int(15, 120)).sort((a, b) => b - a);
   const flow = ["open", "assigned", "in_progress", "completed", "validated", "approved"];
   for (const [i, tpl] of picked.entries()) {
     const status = ORDER_STATUSES[i];
@@ -277,8 +260,8 @@ export async function createDemoCondominium(opts: { syndicEmail: string; real?: 
       if (idx >= 5) await ev("approval", syndic.id, 5, { fromStatus: "validated", toStatus: "approved", comment: "Aprovado." });
     }
     if (stars) await ev("rating", by.id, 6, { comment: `Avaliação ${stars}/5` });
-    // Foto de verdade: o depois é a foto e o antes, a mesma foto envelhecida
-    const photo = tpl.photo ? await demoPhoto(tpl.photo, r) : null;
+    // Fotos de verdade: as duas do mesmo lugar, antes e depois
+    const photo = tpl.before && tpl.after ? await demoPhotos(tpl.before, tpl.after) : null;
     if (photo && idx >= 3) {
       const before = await saveGenerated(o.id, "antes-demo.jpg", photo.before, "image/jpeg");
       const after = await saveGenerated(o.id, "depois-demo.jpg", photo.after, "image/jpeg");

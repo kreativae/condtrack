@@ -103,8 +103,8 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Condomínio de demonstração**: cada geração sai diferente (nome que ainda não existe, cidade, CNPJ válido fictício,
   torres, pessoas, empresas, OS, valores, pautas, porteiro, reservas com convidados, pessoas das unidades, entradas
   na portaria, fornecedores com cotações e orçamentos em PDF: uma em andamento com 3 para comparar, encerradas e no histórico, e chamados em todas as situações): bancos e sorteio com semente em `src/lib/demo-data.ts`.
-  As 12 OS com foto do depois usam fotos de verdade (`public/demo/servicos`, `DEMO_PHOTO_ORDERS`); o antes é a mesma foto
-  envelhecida pelo sharp na geração (`demoPhoto()`); sem o arquivo, entra o desenho SVG.
+  As 6 OS aprovadas (o feed) usam fotos de verdade em pares, antes e depois do mesmo lugar (`public/demo/servicos`,
+  `DEMO_PHOTO_ORDERS`, `demoPhotos()`); sem o arquivo no servidor, entra o desenho SVG.
   Botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
   todas as áreas), vinculado como síndico ao e-mail digitado na janela. Na mesma janela, contas reais (opcionais) entram
   no lugar das fictícias como zelador, porteiro, conselho, morador e prestador de manutenção geral: só ganham o vínculo
