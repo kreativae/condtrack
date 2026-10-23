@@ -112,7 +112,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   se não tiverem nenhum. Padrão: as contas de teste `sindico|zelador|porteiro|conselho|morador|prestador@condtrack.app`
   (`DEMO_DEFAULT_ACCOUNTS`); e-mail sem cadastro vira conta nova com a senha `condtrack123` (`DEMO_PASSWORD`), que fica
   para as próximas demonstrações. Com conta real no perfil, ela faz também os papéis extras (2º conselheiro, 2º morador,
-  prestadores de cada ramo): nenhuma conta `@demo` é criada. Os e-mails ficam no Setting `demo_accounts` e voltam preenchidos (`lib/demo-accounts.ts`, testado). Marcados com `Condominium.demo`; só esses têm o botão
+  prestadores de cada ramo): nenhuma conta `@demo` é criada. Os e-mails ficam no Setting `demo_accounts` e voltam preenchidos (`lib/demo-accounts.ts`, testado).
+  Dois tipos na janela: **Interna** (apresentações do superadmin: as contas acima, editáveis) e **Externa** (testes de
+  outras pessoas: série numerada nova `sindicoN|zeladorN|…@condtrack.app`, senha `condtrack123`; N = menor número sem
+  nenhuma conta da série, `nextExternalNumber()`, recalculado no servidor ao criar; não mexe no Setting). Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
 - **Manutenção preventiva** (`/manutencao`; superadmin e síndico editam, zelador vê): `MaintenancePlan`, regras de data em
   `src/lib/maintenance.ts` e motor em `maintenance-server.ts` (`runMaintenance`, chamado pelo cron a cada 15 min e ao abrir a

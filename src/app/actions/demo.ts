@@ -8,21 +8,30 @@ import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { addGateDemo, createDemoCondominium, deleteDemoCondominium } from "@/lib/demo-condo";
 import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
-import { DEMO_ACCOUNTS_KEY, DEMO_SLOTS, normalizeDemoAccounts } from "@/lib/demo-accounts";
+import { DEMO_ACCOUNTS_KEY, DEMO_SLOTS, externalDemoAccounts, externalEmailFilter, nextExternalNumber, normalizeDemoAccounts } from "@/lib/demo-accounts";
 
 /** `values`: o que foi digitado, para a janela não perder os e-mails quando volta com erro */
-export type DemoState = { error?: string; values?: Record<string, string> } | null;
+export type DemoState = { error?: string; values?: Record<string, string>; mode?: "internal" | "external" } | null;
+
+/** Número da próxima série externa (sindico3@, zelador3@…), calculado pelas contas que já existem. */
+async function nextExternalDemoNumber() {
+  const users = await db.user.findMany({ where: externalEmailFilter(), select: { email: true } });
+  return nextExternalNumber(users.map((u) => u.email));
+}
 
 /**
  * Cria o condomínio de demonstração com o síndico escolhido pelo e-mail e, opcionalmente, contas reais para zelador,
  * porteiro, conselho, morador e prestador (no lugar das fictícias). E-mail sem cadastro vira uma conta de teste com a
  * senha padrão (DEMO_PASSWORD). Os e-mails ficam salvos para a próxima vez.
+ * Modo externo: ignora os e-mails digitados e usa a próxima série numerada (sindicoN@, zeladorN@…), contas novas.
  */
 export async function createDemoCondo(_prev: DemoState, form: FormData): Promise<DemoState> {
   const me = await requireUser("superadmin");
+  const external = form.get("mode") === "external";
   const values = Object.fromEntries(DEMO_SLOTS.map((s) => [s.key, String(form.get(s.key) ?? "")]));
-  const { accounts, error } = normalizeDemoAccounts(values);
-  if (error) return { error, values };
+  const mode = external ? "external" : "internal";
+  const { accounts, error } = normalizeDemoAccounts(external ? externalDemoAccounts(await nextExternalDemoNumber()) : values);
+  if (error) return { error, values, mode };
 
   // Cada e-mail precisa ser de uma conta ativa que não seja superadmin
   const found = await db.user.findMany({ where: { email: { in: Object.values(accounts) } }, select: { email: true, role: true, status: true } });
@@ -31,18 +40,19 @@ export async function createDemoCondo(_prev: DemoState, form: FormData): Promise
     if (!email) continue;
     const u = found.find((x) => x.email === email);
     if (!u) continue; // conta de teste nova: criada na geração com a senha padrão
-    if (u.role === "superadmin") return { error: `${s.label}: o superadmin já vê todos os condomínios; escolha outro usuário.`, values };
-    if (u.status !== "active") return { error: `${s.label}: a conta ${email} está desativada.`, values };
+    if (u.role === "superadmin") return { error: `${s.label}: o superadmin já vê todos os condomínios; escolha outro usuário.`, values, mode };
+    if (u.status !== "active") return { error: `${s.label}: a conta ${email} está desativada.`, values, mode };
   }
 
-  await db.setting.upsert({
+  // Só a demonstração interna lembra os e-mails; a externa sempre usa a próxima série
+  if (!external) await db.setting.upsert({
     where: { key: DEMO_ACCOUNTS_KEY },
     create: { key: DEMO_ACCOUNTS_KEY, value: JSON.stringify(accounts), updatedById: me.id },
     update: { value: JSON.stringify(accounts), updatedById: me.id },
   });
   const { syndic, ...real } = accounts;
   const condo = await createDemoCondominium({ syndicEmail: syndic!, real });
-  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, contas: accounts }, condominiumId: condo.id });
+  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, tipo: external ? "externa" : "interna", contas: accounts }, condominiumId: condo.id });
   revalidatePath("/admin/condominios");
   redirect(`/admin/condominios/${condo.id}`);
 }
