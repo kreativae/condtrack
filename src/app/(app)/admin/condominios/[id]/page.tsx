@@ -11,7 +11,7 @@ import { CondoForm } from "@/components/admin/condo-form";
 import { DeleteDemoButton } from "@/components/admin/delete-demo-button";
 import { SyndicsCard } from "@/components/admin/syndics-card";
 import { GateDemoButton } from "@/components/admin/gate-demo-button";
-import { ArchiveCondoButton, PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
+import { ArchiveCondoButton, ForceDeleteCondoButton, PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
 import { fmtDateTime } from "@/lib/format";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { LAYOUTS, type Layout } from "@/lib/units";
@@ -25,9 +25,10 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
   const { id } = await params;
   const c = await db.condominium.findUnique({
     where: { id },
-    include: { buildings: { include: { _count: { select: { units: true } } } }, categories: true, commonAreas: true },
+    include: { buildings: { include: { _count: { select: { units: true } } } }, categories: true, commonAreas: true, subscription: { select: { status: true, stripeSubscriptionId: true } } },
   });
   if (!c) notFound();
+  const subscriptionActive = !!c.subscription?.stripeSubscriptionId && ["trialing", "active", "past_due", "unpaid", "paused"].includes(c.subscription.status);
   const [m, staff, syndics, bookings] = await Promise.all([
     orderMetrics({ condominiumId: id }),
     db.membership.groupBy({ by: ["role"], where: { condominiumId: id, user: { status: "active" } }, _count: true }),
@@ -45,6 +46,7 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
           <>
             <LinkButton variant="outline" href={`/admin/usuarios/novo?role=syndic`}><UserPlus className="size-4" />Cadastrar síndico</LinkButton>
             {c.demo ? <DeleteDemoButton id={c.id} name={c.name} /> : c.deletedAt ? <><RestoreCondoButton id={c.id} /><PurgeCondoButton id={c.id} name={c.name} /></> : <ArchiveCondoButton id={c.id} name={c.name} />}
+            {!c.demo && <ForceDeleteCondoButton id={c.id} name={c.name} subscriptionActive={subscriptionActive} />}
           </>
         }
       />

@@ -95,7 +95,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Arquivado → **Excluir de vez** (`purgeCondominium` em `actions/admin.ts`, `lib/condo-purge.ts`): exige backup baixado nas
   últimas 24 h (`/api/admin/condominios/[id]/backup`, .zip com `dados.json` + anexos do Financeiro, gerado por `lib/zip.ts`;
   registrado na auditoria como `backup`) e o nome digitado. Apaga dados, arquivos e as contas só desse condomínio
-  (se alguma estiver presa a outros registros, fica desativada). Sessão que não vale
+  (se alguma estiver presa a outros registros, fica desativada). **Forçar exclusão** (`forceDeleteCondominium`, botão
+  na página do condomínio, arquivado ou não, menos demonstração): apaga de vez na hora sem arquivar, sem exigir
+  assinatura cancelada nem backup (opcional na janela); cancela a assinatura no Stripe na hora, passa quem tem outro
+  vínculo para ele, exige o nome digitado e grava `force_delete` na auditoria. Sessão que não vale
   mais (conta desativada, condomínio arquivado) passa por `/api/sair`, que limpa o cookie (evita laço login ↔ dashboard).
 - **Edição completa do condomínio** (superadmin, página do condomínio): tipo e nomenclatura (casas/lotes acompanham),
   logo (`brand/`), horário do checklist, acesso do conselho (registrado no FinanceLog), ativo e síndicos (`assignSyndic`,

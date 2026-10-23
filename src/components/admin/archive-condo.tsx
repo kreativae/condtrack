@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { ArchiveRestore, CheckCircle2, Download, Loader2, Trash2, X } from "lucide-react";
-import { archiveCondominium, purgeCondominium, restoreCondominium, type AdminState } from "@/app/actions/admin";
+import { ArchiveRestore, CheckCircle2, Download, Loader2, ShieldAlert, Trash2, X } from "lucide-react";
+import { archiveCondominium, forceDeleteCondominium, purgeCondominium, restoreCondominium, type AdminState } from "@/app/actions/admin";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Button, Field, Input, Textarea, buttonClass } from "@/components/ui";
@@ -58,6 +58,60 @@ export function RestoreCondoButton({ id, size }: { id: string; size?: "sm" | "md
     <Button variant="outline" size={size} disabled={pending} onClick={() => start(() => restoreCondominium(id))}>
       {pending ? <Loader2 className="size-4 animate-spin" /> : <ArchiveRestore className="size-4" />}Restaurar
     </Button>
+  );
+}
+
+/** Forçar exclusão: apaga de vez na hora, sem arquivar, sem exigir assinatura cancelada nem backup (o backup fica opcional). */
+export function ForceDeleteCondoButton({ id, name, subscriptionActive }: { id: string; name: string; subscriptionActive: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [sure, setSure] = useState(false);
+  const [state, form, pending] = useFormSubmit((p: AdminState, f: FormData) => forceDeleteCondominium(id, p, f));
+  const ok = sure && typed.trim().toLowerCase() === name.trim().toLowerCase();
+  const close = () => !pending && setOpen(false);
+  return (
+    <>
+      <Button variant="danger" onClick={() => setOpen(true)}><ShieldAlert className="size-4" />Forçar exclusão</Button>
+      {open && createPortal(
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Forçar exclusão">
+          <div className="absolute inset-0 bg-black/40" onClick={close} />
+          <form {...form} className="relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-surface shadow-pop animate-in sm:rounded-3xl">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <p className="font-display text-lg font-semibold">Forçar exclusão</p>
+              <button type="button" onClick={close} aria-label="Fechar" className="inline-flex size-9 items-center justify-center rounded-xl text-fg-2 hover:bg-bg-2"><X className="size-5" /></button>
+            </div>
+            <div className="space-y-4 overflow-y-auto px-5 py-5 text-sm text-fg-2">
+              <p><b className="text-fg">{name}</b> será apagado agora, <b className="text-bad">sem arquivar antes e sem como restaurar</b>:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Ordens de serviço, fotos, financeiro, assembleias, portaria, chamados e todo o histórico.</li>
+                <li>Contas de quem só tinha este condomínio. Quem participa de outro passa para ele.</li>
+                {subscriptionActive && <li><b className="text-fg">A assinatura ativa é cancelada no Stripe na hora</b>, sem esperar o fim do período.</li>}
+                <li>Comissões de parceiro ligadas a este condomínio.</li>
+              </ul>
+              <div className="rounded-xl bg-bg-2 p-4">
+                <p className="font-medium text-fg">Backup (opcional)</p>
+                <p className="mt-1 text-xs text-muted">Arquivo .zip com os dados e os anexos do Financeiro, caso precise de algo depois.</p>
+                <a href={`/api/admin/condominios/${id}/backup`} className={buttonClass("outline", "sm") + " mt-3"}><Download className="size-4" />Baixar backup</a>
+              </div>
+              <Field label="Motivo (opcional)"><Textarea name="reason" rows={2} maxLength={500} /></Field>
+              <Field label={`Para confirmar, digite: ${name}`}>
+                <Input name="confirm" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
+              </Field>
+              <label className="flex items-start gap-2 text-xs">
+                <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} className="mt-0.5 size-4 accent-[var(--bad)]" />
+                <span>Entendo que a exclusão é definitiva e fica registrada na auditoria.</span>
+              </label>
+              {state?.error && <Alert>{state.error}</Alert>}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
+              <button type="button" onClick={close} disabled={pending} className={buttonClass("ghost")}>Cancelar</button>
+              <SubmitButton pending={pending} pendingText="Excluindo…" variant="danger" disabled={!ok}>Excluir agora</SubmitButton>
+            </div>
+          </form>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 

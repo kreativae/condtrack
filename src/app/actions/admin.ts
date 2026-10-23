@@ -23,6 +23,7 @@ import { PERMISSION_KEYS, type Permission } from "@/lib/permissions";
 import { deleteFile, saveFile } from "@/lib/storage";
 import { financeLog } from "@/lib/finance-server";
 import { activateMembership, inCondo, setMemberships } from "@/lib/memberships";
+import { stripe, stripeConfigured } from "@/lib/stripe";
 
 /** Envia o acesso (senha provisória) por e-mail, se ativado em Configurações → E-mail. */
 async function emailAccess(user: { name: string; email: string; role: string }, secret: string, kind: "invite" | "reset") {
@@ -501,6 +502,53 @@ export async function purgeCondominium(id: string, _prev: AdminState, form: Form
     old: { condominio: r.name, ordensDeServico: r.orders, contasApagadas: r.deleted, contasDesativadas: r.deactivated, backupEm: backup.createdAt },
     condominiumId: null,
   });
+  revalidatePath("/", "layout");
+  redirect("/admin/condominios");
+}
+
+/**
+ * Forçar exclusão (superadmin): apaga de vez sem arquivar antes, sem exigir assinatura cancelada nem backup.
+ * A assinatura do Stripe é cancelada na hora (para não continuar cobrando); quem tem outro condomínio passa para ele.
+ */
+export async function forceDeleteCondominium(id: string, _prev: AdminState, form: FormData): Promise<AdminState> {
+  const me = await requireUser("superadmin");
+  if (me.impersonator) return { error: "Indisponível em modo de visualização." };
+  const c = await db.condominium.findUnique({ where: { id }, include: { subscription: true } });
+  if (!c) return { error: "Condomínio não encontrado." };
+  if (String(form.get("confirm") ?? "").trim().toLowerCase() !== c.name.trim().toLowerCase()) return { error: `Digite ${c.name} para confirmar.` };
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+
+  const sub = c.subscription;
+  let stripeCancelled = false;
+  if (sub?.stripeSubscriptionId && BILLING_OPEN.includes(sub.status) && (await stripeConfigured())) {
+    try {
+      await (await stripe()).subscriptions.cancel(sub.stripeSubscriptionId);
+      stripeCancelled = true;
+    } catch (e) {
+      // Assinatura que já não existe no Stripe (ex.: modo de teste apagado) não impede a exclusão
+      if ((e as { code?: string }).code !== "resource_missing") {
+        return { error: `Não foi possível cancelar a assinatura no Stripe: ${e instanceof Error ? e.message : "erro"}. Nada foi apagado.` };
+      }
+    }
+  }
+
+  // Quem está com este condomínio ativo e tem outro vínculo passa para ele (os demais são apagados na exclusão)
+  const people = await db.user.findMany({ where: { condominiumId: id, role: { not: "superadmin" } }, select: { id: true } });
+  for (const u of people) {
+    const other = await db.membership.findFirst({ where: { userId: u.id, condominiumId: { not: id }, condominium: { deletedAt: null } }, orderBy: { createdAt: "asc" } });
+    if (other) await activateMembership(u.id, other.condominiumId);
+  }
+
+  const r = await purgeCondominiumData(id);
+  if (!r) return { error: "Condomínio não encontrado." };
+  await audit(me, "force_delete", "condominium", id, {
+    old: { condominio: r.name, ordensDeServico: r.orders, contasApagadas: r.deleted, contasDesativadas: r.deactivated, arquivado: !!c.deletedAt, assinaturaCanceladaNoStripe: stripeCancelled },
+    new: { motivo: reason || null },
+    condominiumId: null,
+  });
+
+  const jar = await cookies();
+  if (jar.get(ADMIN_CONDO_COOKIE)?.value === id) jar.delete(ADMIN_CONDO_COOKIE);
   revalidatePath("/", "layout");
   redirect("/admin/condominios");
 }
