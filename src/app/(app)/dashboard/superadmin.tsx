@@ -13,17 +13,21 @@ import { FinanceSummary } from "@/components/finance-summary";
 import type { CurrentUser } from "@/lib/auth";
 import { DashboardSettings } from "@/components/dashboard-settings";
 import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
+import { feedInclude } from "@/components/feed-card";
+import { ServiceShowcase } from "@/components/service-card";
 
 export async function SuperadminDashboard({ user, welcome, scope }: { user: CurrentUser; welcome?: boolean; scope?: { id: string; name: string } | null }) {
   // Condomínio em foco (seletor do menu): todos os números passam a ser só dele
   const only = scope ? { condominiumId: scope.id } : {};
   const show = dashboardVisibility(user.dashboardHidden);
-  const [condos, m, users, late, subs] = await Promise.all([
+  const [condos, m, users, late, subs, delivered] = await Promise.all([
     db.condominium.findMany({ where: { active: true, deletedAt: null, ...(scope && { id: scope.id }) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     orderMetrics(only),
     db.user.count({ where: { status: "active", ...(scope ? inCondo(scope.id) : {}) } }),
     db.serviceOrder.findMany({ where: { status: { in: ACTIVE_STATUSES }, dueDate: { lt: new Date() }, ...only }, include: orderListInclude, orderBy: { dueDate: "asc" }, take: 6 }),
     db.subscription.findMany({ where: { status: { in: PAYING }, cancelAtPeriodEnd: false, ...only } }),
+    // Sem condomínio em foco: de todos (menos os arquivados), com o nome do condomínio no cartão
+    show("delivered") ? db.serviceOrder.findMany({ where: { status: "approved", condominium: { deletedAt: null }, ...only }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }) : [],
   ]);
   const mrr = subs.reduce((a, s) => a + monthlyEquivalent(s.unitAmount ?? 0, s.interval), 0);
 
@@ -96,6 +100,16 @@ export async function SuperadminDashboard({ user, welcome, scope }: { user: Curr
         <h2 className="mb-4 font-display font-semibold text-xl">Alertas de OS atrasadas</h2>
         <OrderList orders={late} showCondo empty="Nenhuma OS atrasada. 👌" />
       </section>
+      )}
+
+      {show("delivered") && delivered.length > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-4 flex items-center gap-3 font-display text-xl font-semibold">
+            Serviços entregues
+            <Link href="/feed" className="ml-auto text-xs font-medium text-brand hover:underline">Ver feed</Link>
+          </h2>
+          <ServiceShowcase items={delivered} showCondo={!scope} />
+        </section>
       )}
     </div>
   );

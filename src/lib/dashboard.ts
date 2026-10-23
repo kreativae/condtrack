@@ -11,6 +11,7 @@ export const DASHBOARD_SECTIONS: Record<Role, DashSection[]> = {
     { key: "condos", label: "OS por condomínio" },
     { key: "ranking", label: "Ranking de eficiência" },
     { key: "late", label: "Alertas de OS atrasadas" },
+    { key: "delivered", label: "Serviços entregues" },
   ],
   syndic: [
     { key: "stats", label: "Indicadores" },

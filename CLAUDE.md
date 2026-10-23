@@ -209,7 +209,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   trabalho, avaliação), filtros de período (`?periodo=30d|ano|tudo`, padrão o ano) e de categoria (`?cat=`), o mais
   recente com antes e depois em destaque e a grade por mês. Peças em `components/service-card.tsx`: `ServiceCard`
   (foto do depois, antes em miniatura, resumo), `FeaturedService` (destaque com `BeforeAfter`) e `ServiceShowcase`
-  (destaque + cartões, usado nos painéis do morador, do conselho, do síndico e do zelador; nos dois últimos é o bloco `delivered`). Tudo por `@container`: se ajusta à largura de onde
+  (destaque + cartões, usado em todos os painéis; no do síndico, do zelador e do superadmin é o bloco `delivered`, e no do superadmin sem condomínio em foco os cartões mostram o condomínio). Tudo por `@container`: se ajusta à largura de onde
   está, não da tela. No painel do morador, as categorias do ano viram botões que abrem o feed filtrado.
   Textos do resumo em `src/lib/feed.ts` (testado); `feed-card.tsx` guarda só a consulta `feedInclude`.
 - **Fotos reduzidas**: listas e cartões usam `thumb(url, 480|800|1200)` (`src/lib/media-url.ts`) → `/api/media/...?w=`,
