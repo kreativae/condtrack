@@ -80,6 +80,9 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
 
 /* ───────────── Orçamentos ───────────── */
 
+/** Quantos cartões cabem em cada coluna do quadro; o resto fica em "Mais N" (lista com filtros e busca da página). */
+const COLUMN_MAX = { pending: 6, approved: 4, closed: 3 };
+
 type QuoteCardData = {
   id: string; title: string; amountCents: number; status: string; createdAt: Date; createdByName: string; validUntil: Date | null;
   decisionNote: string | null; decidedByName: string | null; supplier: { name: string; category: string | null }; _count: { files: number };
@@ -89,16 +92,24 @@ async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decid
   const today = dateToDay(new Date(nowMs()));
   const yearStart = new Date(`${today.slice(0, 4)}-01-01T00:00:00-03:00`);
   const include = { supplier: { select: { name: true, category: true } }, _count: { select: { files: true } } } as const;
-  const listStatus = sp.status && (sp.status in QUOTE_STATUS || sp.status === "todos") ? (sp.status as QuoteStatus | "todos") : null;
+  const search = (sp.q ?? "").trim().slice(0, 80);
+  const listStatus = sp.status && (sp.status in QUOTE_STATUS || sp.status === "todos") ? (sp.status as QuoteStatus | "todos") : search ? "todos" : null;
 
   const [pending, approved, closed, counts, approvedYear, list] = await Promise.all([
     db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "pending" }, include, orderBy: { createdAt: "asc" } }),
-    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "approved" }, include, orderBy: { decidedAt: "desc" }, take: 6 }),
-    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: { in: ["rejected", "cancelled"] } }, include, orderBy: { decidedAt: "desc" }, take: 4 }),
+    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "approved" }, include, orderBy: { decidedAt: "desc" }, take: COLUMN_MAX.approved }),
+    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: { in: ["rejected", "cancelled"] } }, include, orderBy: { decidedAt: "desc" }, take: COLUMN_MAX.closed }),
     db.supplierQuote.groupBy({ by: ["status"], where: { condominiumId: condoId }, _count: true }),
     db.supplierQuote.aggregate({ where: { condominiumId: condoId, status: "approved", decidedAt: { gte: yearStart } }, _sum: { amountCents: true }, _count: true }),
     listStatus
-      ? db.supplierQuote.findMany({ where: { condominiumId: condoId, ...(listStatus !== "todos" && { status: listStatus }) }, include, orderBy: { createdAt: "desc" }, take: 200 })
+      ? db.supplierQuote.findMany({
+          where: {
+            condominiumId: condoId,
+            ...(listStatus !== "todos" && { status: listStatus }),
+            ...(search && { OR: [{ title: { contains: search, mode: "insensitive" as const } }, { supplier: { name: { contains: search, mode: "insensitive" as const } } }] }),
+          },
+          include, orderBy: { createdAt: "desc" }, take: 200,
+        })
       : Promise.resolve(null),
   ]);
   const countOf = (s: string) => counts.find((c) => c.status === s)?._count ?? 0;
@@ -135,7 +146,7 @@ async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decid
     <div className="space-y-8">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {kpis.map((k, i) => (
-          <Link key={k.label} href={k.href} className={cx("group rounded-2xl border bg-surface p-4 shadow-card transition hover:border-line-strong", i === 2 && "max-lg:col-span-2")}>
+          <Link key={k.label} href={k.href} className={cx("group rounded-2xl border border-line bg-surface p-4 shadow-card transition hover:border-line-strong", i === 2 && "max-lg:col-span-2")}>
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs text-muted">{k.label}</p>
               <span className={cx("grid size-8 place-items-center rounded-xl", { warn: "bg-warn/10 text-warn", ok: "bg-ok/10 text-ok", brand: "bg-brand/10 text-brand", muted: "bg-bg-2 text-muted", info: "bg-info/10 text-info", bad: "bg-bad/10 text-bad" }[k.tone])}><k.icon className="size-4" /></span>
@@ -147,7 +158,7 @@ async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decid
       </div>
 
       {list ? (
-        <QuoteList quotes={list} status={listStatus!} counts={{ pending: countOf("pending"), approved: countOf("approved"), rejected: countOf("rejected"), cancelled: countOf("cancelled"), todos: total }} today={today} />
+        <QuoteList quotes={list} search={search} status={listStatus!} counts={{ pending: countOf("pending"), approved: countOf("approved"), rejected: countOf("rejected"), cancelled: countOf("cancelled"), todos: total }} today={today} />
       ) : (
         <>
           {groups.length > 0 && (
@@ -197,8 +208,8 @@ async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decid
           )}
 
           <section className="grid gap-5 lg:grid-cols-3">
-            <Column title={decider ? "Para você decidir" : "Esperando o síndico"} icon={Hourglass} tone="warn" count={countOf("pending")} href="/fornecedores?status=pending" empty="Nada esperando decisão.">
-              {pending.map((q) => <QuoteCard key={q.id} q={q} today={today} />)}
+            <Column title={decider ? "Para você decidir" : "Esperando o síndico"} icon={Hourglass} tone="warn" count={countOf("pending")} href="/fornecedores?status=pending" empty="Nada esperando decisão." more={pending.length - COLUMN_MAX.pending}>
+              {pending.slice(0, COLUMN_MAX.pending).map((q) => <QuoteCard key={q.id} q={q} today={today} />)}
             </Column>
             <Column title="Aprovados" icon={CheckCircle2} tone="ok" count={countOf("approved")} href="/fornecedores?status=approved" empty="Nenhum aprovado ainda." more={countOf("approved") - approved.length}>
               {approved.map((q) => <QuoteCard key={q.id} q={q} today={today} />)}
@@ -224,7 +235,7 @@ function Column({ title, icon: Icon, tone, count, href, empty, more = 0, childre
       </div>
       <div className="space-y-2">
         {count ? children : <p className="rounded-2xl border border-dashed border-line-strong px-4 py-6 text-center text-xs text-muted">{empty}</p>}
-        {more > 0 && <Link href={href} className="block rounded-xl py-2 text-center text-xs font-medium text-brand hover:bg-surface">Mais {more}</Link>}
+        {more > 0 && <Link href={href} className="block rounded-xl border border-dashed border-line-strong py-2.5 text-center text-xs font-medium text-brand hover:bg-surface">Ver mais {more} na lista</Link>}
       </div>
     </div>
   );
@@ -234,7 +245,7 @@ function QuoteCard({ q, today }: { q: QuoteCardData; today: string }) {
   const st = quoteStatus(q.status);
   const validity = q.status === "pending" ? validityLabel(q.validUntil ? dateToDay(q.validUntil) : null, today) : null;
   return (
-    <Link href={`/fornecedores/orcamento/${q.id}`} className="block rounded-2xl border bg-surface p-3.5 shadow-card transition hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop">
+    <Link href={`/fornecedores/orcamento/${q.id}`} className="block rounded-2xl border border-line bg-surface p-3 shadow-card transition hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop">
       <div className="flex items-start gap-3">
         <CategoryIcon category={q.supplier.category} size="sm" />
         <div className="min-w-0 flex-1">
@@ -256,20 +267,25 @@ function QuoteCard({ q, today }: { q: QuoteCardData; today: string }) {
   );
 }
 
-function QuoteList({ quotes, status, counts, today }: { quotes: QuoteCardData[]; status: QuoteStatus | "todos"; counts: Record<string, number>; today: string }) {
+function QuoteList({ quotes, search, status, counts, today }: { quotes: QuoteCardData[]; search: string; status: QuoteStatus | "todos"; counts: Record<string, number>; today: string }) {
   const filters: [string, string][] = [["pending", "Aguardando"], ["approved", "Aprovados"], ["rejected", "Recusados"], ["cancelled", "Cancelados"], ["todos", "Todos"]];
   return (
     <section>
+      <form action="/fornecedores" className="relative mb-3">
+        <input type="hidden" name="status" value={status} />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+        <input name="q" defaultValue={search} placeholder="Buscar orçamento por serviço ou fornecedor" className="h-11 w-full rounded-2xl border border-line-strong bg-surface pl-10 pr-3 text-sm text-fg shadow-card placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15" />
+      </form>
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         <Link href="/fornecedores" className="mr-1 text-xs font-medium text-brand hover:underline">← Quadro</Link>
         {filters.map(([k, l]) => (
-          <Link key={k} href={`/fornecedores?status=${k}`} className={cx("rounded-full px-3 py-1 text-xs font-medium ring-1 transition", status === k ? "bg-brand-soft text-brand ring-brand" : "text-fg-2 ring-line-strong hover:bg-bg-2")}>
+          <Link key={k} href={`/fornecedores?status=${k}${search ? `&q=${encodeURIComponent(search)}` : ""}`} className={cx("rounded-full px-3 py-1 text-xs font-medium ring-1 transition", status === k ? "bg-brand-soft text-brand ring-brand" : "text-fg-2 ring-line-strong hover:bg-bg-2")}>
             {l} <span className="text-muted">{counts[k]}</span>
           </Link>
         ))}
       </div>
       {!quotes.length ? (
-        <p className="rounded-2xl bg-bg-2 px-4 py-6 text-center text-sm text-muted">Nada aqui.</p>
+        <p className="rounded-2xl bg-bg-2 px-4 py-6 text-center text-sm text-muted">{search ? `Nenhum orçamento com “${search}”.` : "Nada aqui."}</p>
       ) : (
         <Card className="divide-y divide-line">
           {quotes.map((q) => {
