@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, type CurrentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { DAY_RE, dayToDate, fmtBRL, parseBRL } from "@/lib/finance";
-import { SUPPLIER_ROLES, canChangeQuote, canDecideQuote, parseRating, quoteKey } from "@/lib/suppliers";
-import { loadQuoteFor, loadSupplierFor, supplierCondo } from "@/lib/suppliers-server";
+import { SUPPLIER_ROLES, canChangeQuote, canDecideQuote, canManageGroup, parseRating, quoteKey } from "@/lib/suppliers";
+import { loadGroupFor, loadQuoteFor, loadSupplierFor, supplierCondo } from "@/lib/suppliers-server";
 import { deleteFile } from "@/lib/storage";
 
 export type SupplierState = { error?: string; ok?: boolean; id?: string } | undefined;
@@ -16,10 +16,11 @@ export type SupplierState = { error?: string; ok?: boolean; id?: string } | unde
 const clip = (v: FormDataEntryValue | null, n: number) => String(v ?? "").trim().replace(/[ \t]+/g, " ").slice(0, n) || null;
 const READONLY = { error: "Indisponível em modo de visualização." };
 
-function refresh(supplierId?: string, quoteId?: string) {
+function refresh(supplierId?: string, quoteId?: string, groupId?: string | null) {
   revalidatePath("/fornecedores");
   if (supplierId) revalidatePath(`/fornecedores/${supplierId}`);
   if (quoteId) revalidatePath(`/fornecedores/orcamento/${quoteId}`);
+  if (groupId) revalidatePath(`/fornecedores/cotacao/${groupId}`);
 }
 
 /* ───────────── Fornecedores ───────────── */
@@ -107,7 +108,7 @@ export async function saveQuote(id: string | null, _prev: SupplierState, form: F
       new: { servico: data.title, valor: fmtBRL(data.amountCents) },
       condominiumId: old.condominiumId,
     });
-    refresh(old.supplierId, id);
+    refresh(old.supplierId, id, old.groupId);
     return { ok: true, id };
   }
 
@@ -115,12 +116,14 @@ export async function saveQuote(id: string | null, _prev: SupplierState, form: F
   if (!condoId) return { error: "Escolha um condomínio no menu." };
   const supplier = await db.supplier.findFirst({ where: { id: String(form.get("supplierId") ?? ""), condominiumId: condoId, archivedAt: null } });
   if (!supplier) return { error: "Escolha o fornecedor." };
-  const q = await db.supplierQuote.create({ data: { ...data, condominiumId: condoId, supplierId: supplier.id, createdById: user.id, createdByName: user.name } });
-  await audit(user, "create", "supplier_quote", q.id, { new: { fornecedor: supplier.name, servico: q.title, valor: fmtBRL(q.amountCents) }, condominiumId: condoId });
+  const group = await resolveGroup(user, condoId, title, String(form.get("groupId") ?? ""));
+  if (!group) return { error: "Esta cotação já foi encerrada. Reabra a cotação ou cadastre em outra." };
+  const q = await db.supplierQuote.create({ data: { ...data, title: group.title, groupId: group.id, condominiumId: condoId, supplierId: supplier.id, createdById: user.id, createdByName: user.name } });
+  await audit(user, "create", "supplier_quote", q.id, { new: { fornecedor: supplier.name, servico: q.title, valor: fmtBRL(q.amountCents), cotacao: group.title }, condominiumId: condoId });
+  refresh(supplier.id, q.id, group.id);
 
-  // Quem decide fica sabendo; se já há outros orçamentos do mesmo serviço, a mensagem sugere comparar
-  const pending = await db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "pending" }, select: { title: true } });
-  const same = pending.filter((p) => quoteKey(p.title) === quoteKey(q.title)).length;
+  // Quem decide fica sabendo; se a cotação já tem outros orçamentos aguardando, a mensagem sugere comparar
+  const same = await db.supplierQuote.count({ where: { groupId: group.id, status: "pending" } });
   await notify(
     { condominiumId: condoId, roles: ["syndic"], exclude: user.id },
     {
@@ -130,8 +133,24 @@ export async function saveQuote(id: string | null, _prev: SupplierState, form: F
       referenceId: q.id,
     },
   );
-  refresh(supplier.id, q.id);
   return { ok: true, id: q.id };
+}
+
+/**
+ * Cotação do orçamento novo: a escolhida (precisa estar aberta), senão a aberta com o mesmo serviço
+ * (mesmo nome sem acento/caixa), senão uma nova com esse nome. null = a escolhida já foi encerrada.
+ */
+async function resolveGroup(user: CurrentUser, condoId: string, title: string, groupId: string) {
+  if (groupId) {
+    const g = await db.quoteGroup.findFirst({ where: { id: groupId, condominiumId: condoId } });
+    return g && g.status === "open" && !g.archivedAt ? g : null;
+  }
+  const open = await db.quoteGroup.findMany({ where: { condominiumId: condoId, status: "open", archivedAt: null }, orderBy: { createdAt: "desc" } });
+  const same = open.find((g) => quoteKey(g.title) === quoteKey(title));
+  if (same) return same;
+  const g = await db.quoteGroup.create({ data: { condominiumId: condoId, title, createdById: user.id, createdByName: user.name } });
+  await audit(user, "create", "quote_group", g.id, { new: { cotacao: g.title }, condominiumId: condoId });
+  return g;
 }
 
 /** Síndico ou superadmin aprova ou recusa (recusa pede o motivo). A decisão é reservada: só vale uma vez. */
@@ -162,7 +181,7 @@ export async function decideQuote(id: string, _prev: SupplierState, form: FormDa
       },
     );
   }
-  refresh(q.supplierId, id);
+  refresh(q.supplierId, id, q.groupId);
   return { ok: true };
 }
 
@@ -174,7 +193,7 @@ export async function cancelQuote(id: string) {
   if (!q || !canChangeQuote(q, user)) return;
   const { count } = await db.supplierQuote.updateMany({ where: { id, status: "pending" }, data: { status: "cancelled", decidedById: user.id, decidedByName: user.name, decidedAt: new Date() } });
   if (count) await audit(user, "cancel", "supplier_quote", id, { new: { fornecedor: q.supplier.name, servico: q.title }, condominiumId: q.condominiumId });
-  refresh(q.supplierId, id);
+  refresh(q.supplierId, id, q.groupId);
 }
 
 /** Tira um arquivo do orçamento (só enquanto aguarda a decisão). */
@@ -188,7 +207,7 @@ export async function removeQuoteFile(fileId: string) {
   await db.supplierQuoteFile.delete({ where: { id: fileId } });
   await deleteFile(f.url).catch(() => null);
   await audit(user, "remove_file", "supplier_quote", q.id, { old: { arquivo: f.fileName }, condominiumId: q.condominiumId });
-  refresh(q.supplierId, q.id);
+  refresh(q.supplierId, q.id, q.groupId);
 }
 
 /** Cadastro rápido de dentro do orçamento: só nome, ramo e telefone. Devolve o fornecedor para já ficar escolhido. */
@@ -218,29 +237,101 @@ export async function quickSupplier(input: { name: string; category?: string; ph
   return { supplier: { id: s.id, name: s.name, category: s.category } };
 }
 
+/* ───────────── Cotações ───────────── */
+
+/** Cria (id vazio) ou renomeia uma cotação. Nova cotação pode começar vazia, para pedir os orçamentos depois. */
+export async function saveGroup(id: string | null, _prev: SupplierState, form: FormData): Promise<SupplierState> {
+  const user = await requireUser(...SUPPLIER_ROLES);
+  if (user.impersonator) return READONLY;
+  const title = clip(form.get("title"), 140);
+  if (!title || title.length < 2) return { error: "Dê um nome à cotação (o serviço ou material)." };
+  const description = String(form.get("description") ?? "").trim().slice(0, 2000) || null;
+  if (id) {
+    const g = await loadGroupFor(user, id);
+    if (!g) return { error: "Cotação não encontrada." };
+    await db.$transaction([
+      db.quoteGroup.update({ where: { id }, data: { title, description } }),
+      // O nome do serviço dos orçamentos acompanha a cotação
+      db.supplierQuote.updateMany({ where: { groupId: id }, data: { title } }),
+    ]);
+    await audit(user, "update", "quote_group", id, { old: { cotacao: g.title }, new: { cotacao: title }, condominiumId: g.condominiumId });
+    refresh(undefined, undefined, id);
+    return { ok: true, id };
+  }
+  const condoId = await supplierCondo(user);
+  if (!condoId) return { error: "Escolha um condomínio no menu." };
+  const g = await db.quoteGroup.create({ data: { condominiumId: condoId, title, description, createdById: user.id, createdByName: user.name } });
+  await audit(user, "create", "quote_group", g.id, { new: { cotacao: g.title }, condominiumId: condoId });
+  refresh();
+  return { ok: true, id: g.id };
+}
+
 /**
- * Comparador: o síndico escolhe um orçamento (aprova) e, se quiser, recusa de uma vez os outros que aguardam
- * para o mesmo serviço, com o motivo "escolhido outro fornecedor". Cada um avisa quem cadastrou.
+ * Encerra a cotação: com o orçamento contratado (aprovado agora, se ainda aguardava) ou sem contratação.
+ * `rejectOthers` recusa os que ainda aguardam, com o motivo; cada pessoa que cadastrou é avisada.
  */
-export async function chooseQuote(id: string, rejectOthers: boolean, _prev: SupplierState, form: FormData): Promise<SupplierState> {
+export async function closeGroup(id: string, _prev: SupplierState, form: FormData): Promise<SupplierState> {
   const user = await requireUser("superadmin", "syndic");
   if (user.impersonator) return READONLY;
-  const q = await loadQuoteFor(user, id);
-  if (!q) return { error: "Orçamento não encontrado." };
-  const approved = new FormData();
-  approved.set("decision", "approve");
-  approved.set("note", String(form.get("note") ?? ""));
-  const res = await decideQuote(id, undefined, approved);
-  if (res?.error || !rejectOthers) return res;
+  if (!canManageGroup(user.role)) return { error: "Só o síndico encerra a cotação." };
+  const g = await loadGroupFor(user, id);
+  if (!g) return { error: "Cotação não encontrada." };
+  if (g.status !== "open") return { error: "Esta cotação já foi encerrada." };
+  const chosenId = String(form.get("chosenQuoteId") ?? "");
+  const note = String(form.get("note") ?? "").trim().slice(0, 1000) || null;
+  const rejectOthers = form.get("rejectOthers") === "on";
+  const chosen = chosenId ? g.quotes.find((q) => q.id === chosenId) : null;
+  if (chosenId && (!chosen || chosen.status === "rejected" || chosen.status === "cancelled")) return { error: "Escolha um orçamento que esteja aguardando ou aprovado." };
+  if (!chosen && !note) return { error: "Encerrando sem contratar, escreva o motivo (fica no histórico)." };
 
-  const key = quoteKey(q.title);
-  const others = (await db.supplierQuote.findMany({ where: { condominiumId: q.condominiumId, status: "pending", id: { not: id } }, select: { id: true, title: true } }))
-    .filter((o) => quoteKey(o.title) === key);
-  for (const o of others) {
+  // Reserva o encerramento antes de mexer nos orçamentos (dois cliques não encerram duas vezes)
+  const { count } = await db.quoteGroup.updateMany({
+    where: { id, status: "open" },
+    data: { status: "closed", chosenQuoteId: chosen?.id ?? null, closedAt: new Date(), closedById: user.id, closedByName: user.name, closingNote: note },
+  });
+  if (!count) return { error: "Esta cotação já foi encerrada." };
+
+  if (chosen?.status === "pending") {
     const f = new FormData();
-    f.set("decision", "reject");
-    f.set("note", `Escolhido outro fornecedor: ${q.supplier.name} (${fmtBRL(q.amountCents)}).`);
-    await decideQuote(o.id, undefined, f);
+    f.set("decision", "approve");
+    if (note) f.set("note", note);
+    await decideQuote(chosen.id, undefined, f);
   }
+  if (rejectOthers) {
+    const reason = chosen ? `Escolhido outro fornecedor: ${chosen.supplier.name} (${fmtBRL(chosen.amountCents)}).` : `Cotação encerrada sem contratação: ${note}`;
+    for (const o of g.quotes.filter((q) => q.status === "pending" && q.id !== chosen?.id)) {
+      const f = new FormData();
+      f.set("decision", "reject");
+      f.set("note", reason.slice(0, 1000));
+      await decideQuote(o.id, undefined, f);
+    }
+  }
+  await audit(user, "close", "quote_group", id, {
+    new: { cotacao: g.title, contratado: chosen ? `${chosen.supplier.name} · ${fmtBRL(chosen.amountCents)}` : "sem contratação", motivo: note },
+    condominiumId: g.condominiumId,
+  });
+  refresh(undefined, undefined, id);
   return { ok: true };
+}
+
+/** Reabre uma cotação encerrada (não arquivada). Os orçamentos ficam como estão; o contratado sai. */
+export async function reopenGroup(id: string) {
+  const user = await requireUser("superadmin", "syndic");
+  if (user.impersonator) return;
+  const g = await loadGroupFor(user, id);
+  if (!g || g.status !== "closed" || g.archivedAt) return;
+  await db.quoteGroup.update({ where: { id }, data: { status: "open", chosenQuoteId: null, closedAt: null, closedById: null, closedByName: null, closingNote: null } });
+  await audit(user, "reopen", "quote_group", id, { old: { cotacao: g.title, motivo: g.closingNote }, condominiumId: g.condominiumId });
+  refresh(undefined, undefined, id);
+}
+
+/** Arquiva (vai para o histórico) ou devolve uma cotação encerrada. */
+export async function setGroupArchived(id: string, archived: boolean) {
+  const user = await requireUser("superadmin", "syndic");
+  if (user.impersonator) return;
+  const g = await loadGroupFor(user, id);
+  if (!g || g.status !== "closed") return;
+  await db.quoteGroup.update({ where: { id }, data: { archivedAt: archived ? new Date() : null } });
+  await audit(user, archived ? "archive" : "restore", "quote_group", id, { new: { cotacao: g.title }, condominiumId: g.condominiumId });
+  refresh(undefined, undefined, id);
 }

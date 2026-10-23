@@ -74,6 +74,7 @@ model Condominium {
   parcels          Parcel[]
   suppliers        Supplier[]
   supplierQuotes   SupplierQuote[]
+  quoteGroups      QuoteGroup[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -1040,6 +1041,8 @@ model SupplierQuote {
   deadline      String?
   paymentTerms  String?
   status        String              @default("pending")
+  /// Cotação (grupo de orçamentos do mesmo serviço)
+  groupId       String?
   createdById   String?
   createdByName String
   createdAt     DateTime            @default(now())
@@ -1050,10 +1053,37 @@ model SupplierQuote {
   decisionNote  String?
   condominium   Condominium         @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
   supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  group         QuoteGroup?         @relation(fields: [groupId], references: [id], onDelete: SetNull)
   files         SupplierQuoteFile[]
 
   @@index([condominiumId, status])
   @@index([supplierId])
+  @@index([groupId])
+}
+
+/// Cotação: os orçamentos de um mesmo serviço juntos. status: open (recebendo/decidindo) | closed (encerrada pelo
+/// síndico, com o orçamento contratado ou sem contratação). Encerrada pode ser arquivada (vai para o histórico).
+model QuoteGroup {
+  id            String          @id @default(cuid())
+  condominiumId String
+  title         String
+  description   String?
+  status        String          @default("open")
+  /// Orçamento contratado ao encerrar (vazio = encerrada sem contratação)
+  chosenQuoteId String?
+  closedAt      DateTime?
+  closedById    String?
+  closedByName  String?
+  closingNote   String?
+  archivedAt    DateTime?
+  createdById   String?
+  createdByName String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  condominium   Condominium     @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  quotes        SupplierQuote[]
+
+  @@index([condominiumId, status, archivedAt])
 }
 
 /// Arquivo do orçamento (PDF ou foto), entregue por /api/fornecedores/anexo/[id]

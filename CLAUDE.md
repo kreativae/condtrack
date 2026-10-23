@@ -102,7 +102,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `removeSyndic`).
 - **Condomínio de demonstração**: cada geração sai diferente (nome que ainda não existe, cidade, CNPJ válido fictício,
   torres, pessoas, empresas, OS, valores, pautas, porteiro, reservas com convidados, pessoas das unidades, entradas
-  na portaria e fornecedores com orçamentos em PDF: 3 do mesmo serviço para comparar, aprovados, recusado, cancelado): bancos e sorteio com semente em `src/lib/demo-data.ts`.
+  na portaria e fornecedores com cotações e orçamentos em PDF: uma em andamento com 3 para comparar, encerradas e no histórico): bancos e sorteio com semente em `src/lib/demo-data.ts`.
   Botão do superadmin em `/admin/condominios` → `src/lib/demo-condo.ts` (dados fictícios em
   todas as áreas), vinculado como síndico ao e-mail digitado na janela. Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias, e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
@@ -111,22 +111,30 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   página). Serviço: abre a OS `leadDays` antes de `nextDue` (atribuída ao prestador do plano) e já avança `nextDue` com
   `updateMany` condicional (nunca abre duas vezes; ciclos atrasados viram uma OS só). Documento: aviso antes (`alertedFor =
   data`) e no vencimento (`data!`) até "Renovado". Sugestões entram pausadas. Modelos `maint_*` em Mensagens.
-- **Fornecedores** (`/fornecedores`; zelador, síndico e superadmin): abas Orçamentos (padrão) e Agenda de fornecedores
-  (A–Z, busca, filtro por ramo, telefone/WhatsApp/e-mail, arquivados só para quem decide). `Supplier` (arquivar =
-  `archivedAt`, os orçamentos ficam) → `SupplierQuote` (pending → approved | rejected, ou cancelled por quem cadastrou
-  ou por quem decide enquanto aguarda) → `SupplierQuoteFile` (PDF/foto até 8 MB, pasta `quote-<condomínio>`, sobe
-  por `/api/fornecedores/orcamento/[id]/anexos` e abre por `/api/fornecedores/anexo/[id]`, fora do proxy e da rota de
-  mídias). O zelador cadastra; só síndico e superadmin decidem (`decideQuote`, `updateMany` condicional; recusa exige
-  motivo). Orçamentos com o mesmo serviço (`quoteKey()`: sem acento/caixa) aparecem lado a lado para comparar.
-  Regras puras em `src/lib/suppliers.ts` (testadas), acesso em `suppliers-server.ts`, ações em `actions/suppliers.ts`.
+- **Fornecedores** (`/fornecedores`; zelador, síndico e superadmin): abas Cotações (padrão), Agenda de fornecedores
+  (A–Z, busca, filtro por ramo, telefone/WhatsApp/e-mail, arquivados só para quem decide) e Histórico.
+  `Supplier` (arquivar = `archivedAt`, os orçamentos ficam) → `SupplierQuote` (pending → approved | rejected, ou
+  cancelled por quem cadastrou ou por quem decide enquanto aguarda) → `SupplierQuoteFile` (PDF/foto até 8 MB, pasta
+  `quote-<condomínio>`, sobe por `/api/fornecedores/orcamento/[id]/anexos` e abre por `/api/fornecedores/anexo/[id]`,
+  fora do proxy e da rota de mídias). O zelador cadastra; só síndico e superadmin decidem (`decideQuote`,
+  `updateMany` condicional; recusa exige motivo).
+  **Cotação** (`QuoteGroup`, `/fornecedores/cotacao/[id]`): os orçamentos do mesmo serviço juntos e lado a lado.
+  Todo orçamento novo entra numa (`resolveGroup` em `actions/suppliers.ts`: a escolhida, senão a aberta com o mesmo
+  nome por `quoteKey()`, senão uma nova; a migração `cotacoes` agrupou os antigos). open → closed (`closeGroup`: o
+  síndico escolhe o contratado, aprovado na hora, ou encerra sem contratar com motivo; pode recusar os que aguardam)
+  → arquivada (`archivedAt`, vai para o Histórico). `reopenGroup` só antes de arquivar. Regras puras `groupStats`,
+  `groupSavings` (economia frente ao mais caro e à média) e `groupLabel` em `src/lib/suppliers.ts` (testadas).
+  Quadro: Em andamento (as que esperam decisão primeiro) e Encerradas, com limite por coluna e "Ver todas" (`?ver=`);
+  os números do topo abrem a lista de orçamentos com busca (`?status=`, `?q=`).
+  **Relatório** (síndico e superadmin): `/fornecedores/relatorio` escolhe cotações e orçamentos (período pela criação
+  da cotação, situação) → `/relatorio/orcamentos?ids=…` (ou `?grupo=`), A4 para "Salvar como PDF", com contratado,
+  economia e motivos (`obs=0` tira); gerar fica na auditoria.
   Avisos `quote_created` (síndico) e `quote_decided` (quem cadastrou) em Mensagens; bloco "Orçamentos para aprovar"
-  no painel do síndico. Entram no backup do condomínio (dados + arquivos em `orcamentos/`).
-  Tela: quadro em 3 colunas (para decidir · aprovados · recusados/cancelados; `?status=` vira lista com filtros),
-  barras de preço por serviço e comparador lado a lado em `/fornecedores/comparar?servico=` (“Escolher este” =
-  `chooseQuote`, que aprova e pode recusar os outros do mesmo serviço). Orçamento rápido na gaveta (`quick-quote.tsx`,
-  `Sheet` da portaria): soltar o PDF em qualquer lugar da página abre a gaveta; fornecedor buscado ou criado ali
-  (`quickSupplier`, reaproveita o mesmo nome). Ícone e cor por ramo em `components/suppliers/look.tsx` (só cores do
-  tema). Campos com vários botões usam `FieldGroup` (no `Field`, que é `<label>`, clicar no texto aciona o 1º botão).
+  no painel do síndico. Entram no backup do condomínio (dados, cotações e arquivos em `orcamentos/`).
+  Orçamento rápido na gaveta (`quick-quote.tsx`, `Sheet` da portaria; na cotação já vem com ela): soltar o PDF em
+  qualquer lugar da página abre a gaveta; fornecedor buscado ou criado ali (`quickSupplier`, reaproveita o mesmo nome).
+  Ícone e cor por ramo em `components/suppliers/look.tsx` (só cores do tema). Campos com vários botões usam
+  `FieldGroup` (no `Field`, que é `<label>`, clicar no texto aciona o 1º botão).
 - **Notificações no celular** (Web Push, `src/lib/push.ts`): toda notificação do app (canal "app" em Mensagens) também vai
   para os aparelhos inscritos (`PushDevice`), pelo `notify()`. Inscrição em Meu perfil (`perfil/push.tsx`); service worker
   em `public/sw.js` (sem cache de páginas). Endereços de inscrição só dos serviços oficiais (anti-SSRF, `actions/push.ts`).

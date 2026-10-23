@@ -19,7 +19,15 @@ const plusDays = (n: number) => dateToDay(new Date(Date.now() + n * 86_400_000))
  * Orçamento rápido: botão do topo e "soltar o arquivo em qualquer lugar da página". Arquivo, fornecedor
  * (busca ou cadastra na hora), serviço e valor numa gaveta só; o resto fica em "Mais detalhes".
  */
-export function QuickQuote({ suppliers, titles, label = "Orçamento" }: { suppliers: Sup[]; titles: string[]; label?: string }) {
+export function QuickQuote({ suppliers, titles, label = "Orçamento", group, variant = "brand" }: {
+  suppliers: Sup[];
+  /** Cotações abertas: escrever o mesmo nome põe o orçamento nela */
+  titles: string[];
+  label?: string;
+  /** Página da cotação: o orçamento entra nela (sem perguntar o serviço) */
+  group?: { id: string; title: string };
+  variant?: "brand" | "outline";
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -91,7 +99,7 @@ export function QuickQuote({ suppliers, titles, label = "Orçamento" }: { suppli
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}><Plus className="size-4" />{label}</Button>
+      <Button type="button" variant={variant} onClick={() => setOpen(true)}><Plus className="size-4" />{label}</Button>
 
       {dragging && !open && (
         <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center bg-brand/10 p-6 backdrop-blur-[2px]">
@@ -103,7 +111,7 @@ export function QuickQuote({ suppliers, titles, label = "Orçamento" }: { suppli
         </div>
       )}
 
-      <Sheet open={open} onClose={close} title="Novo orçamento">
+      <Sheet open={open} onClose={close} title={group ? `Orçamento · ${group.title}` : "Novo orçamento"}>
         <form onSubmit={submit} className="space-y-4">
           <DropZone files={files} onAdd={addFiles} onRemove={(i) => setFiles(files.filter((_, j) => j !== i))} />
 
@@ -114,11 +122,18 @@ export function QuickQuote({ suppliers, titles, label = "Orçamento" }: { suppli
             onCreated={(s) => { setList((l) => [...l, s].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))); setSupplier(s); }}
           />
 
-          <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr]">
-            <Field label="Serviço ou material" hint="Mesmo nome = aparece no comparador.">
-              <Input name="title" required minLength={2} maxLength={140} list="qq-titles" placeholder="Ex.: Pintura da fachada" />
-              <datalist id="qq-titles">{titles.map((t) => <option key={t} value={t} />)}</datalist>
-            </Field>
+          <div className={cx("grid gap-3", !group && "sm:grid-cols-[1.5fr_1fr]")}>
+            {group ? (
+              <>
+                <input type="hidden" name="groupId" value={group.id} />
+                <input type="hidden" name="title" value={group.title} />
+              </>
+            ) : (
+              <Field label="Cotação (serviço ou material)" hint="O nome de uma cotação aberta põe o orçamento nela; outro nome cria uma nova.">
+                <Input name="title" required minLength={2} maxLength={140} list="qq-titles" placeholder="Ex.: Pintura da área externa" />
+                <datalist id="qq-titles">{titles.map((t) => <option key={t} value={t} />)}</datalist>
+              </Field>
+            )}
             <Field label="Valor (R$)">
               <Input name="amount" required inputMode="decimal" placeholder="0,00" className="text-lg font-semibold tabular-nums" />
             </Field>

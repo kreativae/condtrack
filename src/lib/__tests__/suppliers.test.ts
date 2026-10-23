@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canChangeQuote, canDecideQuote, parseRating, priceDiff, quoteExpired, quoteGroups, quoteKey, supplierLetter, validityLabel, whatsappNumber } from "../suppliers";
+import { canChangeQuote, canDecideQuote, groupLabel, groupSavings, groupStats, parseRating, priceDiff, quoteExpired, quoteKey, supplierLetter, validityLabel, whatsappNumber } from "../suppliers";
 
 describe("fornecedores e orçamentos", () => {
   it("só síndico e superadmin decidem; o zelador não", () => {
@@ -23,27 +23,44 @@ describe("fornecedores e orçamentos", () => {
     expect(quoteExpired(null, "2026-10-23")).toBe(false);
   });
 
-  it("mesmo serviço com grafias diferentes vira um grupo, do mais barato ao mais caro", () => {
+  it("mesmo serviço com grafias diferentes tem a mesma chave", () => {
     expect(quoteKey("  Pintura da Fachada ")).toBe(quoteKey("pintura da fachada"));
     expect(quoteKey("Troca de bomba d’água")).toBe(quoteKey("troca de bomba d'agua"));
-    const groups = quoteGroups([
-      { id: "a", title: "Pintura da fachada", amountCents: 900000, status: "pending" },
-      { id: "b", title: "pintura da fachada", amountCents: 750000, status: "pending" },
-      { id: "c", title: "PINTURA DA FACHADA", amountCents: 500000, status: "cancelled" },
-      { id: "d", title: "Jardim", amountCents: 30000, status: "pending" },
-    ]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].quotes.map((q) => q.id)).toEqual(["b", "a"]);
-    expect(groups[0].cheapestId).toBe("b");
-    expect(groups[0].spread).toBe(150000);
+    expect(quoteKey("Pintura da área externa")).not.toBe(quoteKey("Pintura da área interna"));
   });
 
-  it("grupo já todo decidido não aparece para comparar", () => {
-    expect(quoteGroups([
-      { id: "a", title: "Poda", amountCents: 1, status: "approved" },
-      { id: "b", title: "Poda", amountCents: 2, status: "rejected" },
-      { id: "c", title: "Poda", amountCents: 3, status: "approved" },
-    ])).toHaveLength(0);
+  it("cotação: compara só os que aguardam ou foram aprovados", () => {
+    const st = groupStats([
+      { id: "a", amountCents: 900000, status: "pending" },
+      { id: "b", amountCents: 750000, status: "pending" },
+      { id: "c", amountCents: 500000, status: "cancelled" },
+      { id: "d", amountCents: 400000, status: "rejected" },
+    ]);
+    expect(st.live.map((q) => q.id)).toEqual(["b", "a"]);
+    expect(st.cheapestId).toBe("b");
+    expect(st.spread).toBe(150000);
+    expect(st.pending).toBe(2);
+    expect(groupStats([{ id: "a", amountCents: 1, status: "pending" }, { id: "b", amountCents: 1, status: "pending" }]).cheapestId).toBeNull();
+    expect(groupStats([]).spread).toBe(0);
+  });
+
+  it("economia do contratado em relação ao mais caro e à média (sem cancelados)", () => {
+    const qs = [
+      { id: "a", amountCents: 1000, status: "approved" },
+      { id: "b", amountCents: 1500, status: "rejected" },
+      { id: "c", amountCents: 2000, status: "rejected" },
+      { id: "d", amountCents: 9000, status: "cancelled" },
+    ];
+    expect(groupSavings(qs[0], qs)).toEqual({ vsMax: 1000, vsAvg: 500, received: 3 });
+    expect(groupSavings(null, qs)).toBeNull();
+    expect(groupSavings(qs[0], [qs[0]])).toBeNull();
+  });
+
+  it("situação da cotação em palavras", () => {
+    expect(groupLabel({ status: "open", archivedAt: null, chosenQuoteId: null }, 2)).toEqual({ text: "2 aguardando decisão", tone: "warn" });
+    expect(groupLabel({ status: "open", archivedAt: null, chosenQuoteId: null }, 0).text).toBe("Recebendo orçamentos");
+    expect(groupLabel({ status: "closed", archivedAt: null, chosenQuoteId: "q" }, 0).text).toBe("Encerrada · contratado");
+    expect(groupLabel({ status: "closed", archivedAt: new Date(), chosenQuoteId: null }, 0).text).toBe("Encerrada sem contratação · arquivada");
   });
 
   it("letra da agenda ignora acento; número e símbolo vão para #", () => {

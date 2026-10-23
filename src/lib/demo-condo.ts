@@ -445,8 +445,9 @@ function demoQuotePdf(lines: string[]) {
 }
 
 /**
- * Fornecedores fictícios: 8 ramos sorteados, um serviço com 3 orçamentos para comparar (um com a validade vencida)
- * e um orçamento por fornecedor nos outros ramos (aprovados, recusados, aguardando e um cancelado), cada um com PDF.
+ * Fornecedores fictícios: 8 ramos sorteados e as cotações deles: uma em andamento com 3 orçamentos para comparar
+ * (um com a validade vencida), uma encerrada com o contratado e o recusado, e uma por ramo nos outros (aprovadas,
+ * recusada, aguardando e cancelada; as antigas já no histórico), cada orçamento com PDF.
  */
 async function seedSuppliers(c: {
   cid: string; r: Rng; person: (female: boolean) => string; now: number; ddd: string; size: number;
@@ -486,7 +487,7 @@ async function seedSuppliers(c: {
     const url = await saveGenerated(`quote-${cid}`, `${quoteId}.pdf`, buf, "application/pdf");
     await db.supplierQuoteFile.create({ data: { quoteId, url, fileName: `Orçamento ${supplier}.pdf`, mimeType: "application/pdf", sizeBytes: buf.length, uploadedById: c.caretaker.id, createdAt: at } });
   };
-  const quote = async (sup: Made, svc: (typeof DEMO_SUPPLIERS)[number]["services"][number], status: string, ageDays: number, opts: { cents?: number; expired?: boolean } = {}) => {
+  const quote = async (groupId: string, sup: Made, svc: (typeof DEMO_SUPPLIERS)[number]["services"][number], status: string, ageDays: number, opts: { cents?: number; expired?: boolean; note?: string } = {}) => {
     const createdAt = new Date(now - ageDays * DAY - r.int(1, 8) * 3_600_000);
     // Orçamento de verdade vem em valor redondo (dezenas de reais)
     const cents = opts.cents ?? Math.round(r.vary(Math.round(svc.cents * Math.max(c.size, 0.6)), 0.15) / 1000) * 1000;
@@ -496,32 +497,58 @@ async function seedSuppliers(c: {
     const decidedAt = decided ? new Date(Math.min(now - DAY / 2, createdAt.getTime() + r.int(1, 4) * DAY)) : null;
     const q = await db.supplierQuote.create({
       data: {
-        condominiumId: cid, supplierId: sup.id, title: svc.title, description: svc.desc, amountCents: cents, validUntil, deadline: svc.deadline, paymentTerms: pay,
+        condominiumId: cid, groupId, supplierId: sup.id, title: svc.title, description: svc.desc, amountCents: cents, validUntil, deadline: svc.deadline, paymentTerms: pay,
         status, createdById: c.caretaker.id, createdByName: c.caretaker.name, createdAt,
         ...(decided && {
           decidedAt,
           decidedById: status === "cancelled" ? c.caretaker.id : c.syndic.id,
           decidedByName: status === "cancelled" ? c.caretaker.name : c.syndic.name,
-          decisionNote: status === "approved"
+          decisionNote: opts.note ?? (status === "approved"
             ? r.pick([null, "Aprovado. Combinar o início com o zelador.", "Aprovado dentro do previsto no orçamento do ano.", "Aprovado; pedir a nota fiscal no fim do serviço."])
-            : status === "rejected" ? r.pick(["Valor acima do previsto; pedir outra cotação.", "Prazo longo demais para esta época.", "Vamos esperar a assembleia para decidir."]) : null,
+            : status === "rejected" ? r.pick(["Valor acima do previsto; pedir outra cotação.", "Prazo longo demais para esta época.", "Vamos esperar a assembleia para decidir."]) : null),
         }),
       },
     });
     await pdfFor(q.id, sup.name, svc.title, svc.desc, cents, svc.deadline, pay, createdAt);
+    return q;
   };
+  // Cotação (grupo de orçamentos do serviço) e o encerramento pelo síndico
+  const group = (title: string, ageDays: number) =>
+    db.quoteGroup.create({ data: { condominiumId: cid, title, createdById: c.caretaker.id, createdByName: c.caretaker.name, createdAt: new Date(now - ageDays * DAY - 12 * 3_600_000) } });
+  const close = (id: string, chosenId: string | null, at: Date | null, note: string | null, archived: boolean) =>
+    db.quoteGroup.update({
+      where: { id },
+      data: { status: "closed", chosenQuoteId: chosenId, closedAt: at ?? new Date(now - DAY), closedById: c.syndic.id, closedByName: c.syndic.name, closingNote: note, ...(archived && { archivedAt: new Date(now - r.int(1, 5) * DAY) }) },
+    });
 
-  // Comparação: mesmo serviço, 3 fornecedores, todos aguardando (o mais antigo com a validade vencida)
+  // Em andamento: mesmo serviço, 3 fornecedores, todos aguardando (o mais antigo com a validade vencida)
   const svc = compare.services[0];
-  for (const [i, sup] of made.get(compare.category)!.entries()) await quote(sup, svc, "pending", r.int(1, 9) + i * 3, { expired: i === 2 });
+  const open = await group(svc.title, 14);
+  for (const [i, sup] of made.get(compare.category)!.entries()) await quote(open.id, sup, svc, "pending", r.int(1, 9) + i * 3, { expired: i === 2 });
 
-  // Demais ramos: um orçamento cada, com situações variadas
+  // Encerrada (ainda no quadro): dois orçamentos, o síndico contratou um e recusou o outro
+  const pair = kinds.find((k) => k !== compare && (made.get(k.category)?.length ?? 0) >= 2);
+  if (pair) {
+    const s2 = r.pick(pair.services);
+    const g = await group(s2.title, 30);
+    const [a, b] = made.get(pair.category)!;
+    const won = await quote(g.id, a, s2, "approved", 24, { note: "Contratado: melhor prazo e garantia." });
+    await quote(g.id, b, s2, "rejected", 22, { cents: won.amountCents + r.int(8, 40) * 1000, note: `Escolhido outro fornecedor: ${a.name}.` });
+    await close(g.id, won.id, won.decidedAt, "Contratado: melhor prazo e garantia.", false);
+  }
+
+  // Demais ramos: uma cotação com um orçamento cada; as antigas já estão no histórico
   const statuses = r.shuffle(["approved", "approved", "approved", "rejected", "pending", "pending", "cancelled"]);
   let n = 0;
   for (const k of kinds) {
-    if (k === compare) continue;
+    if (k === compare || k === pair) continue;
     const status = statuses[n++ % statuses.length];
-    await quote(made.get(k.category)![0], r.pick(k.services), status, status === "pending" ? r.int(0, 6) : r.int(8, 70));
+    const age = status === "pending" ? r.int(0, 6) : r.int(8, 70);
+    const s3 = r.pick(k.services);
+    const g = await group(s3.title, age + 1);
+    const q = await quote(g.id, made.get(k.category)![0], s3, status, age);
+    if (status === "approved") await close(g.id, q.id, q.decidedAt, q.decisionNote, age > 30);
+    if (status === "cancelled") await close(g.id, null, q.decidedAt, "Serviço adiado para o próximo ano.", true);
   }
 }
 

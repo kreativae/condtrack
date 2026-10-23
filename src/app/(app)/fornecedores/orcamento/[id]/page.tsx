@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToDay, fmtBRL, fmtDayBR } from "@/lib/finance";
 import { fmtDateTime, nowMs } from "@/lib/format";
-import { SUPPLIER_ROLES, canChangeQuote, canDecideQuote, quoteExpired, quoteKey, quoteStatus, whatsappNumber } from "@/lib/suppliers";
+import { SUPPLIER_ROLES, canChangeQuote, canDecideQuote, quoteExpired, quoteStatus, whatsappNumber } from "@/lib/suppliers";
 import { loadQuoteFor } from "@/lib/suppliers-server";
 import { cancelQuote } from "@/app/actions/suppliers";
 import { Alert, Badge, Card, CardHeader, LinkButton, PageHeader, buttonClass, cx } from "@/components/ui";
@@ -29,13 +29,15 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
   const expired = pending && quoteExpired(q.validUntil ? dateToDay(q.validUntil) : null, today);
   const wa = whatsappNumber(q.supplier.phone);
 
-  // Outros orçamentos do mesmo serviço (para comparar), sem os cancelados
-  const key = quoteKey(q.title);
-  const others = (await db.supplierQuote.findMany({
-    where: { condominiumId: q.condominiumId, id: { not: q.id }, status: { not: "cancelled" } },
-    include: { supplier: { select: { name: true } } },
-    orderBy: { amountCents: "asc" },
-  })).filter((o) => quoteKey(o.title) === key);
+  // Os outros orçamentos da mesma cotação, sem os cancelados
+  const group = q.groupId ? await db.quoteGroup.findUnique({ where: { id: q.groupId }, select: { id: true, title: true, status: true, archivedAt: true } }) : null;
+  const others = q.groupId
+    ? await db.supplierQuote.findMany({
+        where: { groupId: q.groupId, id: { not: q.id }, status: { not: "cancelled" } },
+        include: { supplier: { select: { name: true } } },
+        orderBy: { amountCents: "asc" },
+      })
+    : [];
   const cheaperExists = others.some((o) => o.status !== "rejected" && o.amountCents < q.amountCents);
 
   const facts: [string, string | null][] = [
@@ -46,7 +48,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
 
   return (
     <div className="mx-auto max-w-4xl animate-in">
-      <Link href="/fornecedores" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Orçamentos</Link>
+      <Link href={group ? `/fornecedores/cotacao/${group.id}` : "/fornecedores"} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> {group ? `Cotação: ${group.title}` : "Cotações"}</Link>
       <PageHeader
         eyebrow="Orçamento"
         title={q.title}
@@ -87,8 +89,8 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
           {others.length > 0 && (
             <Card>
               <CardHeader
-                title={<span className="flex items-center gap-2"><Scale className="size-4 text-brand" />Outros orçamentos deste serviço</span>}
-                action={<Link href={`/fornecedores/comparar?servico=${encodeURIComponent(q.title)}`} className="text-xs font-medium text-brand hover:underline">Comparar lado a lado</Link>}
+                title={<span className="flex items-center gap-2"><Scale className="size-4 text-brand" />Outros orçamentos da cotação</span>}
+                action={group && <Link href={`/fornecedores/cotacao/${group.id}`} className="text-xs font-medium text-brand hover:underline">Comparar lado a lado</Link>}
               />
               <div className="divide-y divide-line border-t border-line">
                 {[...others, q].sort((a, b) => a.amountCents - b.amountCents).map((o) => {
@@ -136,7 +138,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
 
           <div className="flex flex-col gap-2">
             {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" className={buttonClass("outline")}><MessageCircle className="size-4 text-ok" />WhatsApp do fornecedor</a>}
-            <LinkButton href={`/fornecedores/orcamento/novo?servico=${encodeURIComponent(q.title)}`} variant="outline"><Copy className="size-4" />Outro orçamento deste serviço</LinkButton>
+            {group?.status === "open" && !group.archivedAt && <LinkButton href={`/fornecedores/orcamento/novo?grupo=${group.id}`} variant="outline"><Copy className="size-4" />Outro orçamento desta cotação</LinkButton>}
             {editable && (
               <form action={cancelQuote.bind(null, id)}>
                 <button className={buttonClass("ghost") + " w-full text-muted"}><Ban className="size-4" />Cancelar orçamento</button>

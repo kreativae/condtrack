@@ -42,30 +42,63 @@ export function quoteExpired(validUntilDay: string | null, today: string) {
   return !!validUntilDay && validUntilDay < today;
 }
 
-/** Chave para juntar orçamentos do mesmo serviço: sem acento, caixa ou espaços extras */
+/** Chave para achar a cotação aberta do mesmo serviço: sem acento, caixa ou espaços extras */
 export function quoteKey(title: string) {
   return title.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-type Comparable = { id: string; title: string; amountCents: number; status: string };
+/* ───────────── Cotações (grupos de orçamentos do mesmo serviço) ───────────── */
+
+export const GROUP_STATUS = {
+  open: { label: "Em andamento", tone: "warn" },
+  closed: { label: "Encerrada", tone: "ok" },
+} as const satisfies Record<string, { label: string; tone: Tone }>;
+
+/** Encerrar, reabrir e arquivar: só quem decide */
+export const canManageGroup = canDecideQuote;
+
+type GQuote = { id: string; amountCents: number; status: string };
+
 /**
- * Orçamentos do mesmo serviço lado a lado (2 ou mais, sem os cancelados/recusados), do mais barato ao mais caro.
- * Só entram grupos com algum orçamento aguardando: o que já foi decidido não precisa mais de comparação.
+ * Números da cotação. Entram na comparação os que aguardam ou foram aprovados (recusados e cancelados não);
+ * `spread` = diferença entre o mais barato e o mais caro deles.
  */
-export function quoteGroups<T extends Comparable>(quotes: T[]) {
-  const map = new Map<string, T[]>();
-  for (const q of quotes) {
-    if (q.status !== "pending" && q.status !== "approved") continue;
-    const k = quoteKey(q.title);
-    if (!k) continue;
-    map.set(k, [...(map.get(k) ?? []), q]);
+export function groupStats<T extends GQuote>(quotes: T[]) {
+  const live = quotes.filter((q) => q.status === "pending" || q.status === "approved").sort((a, b) => a.amountCents - b.amountCents);
+  const min = live[0]?.amountCents ?? 0;
+  const max = live[live.length - 1]?.amountCents ?? 0;
+  return {
+    total: quotes.length,
+    live,
+    pending: quotes.filter((q) => q.status === "pending").length,
+    approved: quotes.filter((q) => q.status === "approved"),
+    min,
+    max,
+    spread: max - min,
+    cheapestId: live.length > 1 && max > min ? live[0].id : null,
+  };
+}
+
+/**
+ * Economia do contratado: em relação ao orçamento mais caro e à média de todos os recebidos (sem os cancelados).
+ * Nada quando não há com o que comparar.
+ */
+export function groupSavings<T extends GQuote>(chosen: T | null | undefined, quotes: T[]) {
+  const received = quotes.filter((q) => q.status !== "cancelled");
+  if (!chosen || received.length < 2) return null;
+  const max = Math.max(...received.map((q) => q.amountCents));
+  const avg = Math.round(received.reduce((n, q) => n + q.amountCents, 0) / received.length);
+  return { vsMax: Math.max(0, max - chosen.amountCents), vsAvg: avg - chosen.amountCents, received: received.length };
+}
+
+/** Situação da cotação em palavras, para cartões e relatório */
+export function groupLabel(g: { status: string; archivedAt: Date | string | null; chosenQuoteId: string | null }, pending: number) {
+  if (g.status === "closed") {
+    const base = g.chosenQuoteId ? "Encerrada · contratado" : "Encerrada sem contratação";
+    return { text: g.archivedAt ? `${base} · arquivada` : base, tone: (g.chosenQuoteId ? "ok" : "muted") as Tone };
   }
-  return [...map.values()]
-    .filter((list) => list.length > 1 && list.some((q) => q.status === "pending"))
-    .map((list) => {
-      const sorted = [...list].sort((a, b) => a.amountCents - b.amountCents);
-      return { title: sorted[0].title, quotes: sorted, cheapestId: sorted[0].id, spread: sorted[sorted.length - 1].amountCents - sorted[0].amountCents };
-    });
+  if (pending) return { text: `${pending} aguardando decisão`, tone: "warn" as Tone };
+  return { text: "Recebendo orçamentos", tone: "info" as Tone };
 }
 
 /** Letra da agenda (A–Z sem acento; o resto vai para "#") */

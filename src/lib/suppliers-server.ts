@@ -21,3 +21,13 @@ export async function loadQuoteFor(user: CurrentUser, id: string) {
   if (!q || (user.role !== "superadmin" && q.condominiumId !== user.condominiumId)) return null;
   return q;
 }
+
+/** Cotação com os orçamentos (mais barato primeiro) e o fornecedor de cada um */
+export async function loadGroupFor(user: CurrentUser, id: string) {
+  const g = await db.quoteGroup.findUnique({
+    where: { id },
+    include: { quotes: { include: { supplier: true, files: { select: { id: true, fileName: true }, orderBy: { createdAt: "asc" } } }, orderBy: { amountCents: "asc" } } },
+  });
+  if (!g || (user.role !== "superadmin" && g.condominiumId !== user.condominiumId)) return null;
+  return g;
+}

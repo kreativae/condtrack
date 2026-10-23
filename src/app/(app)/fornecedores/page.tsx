@@ -1,25 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Archive, ArrowRight, CheckCircle2, FileText, Handshake, Hourglass, Mail, MessageCircle, Paperclip, Phone, Plus, Scale, Search, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, CircleSlash, FileText, FolderOpen, Handshake, Hourglass, Mail, MessageCircle, Phone, Plus, Search, Trophy } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { adminScope } from "@/lib/admin-scope-server";
 import { dateToDay, fmtBRL } from "@/lib/finance";
-import { fmtRelative, nowMs } from "@/lib/format";
+import { fmtDate, fmtRelative, nowMs } from "@/lib/format";
 import {
-  QUOTE_STATUS, SUPPLIER_ROLES, canDecideQuote, priceDiff, quoteGroups, quoteStatus, supplierLetter, validityLabel, whatsappNumber, type QuoteStatus,
+  QUOTE_STATUS, SUPPLIER_ROLES, canDecideQuote, groupLabel, groupStats, quoteStatus, supplierLetter, validityLabel, whatsappNumber, type QuoteStatus,
 } from "@/lib/suppliers";
 import { supplierCondo } from "@/lib/suppliers-server";
-import { Badge, Card, Empty, LinkButton, PageHeader, cx, type Tone } from "@/components/ui";
+import { Badge, Card, Empty, LinkButton, PageHeader, cx } from "@/components/ui";
 import { CategoryIcon } from "@/components/suppliers/look";
 import { Stars } from "./stars";
 import { QuickQuote } from "./quick-quote";
 import { usedQuoteTitles } from "./options";
+import { GroupNameButton } from "./cotacao/group-actions";
 
 export const metadata: Metadata = { title: "Fornecedores" };
 
 type SP = Record<string, string | undefined>;
-const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export default async function SuppliersPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -27,7 +28,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const scope = await adminScope(user);
   const condoId = await supplierCondo(user);
-  const tab = sp.aba === "agenda" ? "agenda" : "orcamentos";
+  const tab = sp.aba === "agenda" ? "agenda" : sp.aba === "historico" ? "historico" : "cotacoes";
 
   if (!condoId) {
     return (
@@ -39,15 +40,17 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   }
 
   const decider = canDecideQuote(user.role);
-  const [pendingCount, supplierCount, pickable, titles] = await Promise.all([
+  const [pendingCount, supplierCount, archivedCount, pickable, titles] = await Promise.all([
     db.supplierQuote.count({ where: { condominiumId: condoId, status: "pending" } }),
     db.supplier.count({ where: { condominiumId: condoId, archivedAt: null } }),
+    db.quoteGroup.count({ where: { condominiumId: condoId, archivedAt: { not: null } } }),
     db.supplier.findMany({ where: { condominiumId: condoId, archivedAt: null }, select: { id: true, name: true, category: true }, orderBy: { name: "asc" } }),
     usedQuoteTitles(condoId),
   ]);
   const tabs = [
-    ["orcamentos", "Orçamentos", pendingCount, "warn"],
+    ["cotacoes", "Cotações", pendingCount, "warn"],
     ["agenda", "Agenda de fornecedores", supplierCount, "muted"],
+    ["historico", "Histórico", archivedCount, "muted"],
   ] as const;
 
   return (
@@ -55,9 +58,10 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
       <PageHeader
         eyebrow={scope?.name ?? "Fornecedores"}
         title="Fornecedores"
-        description={decider ? "Agenda de contatos e orçamentos: o zelador cadastra, você compara e decide." : "Agenda de contatos e orçamentos. Arraste o PDF para a página para cadastrar um orçamento."}
+        description={decider ? "Agenda de contatos e cotações: o zelador cadastra os orçamentos, você compara, contrata e encerra." : "Agenda de contatos e cotações. Arraste o PDF para a página para cadastrar um orçamento."}
         actions={
           <>
+            {decider && <LinkButton href="/fornecedores/relatorio" variant="outline"><FileText className="size-4" />Relatório</LinkButton>}
             <LinkButton href="/fornecedores/novo" variant="outline"><Plus className="size-4" />Fornecedor</LinkButton>
             <QuickQuote suppliers={pickable} titles={titles} />
           </>
@@ -66,69 +70,65 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
 
       <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
         {tabs.map(([k, l, n, tone]) => (
-          <Link key={k} href={k === "orcamentos" ? "/fornecedores" : `/fornecedores?aba=${k}`} className={cx("-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>
+          <Link key={k} href={k === "cotacoes" ? "/fornecedores" : `/fornecedores?aba=${k}`} className={cx("-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>
             {l}
             {!!n && <span className={cx("rounded-full px-1.5 text-[11px] font-semibold", tone === "warn" ? "bg-warn/15 text-warn" : "bg-bg-2 text-muted")}>{n}</span>}
           </Link>
         ))}
       </nav>
 
-      {tab === "agenda" ? <Agenda condoId={condoId} sp={sp} manage={decider} /> : <Quotes condoId={condoId} sp={sp} decider={decider} />}
+      {tab === "agenda" ? <Agenda condoId={condoId} sp={sp} manage={decider} /> : tab === "historico" ? <History condoId={condoId} sp={sp} decider={decider} /> : <Groups condoId={condoId} sp={sp} decider={decider} />}
     </div>
   );
 }
 
-/* ───────────── Orçamentos ───────────── */
+/* ───────────── Cotações ───────────── */
 
-/** Quantos cartões cabem em cada coluna do quadro; o resto fica em "Mais N" (lista com filtros e busca da página). */
-const COLUMN_MAX = { pending: 6, approved: 4, closed: 3 };
+/** Quantas cotações cabem em cada coluna do quadro; o resto fica em "Ver todas" (lista com busca). */
+const COLUMN_MAX = { open: 8, closed: 6 };
 
-type QuoteCardData = {
-  id: string; title: string; amountCents: number; status: string; createdAt: Date; createdByName: string; validUntil: Date | null;
-  decisionNote: string | null; decidedByName: string | null; supplier: { name: string; category: string | null }; _count: { files: number };
+const groupInclude = {
+  quotes: { select: { id: true, amountCents: true, status: true, createdAt: true, supplier: { select: { name: true, category: true } } }, orderBy: { amountCents: "asc" as const } },
+} as const;
+type GroupData = {
+  id: string; title: string; status: string; archivedAt: Date | null; chosenQuoteId: string | null; closedAt: Date | null; createdAt: Date; closingNote: string | null;
+  quotes: { id: string; amountCents: number; status: string; createdAt: Date; supplier: { name: string; category: string | null } }[];
 };
+/** Última novidade da cotação (orçamento novo ou criação) */
+const lastActivity = (g: GroupData) => Math.max(g.createdAt.getTime(), ...g.quotes.map((q) => q.createdAt.getTime()));
 
-async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decider: boolean }) {
+async function Groups({ condoId, sp, decider }: { condoId: string; sp: SP; decider: boolean }) {
   const today = dateToDay(new Date(nowMs()));
   const yearStart = new Date(`${today.slice(0, 4)}-01-01T00:00:00-03:00`);
-  const include = { supplier: { select: { name: true, category: true } }, _count: { select: { files: true } } } as const;
   const search = (sp.q ?? "").trim().slice(0, 80);
-  const listStatus = sp.status && (sp.status in QUOTE_STATUS || sp.status === "todos") ? (sp.status as QuoteStatus | "todos") : search ? "todos" : null;
+  const quoteStatusList = sp.status && (sp.status in QUOTE_STATUS || sp.status === "todos") ? (sp.status as QuoteStatus | "todos") : null;
+  const groupList = sp.ver === "abertas" || sp.ver === "encerradas" ? sp.ver : null;
 
-  const [pending, approved, closed, counts, approvedYear, list] = await Promise.all([
-    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "pending" }, include, orderBy: { createdAt: "asc" } }),
-    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "approved" }, include, orderBy: { decidedAt: "desc" }, take: COLUMN_MAX.approved }),
-    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: { in: ["rejected", "cancelled"] } }, include, orderBy: { decidedAt: "desc" }, take: COLUMN_MAX.closed }),
+  const [open, closed, counts, approvedYear, pendingQuotes] = await Promise.all([
+    db.quoteGroup.findMany({ where: { condominiumId: condoId, status: "open", archivedAt: null }, include: groupInclude }),
+    db.quoteGroup.findMany({ where: { condominiumId: condoId, status: "closed", archivedAt: null }, include: groupInclude, orderBy: { closedAt: "desc" } }),
     db.supplierQuote.groupBy({ by: ["status"], where: { condominiumId: condoId }, _count: true }),
     db.supplierQuote.aggregate({ where: { condominiumId: condoId, status: "approved", decidedAt: { gte: yearStart } }, _sum: { amountCents: true }, _count: true }),
-    listStatus
-      ? db.supplierQuote.findMany({
-          where: {
-            condominiumId: condoId,
-            ...(listStatus !== "todos" && { status: listStatus }),
-            ...(search && { OR: [{ title: { contains: search, mode: "insensitive" as const } }, { supplier: { name: { contains: search, mode: "insensitive" as const } } }] }),
-          },
-          include, orderBy: { createdAt: "desc" }, take: 200,
-        })
-      : Promise.resolve(null),
+    db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "pending" }, select: { createdAt: true }, orderBy: { createdAt: "asc" }, take: 1 }),
   ]);
   const countOf = (s: string) => counts.find((c) => c.status === s)?._count ?? 0;
   const total = counts.reduce((n, c) => n + c._count, 0);
-  // Comparação: o que aguarda + os aprovados do mesmo serviço
-  const groups = quoteGroups([...pending, ...(await db.supplierQuote.findMany({ where: { condominiumId: condoId, status: "approved" }, include }))]);
+  // Em andamento: primeiro as que esperam decisão, depois a novidade mais recente
+  open.sort((a, b) => Number(b.quotes.some((q) => q.status === "pending")) - Number(a.quotes.some((q) => q.status === "pending")) || lastActivity(b) - lastActivity(a));
 
-  if (!total) {
+  if (!total && !open.length && !closed.length) {
     return (
       <Card className="overflow-hidden">
         <div className="grid gap-6 p-8 sm:grid-cols-[auto_1fr] sm:items-center">
-          <span className="mx-auto grid size-20 place-items-center rounded-3xl bg-brand/10 text-brand"><FileText className="size-9" /></span>
+          <span className="mx-auto grid size-20 place-items-center rounded-3xl bg-brand/10 text-brand"><FolderOpen className="size-9" /></span>
           <div className="text-center sm:text-left">
-            <p className="font-display text-xl font-semibold">Nenhum orçamento ainda</p>
-            <p className="mt-1 text-sm text-muted">Clique em <b>Orçamento</b> ou simplesmente <b>arraste o PDF</b> do fornecedor para esta página. {decider ? "Você compara e decide aqui mesmo." : "O síndico recebe o aviso para decidir."}</p>
+            <p className="font-display text-xl font-semibold">Nenhuma cotação ainda</p>
+            <p className="mt-1 text-sm text-muted">Crie uma cotação para o serviço (ex.: <b>Pintura da área externa</b>) e junte nela os orçamentos de cada fornecedor. Também dá para simplesmente <b>arrastar o PDF</b> para esta página.</p>
+            <div className="mt-4 flex justify-center sm:justify-start"><GroupNameButton /></div>
           </div>
         </div>
         <div className="grid border-t border-line text-center text-xs text-muted sm:grid-cols-3">
-          {[["1", "Cadastre o orçamento com o arquivo"], ["2", "Peça outros do mesmo serviço"], ["3", "O síndico compara e escolhe"]].map(([n, t]) => (
+          {[["1", "Crie a cotação do serviço"], ["2", "Junte os orçamentos dos fornecedores"], ["3", "O síndico contrata e encerra"]].map(([n, t]) => (
             <p key={n} className="flex items-center justify-center gap-2 px-4 py-3 max-sm:border-t max-sm:border-line sm:border-l sm:first:border-l-0"><span className="grid size-5 place-items-center rounded-full bg-bg-2 text-[11px] font-semibold text-fg-2">{n}</span>{t}</p>
           ))}
         </div>
@@ -136,10 +136,10 @@ async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decid
     );
   }
 
-  const kpis: { label: string; value: string; hint: string; icon: typeof Hourglass; tone: Tone; href: string }[] = [
-    { label: decider ? "Esperando sua decisão" : "Esperando o síndico", value: String(countOf("pending")), hint: countOf("pending") ? `mais antigo ${fmtRelative(pending[0].createdAt)}` : "nada pendente", icon: Hourglass, tone: countOf("pending") ? "warn" : "muted", href: "/fornecedores?status=pending" },
-    { label: `Aprovado em ${today.slice(0, 4)}`, value: fmtBRL(approvedYear._sum.amountCents ?? 0), hint: plural(approvedYear._count, "orçamento", "orçamentos"), icon: CheckCircle2, tone: "ok", href: "/fornecedores?status=approved" },
-    { label: "Serviços para comparar", value: String(groups.length), hint: groups.length ? "com 2 ou mais orçamentos" : "peça mais de um orçamento", icon: Scale, tone: "brand", href: "#comparar" },
+  const kpis: { label: string; value: string; hint: string; icon: typeof Hourglass; tone: "warn" | "ok" | "brand" | "muted"; href: string }[] = [
+    { label: decider ? "Orçamentos esperando você" : "Orçamentos esperando o síndico", value: String(countOf("pending")), hint: pendingQuotes[0] ? `mais antigo ${fmtRelative(pendingQuotes[0].createdAt)}` : "nada pendente", icon: Hourglass, tone: countOf("pending") ? "warn" : "muted", href: "/fornecedores?status=pending" },
+    { label: `Contratado em ${today.slice(0, 4)}`, value: fmtBRL(approvedYear._sum.amountCents ?? 0), hint: plural(approvedYear._count, "orçamento aprovado", "orçamentos aprovados"), icon: CheckCircle2, tone: "ok", href: "/fornecedores?status=approved" },
+    { label: "Cotações em andamento", value: String(open.length), hint: closed.length ? `${plural(closed.length, "encerrada", "encerradas")} para arquivar` : "nenhuma encerrada esperando", icon: FolderOpen, tone: "brand", href: "/fornecedores?ver=abertas" },
   ];
 
   return (
@@ -149,7 +149,7 @@ async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decid
           <Link key={k.label} href={k.href} className={cx("group rounded-2xl border border-line bg-surface p-4 shadow-card transition hover:border-line-strong", i === 2 && "max-lg:col-span-2")}>
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs text-muted">{k.label}</p>
-              <span className={cx("grid size-8 place-items-center rounded-xl", { warn: "bg-warn/10 text-warn", ok: "bg-ok/10 text-ok", brand: "bg-brand/10 text-brand", muted: "bg-bg-2 text-muted", info: "bg-info/10 text-info", bad: "bg-bad/10 text-bad" }[k.tone])}><k.icon className="size-4" /></span>
+              <span className={cx("grid size-8 place-items-center rounded-xl", { warn: "bg-warn/10 text-warn", ok: "bg-ok/10 text-ok", brand: "bg-brand/10 text-brand", muted: "bg-bg-2 text-muted" }[k.tone])}><k.icon className="size-4" /></span>
             </div>
             <p className="mt-1 truncate font-display text-lg font-semibold tabular-nums sm:text-2xl">{k.value}</p>
             <p className="truncate text-[11px] text-muted">{k.hint}</p>
@@ -157,125 +157,126 @@ async function Quotes({ condoId, sp, decider }: { condoId: string; sp: SP; decid
         ))}
       </div>
 
-      {list ? (
-        <QuoteList quotes={list} search={search} status={listStatus!} counts={{ pending: countOf("pending"), approved: countOf("approved"), rejected: countOf("rejected"), cancelled: countOf("cancelled"), todos: total }} today={today} />
+      {quoteStatusList || (search && !groupList) ? (
+        <QuoteSearch condoId={condoId} status={quoteStatusList ?? "todos"} search={search} counts={{ pending: countOf("pending"), approved: countOf("approved"), rejected: countOf("rejected"), cancelled: countOf("cancelled"), todos: total }} today={today} />
+      ) : groupList ? (
+        <GroupList title={groupList === "abertas" ? "Cotações em andamento" : "Cotações encerradas"} groups={(groupList === "abertas" ? open : closed).filter((g) => !search || norm(g.title).includes(norm(search)))} search={search} ver={groupList} />
       ) : (
-        <>
-          {groups.length > 0 && (
-            <section id="comparar" className="scroll-mt-24">
-              <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold"><Scale className="size-5 text-brand" />Comparar antes de decidir</h2>
-              <div className="grid gap-3 lg:grid-cols-2">
-                {groups.map((g) => {
-                  const max = g.quotes[g.quotes.length - 1].amountCents;
-                  const min = g.quotes[0].amountCents;
-                  return (
-                    <Card key={g.title} className="p-4">
-                      <div className="mb-3 flex items-start gap-3">
-                        <CategoryIcon category={g.quotes[0].supplier.category} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{g.title}</p>
-                          <p className="text-xs text-muted">{g.quotes.length} orçamentos · {g.spread ? `economia de até ${fmtBRL(g.spread)}` : "todos com o mesmo valor"}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        {g.quotes.map((q) => {
-                          const best = g.spread > 0 && q.id === g.cheapestId;
-                          const diff = priceDiff(q.amountCents, min);
-                          return (
-                            <Link key={q.id} href={`/fornecedores/orcamento/${q.id}`} className="group block">
-                              <div className="mb-0.5 flex items-center gap-2 text-xs">
-                                <span className="min-w-0 flex-1 truncate font-medium text-fg-2 group-hover:text-brand">{q.supplier.name}</span>
-                                {q.status === "approved" && <Badge tone="ok" dot>aprovado</Badge>}
-                                {best && <Badge tone="ok">menor preço</Badge>}
-                                {diff && <span className="text-muted">{diff}</span>}
-                                <span className="w-24 shrink-0 text-right font-semibold tabular-nums text-fg">{fmtBRL(q.amountCents)}</span>
-                              </div>
-                              <div className="h-2 overflow-hidden rounded-full bg-bg-2">
-                                <div className={cx("h-full rounded-full transition-all", best ? "bg-ok" : "bg-brand/50 group-hover:bg-brand/70")} style={{ width: `${Math.max(8, (q.amountCents / max) * 100)}%` }} />
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                      <Link href={`/fornecedores/comparar?servico=${encodeURIComponent(g.title)}`} className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline">
-                        Comparar lado a lado{decider && " e escolher"}<ArrowRight className="size-4" />
-                      </Link>
-                    </Card>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          <section className="grid gap-5 lg:grid-cols-3">
-            <Column title={decider ? "Para você decidir" : "Esperando o síndico"} icon={Hourglass} tone="warn" count={countOf("pending")} href="/fornecedores?status=pending" empty="Nada esperando decisão." more={pending.length - COLUMN_MAX.pending}>
-              {pending.slice(0, COLUMN_MAX.pending).map((q) => <QuoteCard key={q.id} q={q} today={today} />)}
-            </Column>
-            <Column title="Aprovados" icon={CheckCircle2} tone="ok" count={countOf("approved")} href="/fornecedores?status=approved" empty="Nenhum aprovado ainda." more={countOf("approved") - approved.length}>
-              {approved.map((q) => <QuoteCard key={q.id} q={q} today={today} />)}
-            </Column>
-            <Column title="Recusados e cancelados" icon={XCircle} tone="muted" count={countOf("rejected") + countOf("cancelled")} href="/fornecedores?status=rejected" empty="Nenhum recusado." more={countOf("rejected") + countOf("cancelled") - closed.length}>
-              {closed.map((q) => <QuoteCard key={q.id} q={q} today={today} />)}
-            </Column>
-          </section>
-        </>
+        <section className="grid gap-5 lg:grid-cols-[1.25fr_1fr]">
+          <Column title="Em andamento" icon={FolderOpen} tone="warn" count={open.length} href="/fornecedores?ver=abertas" empty="Nenhuma cotação em andamento." more={open.length - COLUMN_MAX.open} action={<GroupNameButton compact />}>
+            <div className="grid gap-2 xl:grid-cols-2">{open.slice(0, COLUMN_MAX.open).map((g) => <GroupCard key={g.id} g={g} />)}</div>
+          </Column>
+          <Column title="Encerradas" icon={CheckCircle2} tone="ok" count={closed.length} href="/fornecedores?ver=encerradas" empty="Nenhuma encerrada esperando arquivo." more={closed.length - COLUMN_MAX.closed} action={<Link href="/fornecedores?aba=historico" className="text-xs font-medium text-brand hover:underline">Histórico</Link>}>
+            {closed.slice(0, COLUMN_MAX.closed).map((g) => <GroupCard key={g.id} g={g} />)}
+          </Column>
+        </section>
       )}
     </div>
   );
 }
 
-function Column({ title, icon: Icon, tone, count, href, empty, more = 0, children }: { title: string; icon: typeof Hourglass; tone: "warn" | "ok" | "muted"; count: number; href: string; empty: string; more?: number; children: React.ReactNode }) {
+function Column({ title, icon: Icon, tone, count, href, empty, more = 0, action, children }: { title: string; icon: typeof Hourglass; tone: "warn" | "ok" | "muted"; count: number; href: string; empty: string; more?: number; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="min-w-0 rounded-3xl bg-bg-2/60 p-3">
-      <div className="mb-3 flex items-center gap-2 px-1">
+      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
         <Icon className={cx("size-4", { warn: "text-warn", ok: "text-ok", muted: "text-muted" }[tone])} />
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="whitespace-nowrap text-sm font-semibold">{title}</h2>
         <span className="rounded-full bg-surface px-2 text-xs font-semibold text-muted ring-1 ring-line">{count}</span>
-        <Link href={href} className="ml-auto text-xs font-medium text-brand hover:underline">Ver lista</Link>
+        <span className="ml-auto flex items-center gap-3 whitespace-nowrap">{action}{count > 0 && <Link href={href} className="text-xs font-medium text-brand hover:underline">Ver todas</Link>}</span>
       </div>
       <div className="space-y-2">
         {count ? children : <p className="rounded-2xl border border-dashed border-line-strong px-4 py-6 text-center text-xs text-muted">{empty}</p>}
-        {more > 0 && <Link href={href} className="block rounded-xl border border-dashed border-line-strong py-2.5 text-center text-xs font-medium text-brand hover:bg-surface">Ver mais {more} na lista</Link>}
+        {more > 0 && <Link href={href} className="block rounded-xl border border-dashed border-line-strong py-2.5 text-center text-xs font-medium text-brand hover:bg-surface">Ver mais {more}</Link>}
       </div>
     </div>
   );
 }
 
-function QuoteCard({ q, today }: { q: QuoteCardData; today: string }) {
-  const st = quoteStatus(q.status);
-  const validity = q.status === "pending" ? validityLabel(q.validUntil ? dateToDay(q.validUntil) : null, today) : null;
+/** Cartão da cotação: situação, faixa de preço com barras e, encerrada, o contratado */
+function GroupCard({ g }: { g: GroupData }) {
+  const st = groupStats(g.quotes);
+  const label = groupLabel(g, st.pending);
+  const chosen = g.quotes.find((q) => q.id === g.chosenQuoteId);
+  const category = g.quotes[0]?.supplier.category ?? null;
   return (
-    <Link href={`/fornecedores/orcamento/${q.id}`} className="block rounded-2xl border border-line bg-surface p-3 shadow-card transition hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop">
+    <Link href={`/fornecedores/cotacao/${g.id}`} className="block rounded-2xl border border-line bg-surface p-3.5 shadow-card transition hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop">
       <div className="flex items-start gap-3">
-        <CategoryIcon category={q.supplier.category} size="sm" />
+        <CategoryIcon category={category} size="sm" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{q.title}</p>
-          <p className="truncate text-xs text-muted">{q.supplier.name}</p>
+          <p className="truncate text-sm font-medium">{g.title}</p>
+          <p className="truncate text-xs text-muted">{g.quotes.length ? `${plural(g.quotes.length, "orçamento", "orçamentos")}${st.spread ? ` · ${fmtBRL(st.min)} a ${fmtBRL(st.max)}` : ""}` : "sem orçamentos ainda"}</p>
         </div>
       </div>
-      <div className="mt-3 flex items-end justify-between gap-2">
-        <p className="font-display text-lg font-semibold tabular-nums">{fmtBRL(q.amountCents)}</p>
-        {q.status !== "pending" && <Badge tone={st.tone} dot>{st.short}</Badge>}
-      </div>
-      {q.decisionNote && q.status !== "pending" && <p className="mt-2 line-clamp-2 rounded-xl bg-bg-2 px-2.5 py-1.5 text-xs text-fg-2">“{q.decisionNote}”</p>}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
-        {validity && <span className={cx(validity.tone === "bad" && "font-medium text-bad", validity.tone === "warn" && "font-medium text-warn")}>{validity.text}</span>}
-        <span>{q.createdByName.split(" ")[0]} · {fmtRelative(q.createdAt)}</span>
-        {q._count.files > 0 && <span className="inline-flex items-center gap-0.5"><Paperclip className="size-3" />{q._count.files}</span>}
+      {g.status === "open" && st.live.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {st.live.slice(0, 3).map((q) => (
+            <div key={q.id}>
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="min-w-0 flex-1 truncate text-fg-2">{q.supplier.name}</span>
+                <span className="shrink-0 font-semibold tabular-nums">{fmtBRL(q.amountCents)}</span>
+              </div>
+              <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-bg-2">
+                <div className={cx("h-full rounded-full", q.id === st.cheapestId ? "bg-ok" : "bg-brand/50")} style={{ width: `${Math.max(8, (q.amountCents / (st.max || 1)) * 100)}%` }} />
+              </div>
+            </div>
+          ))}
+          {st.live.length > 3 && <p className="text-[11px] text-muted">+ {st.live.length - 3}</p>}
+        </div>
+      )}
+      {g.status === "closed" && (
+        <p className={cx("mt-3 flex items-center gap-1.5 truncate rounded-xl px-2.5 py-1.5 text-xs", chosen ? "bg-ok/10 text-fg-2" : "bg-bg-2 text-muted")}>
+          {chosen ? <><Trophy className="size-3.5 shrink-0 text-ok" /><b className="truncate font-medium">{chosen.supplier.name}</b><span className="ml-auto shrink-0 font-semibold tabular-nums">{fmtBRL(chosen.amountCents)}</span></> : <><CircleSlash className="size-3.5 shrink-0" /><span className="truncate">{g.closingNote ?? "sem contratação"}</span></>}
+        </p>
+      )}
+      <div className="mt-2 flex items-center justify-between gap-2 text-[11px]">
+        <Badge tone={label.tone} dot>{label.text}</Badge>
+        <span className="text-muted">{g.closedAt ? `encerrada ${fmtRelative(g.closedAt)}` : fmtRelative(new Date(lastActivity(g)))}</span>
       </div>
     </Link>
   );
 }
 
-function QuoteList({ quotes, search, status, counts, today }: { quotes: QuoteCardData[]; search: string; status: QuoteStatus | "todos"; counts: Record<string, number>; today: string }) {
+function GroupList({ title, groups, search, ver }: { title: string; groups: GroupData[]; search: string; ver: string }) {
+  return (
+    <section>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <Link href="/fornecedores" className="text-xs font-medium text-brand hover:underline">← Quadro</Link>
+        <h2 className="font-display text-lg font-semibold">{title}</h2>
+      </div>
+      <SearchBox action="/fornecedores" hidden={{ ver }} value={search} placeholder="Buscar cotação pelo serviço" />
+      {!groups.length ? <p className="rounded-2xl bg-bg-2 px-4 py-6 text-center text-sm text-muted">{search ? `Nenhuma cotação com “${search}”.` : "Nada aqui."}</p> : (
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{groups.map((g) => <GroupCard key={g.id} g={g} />)}</div>
+      )}
+    </section>
+  );
+}
+
+function SearchBox({ action, hidden, value, placeholder }: { action: string; hidden: Record<string, string>; value: string; placeholder: string }) {
+  return (
+    <form action={action} className="relative mb-3">
+      {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+      <input name="q" defaultValue={value} placeholder={placeholder} className="h-11 w-full rounded-2xl border border-line-strong bg-surface pl-10 pr-3 text-sm text-fg shadow-card placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15" />
+    </form>
+  );
+}
+
+/** Lista de orçamentos (dos números do topo): filtro por situação e busca por serviço ou fornecedor */
+async function QuoteSearch({ condoId, status, search, counts, today }: { condoId: string; status: QuoteStatus | "todos"; search: string; counts: Record<string, number>; today: string }) {
+  const quotes = await db.supplierQuote.findMany({
+    where: {
+      condominiumId: condoId,
+      ...(status !== "todos" && { status }),
+      ...(search && { OR: [{ title: { contains: search, mode: "insensitive" as const } }, { supplier: { name: { contains: search, mode: "insensitive" as const } } }] }),
+    },
+    include: { supplier: { select: { name: true, category: true } }, _count: { select: { files: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
   const filters: [string, string][] = [["pending", "Aguardando"], ["approved", "Aprovados"], ["rejected", "Recusados"], ["cancelled", "Cancelados"], ["todos", "Todos"]];
   return (
     <section>
-      <form action="/fornecedores" className="relative mb-3">
-        <input type="hidden" name="status" value={status} />
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
-        <input name="q" defaultValue={search} placeholder="Buscar orçamento por serviço ou fornecedor" className="h-11 w-full rounded-2xl border border-line-strong bg-surface pl-10 pr-3 text-sm text-fg shadow-card placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15" />
-      </form>
+      <SearchBox action="/fornecedores" hidden={{ status }} value={search} placeholder="Buscar orçamento por serviço ou fornecedor" />
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         <Link href="/fornecedores" className="mr-1 text-xs font-medium text-brand hover:underline">← Quadro</Link>
         {filters.map(([k, l]) => (
@@ -309,6 +310,61 @@ function QuoteList({ quotes, search, status, counts, today }: { quotes: QuoteCar
         </Card>
       )}
     </section>
+  );
+}
+
+/* ───────────── Histórico ───────────── */
+
+async function History({ condoId, sp, decider }: { condoId: string; sp: SP; decider: boolean }) {
+  const search = (sp.q ?? "").trim().slice(0, 80);
+  const year = /^\d{4}$/.test(sp.ano ?? "") ? Number(sp.ano) : null;
+  const all = await db.quoteGroup.findMany({ where: { condominiumId: condoId, archivedAt: { not: null } }, include: groupInclude, orderBy: { closedAt: "desc" } });
+  const years = [...new Set(all.map((g) => (g.closedAt ?? g.createdAt).getFullYear()))].sort((a, b) => b - a);
+  const list = all.filter((g) => (!year || (g.closedAt ?? g.createdAt).getFullYear() === year) && (!search || norm(`${g.title} ${g.quotes.map((q) => q.supplier.name).join(" ")}`).includes(norm(search))));
+  const contracted = list.reduce((n, g) => n + (g.quotes.find((q) => q.id === g.chosenQuoteId)?.amountCents ?? 0), 0);
+
+  if (!all.length) {
+    return (
+      <Card>
+        <Empty icon={<Archive className="size-8" />} title="O histórico começa quando uma cotação é arquivada">
+          Depois de encerrar uma cotação (com o contratado ou sem contratação), arquive para ela sair do quadro e ficar aqui, com tudo guardado para consulta e relatório.
+        </Empty>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1 basis-64"><SearchBox action="/fornecedores" hidden={{ aba: "historico", ...(year && { ano: String(year) }) }} value={search} placeholder="Buscar no histórico por serviço ou fornecedor" /></div>
+        <div className="mb-3 flex gap-1.5">
+          {[null, ...years].map((y) => (
+            <Link key={y ?? "todos"} href={`/fornecedores?aba=historico${y ? `&ano=${y}` : ""}${search ? `&q=${encodeURIComponent(search)}` : ""}`} className={cx("rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition", year === y ? "bg-brand-soft text-brand ring-brand" : "text-fg-2 ring-line-strong hover:bg-bg-2")}>{y ?? "Todos"}</Link>
+          ))}
+        </div>
+      </div>
+      <p className="text-sm text-muted">{plural(list.length, "cotação", "cotações")} · {fmtBRL(contracted)} contratados{decider && <> · <Link href="/fornecedores/relatorio?situacao=arquivadas" className="font-medium text-brand hover:underline">gerar relatório</Link></>}</p>
+      {!list.length ? <p className="rounded-2xl bg-bg-2 px-4 py-6 text-center text-sm text-muted">Nada encontrado.</p> : (
+        <Card className="divide-y divide-line">
+          {list.map((g) => {
+            const chosen = g.quotes.find((q) => q.id === g.chosenQuoteId);
+            return (
+              <Link key={g.id} href={`/fornecedores/cotacao/${g.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition hover:bg-bg-2 sm:flex-nowrap">
+                <CategoryIcon category={g.quotes[0]?.supplier.category ?? null} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{g.title}</p>
+                  <p className="truncate text-xs text-muted">{plural(g.quotes.length, "orçamento", "orçamentos")} · encerrada {g.closedAt ? fmtDate(g.closedAt) : "—"}</p>
+                </div>
+                <div className="flex items-center gap-2 max-sm:w-full max-sm:justify-end">
+                  {chosen ? <span className="truncate text-xs text-fg-2"><Trophy className="mr-1 inline size-3.5 text-ok" />{chosen.supplier.name}</span> : <Badge>sem contratação</Badge>}
+                  <span className="w-28 text-right text-sm font-semibold tabular-nums">{chosen ? fmtBRL(chosen.amountCents) : "—"}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </Card>
+      )}
+    </div>
   );
 }
 

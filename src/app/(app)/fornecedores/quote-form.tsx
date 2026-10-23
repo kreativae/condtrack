@@ -38,16 +38,18 @@ export function pickQuoteFiles(list: FileList | null, current: number) {
   return { ok, bad };
 }
 
-export function QuoteForm({ action, initial, suppliers, supplierId, titles, isNew = !initial }: {
+export function QuoteForm({ action, initial, suppliers, supplierId, titles, isNew = !initial, group }: {
   action: (s: SupplierState, f: FormData) => Promise<SupplierState>;
   initial?: QuoteInitial;
   /** Lista para escolher (cadastro novo); vazio na edição */
   suppliers: { id: string; name: string; category: string | null }[];
   supplierId?: string;
-  /** Serviços já orçados: escrever igual junta os orçamentos para comparar */
+  /** Cotações abertas: escrever o mesmo nome põe o orçamento nela */
   titles: string[];
   /** Cadastro (escolhe o fornecedor e anexa arquivos); `initial` pode vir só para preencher o serviço */
   isNew?: boolean;
+  /** Cotação já definida (vindo da cotação, ou na edição): o serviço é o nome dela */
+  group?: { id: string; title: string };
 }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -89,10 +91,18 @@ export function QuoteForm({ action, initial, suppliers, supplierId, titles, isNe
       )}
 
       <div className="grid gap-4 sm:grid-cols-[1.6fr_1fr]">
-        <Field label="Serviço ou material" hint="Use o mesmo nome nos orçamentos do mesmo serviço: eles aparecem lado a lado.">
-          <Input name="title" required minLength={2} maxLength={140} list="quote-titles" defaultValue={initial?.title} placeholder="Ex.: Pintura da fachada" />
-          <datalist id="quote-titles">{titles.map((t) => <option key={t} value={t} />)}</datalist>
-        </Field>
+        {group ? (
+          <FieldGroup label="Cotação">
+            <input type="hidden" name="title" value={group.title} />
+            {isNew && <input type="hidden" name="groupId" value={group.id} />}
+            <p className="flex h-10 items-center truncate rounded-xl bg-bg-2 px-3.5 text-sm font-medium">{group.title}</p>
+          </FieldGroup>
+        ) : (
+          <Field label="Cotação (serviço ou material)" hint="O nome de uma cotação aberta põe o orçamento nela; outro nome cria uma nova.">
+            <Input name="title" required minLength={2} maxLength={140} list="quote-titles" defaultValue={initial?.title} placeholder="Ex.: Pintura da área externa" />
+            <datalist id="quote-titles">{titles.map((t) => <option key={t} value={t} />)}</datalist>
+          </Field>
+        )}
         <Field label="Valor (R$)">
           <Input name="amount" required inputMode="decimal" defaultValue={initial?.amount} placeholder="0,00" className="tabular-nums" />
         </Field>

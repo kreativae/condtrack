@@ -28,6 +28,7 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
           action={saveQuote.bind(null, id)}
           suppliers={[]}
           titles={await usedQuoteTitles(q.condominiumId)}
+          group={{ id: q.groupId ?? "", title: q.title }}
           initial={{ title: q.title, description: q.description ?? "", amount: centsToInput(q.amountCents), validUntil: dateToDay(q.validUntil), deadline: q.deadline ?? "", paymentTerms: q.paymentTerms ?? "" }}
         />
       </Card>
