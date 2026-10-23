@@ -205,6 +205,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   primeira vez) extrai o texto e `parseLabel()` (`src/lib/parcel-label.ts`, testado) acha transportadora, rastreio,
   destinatário e unidade, cruzando com moradores com conta e cadastrados na portaria. O porteiro confere antes de salvar.
   Datas no fuso de Brasília (`brt()`/`brtParts()`).
+- **Feed de serviços** (`/feed`, OS aprovadas): números do período (entregues, média da abertura à entrega, horas de
+  trabalho, avaliação), filtros de período (`?periodo=30d|ano|tudo`, padrão o ano) e de categoria (`?cat=`), o mais
+  recente com antes e depois em destaque (`BeforeAfter`) e a grade por mês com a foto do depois e o antes em
+  miniatura. Textos do resumo em `src/lib/feed.ts` (testado). Os painéis do conselho e do morador usam `FeedCard`.
 - **Fotos reduzidas**: listas e cartões usam `thumb(url, 480|800|1200)` (`src/lib/media-url.ts`) → `/api/media/...?w=`,
   que gera WebP com o sharp (`readThumb` em `storage.ts`) e guarda em `UPLOAD_DIR/_thumbs` (no disco). A visualização
   em tela cheia e o relatório usam a original.
