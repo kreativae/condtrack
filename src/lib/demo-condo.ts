@@ -652,8 +652,9 @@ async function seedGate(c: {
   const { cid, r, person, now, today, doorman, homes } = c;
   const doc = () => `${r.int(100, 999)}.${r.int(100, 999)}.${r.int(100, 999)}-${pad(r.int(0, 99))}`;
   // Pessoas da portaria: cada uma uma vez, com autorizações por unidade (ou para o condomínio)
+  // Autorizações cadastradas dias atrás: as recém-criadas contariam como "esperadas hoje" na portaria
   const grant = (personId: string, unitId: string | null, kind: string, createdById: string, createdByName: string, extra: { weekdays?: string; timeFrom?: string; timeTo?: string; validFrom?: Date; validUntil?: Date; notes?: string | null } = {}) =>
-    db.accessGrant.create({ data: { condominiumId: cid, personId, unitId, kind, createdById, createdByName, ...extra } });
+    db.accessGrant.create({ data: { condominiumId: cid, personId, unitId, kind, createdById, createdByName, createdAt: new Date(now - r.int(3, 60) * DAY), ...extra } });
   const newPerson = (name: string, company: string | null = null) => {
     const document = r.next() < 0.7 ? doc() : null;
     return db.accessPerson.create({ data: { condominiumId: cid, name, document, docKey: docKey(document), company, phone: r.next() < 0.5 ? `(11) 9${r.int(1000, 9999)}-${r.int(1000, 9999)}` : null, createdById: doorman.id } });
@@ -752,8 +753,49 @@ async function seedGate(c: {
     }
   }
 
+  // Esperados hoje: visitas marcadas para hoje em três unidades diferentes, mais uma cuidadora que vem todos os
+  // dias (assim a lista nunca fica vazia, mesmo dias depois de gerar a demonstração)
+  const spread = [...r.shuffle(homes).map((h) => h.unitId), ...r.shuffle(c.unitIds)].filter((u, i, all) => all.indexOf(u) === i);
+  const byOf = (unitId: string) => {
+    const h = homes.find((x) => x.unitId === unitId);
+    return h ? { id: h.userId, name: names.get(h.userId) ?? "Morador" } : { id: doorman.id, name: doorman.name };
+  };
+  const expectedNotes = ["Vem para o almoço.", "Entregar a chave reserva.", "Visita à tarde; pode subir.", "Amiga da família.", "Vem buscar as crianças."];
+  for (const [i, unitId] of spread.slice(0, 3).entries()) {
+    const p = await newPerson(person(r.next() < 0.5));
+    const by = byOf(unitId);
+    const [from, to] = r.pick([["10:00", "14:00"], ["14:00", "18:00"], ["18:00", "22:00"], ["", ""]]);
+    await grant(p.id, unitId, i === 2 ? "provider" : "visitor", by.id, by.name, {
+      validFrom: at(today, "00:00"), validUntil: at(today, "00:00"), ...(from && { timeFrom: from, timeTo: to }),
+      notes: i === 2 ? r.pick(["Técnico da internet", "Conserto da máquina de lavar", "Montador de móveis"]) : r.pick(expectedNotes),
+    });
+    peopleCount++;
+  }
+  if (spread[3]) {
+    const p = await newPerson(person(true), "Cuidadora");
+    const by = byOf(spread[3]);
+    await grant(p.id, spread[3], "provider", by.id, by.name, { weekdays: "0,1,2,3,4,5,6", timeFrom: "07:00", timeTo: "19:00", notes: "Cuida da moradora idosa" });
+    peopleCount++;
+  }
+
+  // No condomínio agora: quem entrou na última hora e meia e ainda não saiu, em unidades diferentes
+  const inside: { kind: string; name: string; notes: string | null }[] = [
+    { kind: "visitor", name: person(r.next() < 0.5), notes: r.pick(["Visita rápida", "Placa ABC1D23", null]) },
+    { kind: "provider", name: person(false), notes: r.pick(["Manutenção do ar-condicionado", "Eletricista", "Instalação de cortinas"]) },
+    { kind: "delivery", name: r.pick(["Entregador iFood", "Entregador Mercado Livre", "Entregador Amazon"]), notes: "Aguardando no hall" },
+  ];
+  for (const [i, e] of inside.entries()) {
+    const unitId = spread[spread.length - 1 - i] ?? r.pick(c.unitIds);
+    await db.accessEntry.create({
+      data: {
+        condominiumId: cid, unitId, kind: e.kind, name: e.name, document: e.kind === "delivery" ? null : doc(), notes: e.notes,
+        createdById: doorman.id, createdBy: doorman.name, createdAt: new Date(now - r.int(5, 90) * 60_000), dests: { create: [{ unitId }] },
+      },
+    });
+  }
+
   // Entradas dos últimos 7 dias: prestadores autorizados nos dias deles e visitas/entregas avulsas
-  let entries = 0;
+  let entries = inside.length;
   const exit = (when: Date) => (now - when.getTime() > 3 * 3600_000 || r.next() < 0.5 ? { exitedAt: new Date(Math.min(now - 60_000, when.getTime() + r.int(15, 480) * 60_000)), exitedById: doorman.id } : {});
   for (let d = 6; d >= 0; d--) {
     const day = addDays(today, -d);
