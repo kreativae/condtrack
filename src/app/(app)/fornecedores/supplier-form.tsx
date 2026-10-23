@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 import type { SupplierState } from "@/app/actions/suppliers";
 import { useFormSubmit } from "@/components/use-form-submit";
 import { SubmitButton } from "@/components/submit-button";
-import { Alert, Field, Input, Textarea, cx } from "@/components/ui";
+import { Alert, Field, FieldGroup, Input, Textarea, cx } from "@/components/ui";
 import { SUPPLIER_CATEGORIES } from "@/lib/suppliers";
 
 export type SupplierInitial = {
@@ -56,7 +56,7 @@ export function SupplierForm({ action, initial, categories }: {
         </Field>
       </div>
 
-      <Field label="Avaliação" hint="Como foi o serviço (opcional). Toque de novo na mesma estrela para tirar.">
+      <FieldGroup label="Avaliação" hint="Como foi o serviço (opcional). Toque de novo na mesma estrela para tirar.">
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} type="button" onClick={() => setRating(rating === n ? 0 : n)} aria-label={`${n} estrela${n > 1 ? "s" : ""}`} className="rounded-lg p-1 transition hover:bg-bg-2">
@@ -64,7 +64,7 @@ export function SupplierForm({ action, initial, categories }: {
             </button>
           ))}
         </div>
-      </Field>
+      </FieldGroup>
 
       <Field label="Observações" hint="Horário de atendimento, dados bancários, o que já fez no condomínio…">
         <Textarea name="notes" rows={4} maxLength={2000} defaultValue={initial?.notes} />

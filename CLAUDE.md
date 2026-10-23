@@ -121,6 +121,12 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Regras puras em `src/lib/suppliers.ts` (testadas), acesso em `suppliers-server.ts`, ações em `actions/suppliers.ts`.
   Avisos `quote_created` (síndico) e `quote_decided` (quem cadastrou) em Mensagens; bloco "Orçamentos para aprovar"
   no painel do síndico. Entram no backup do condomínio (dados + arquivos em `orcamentos/`).
+  Tela: quadro em 3 colunas (para decidir · aprovados · recusados/cancelados; `?status=` vira lista com filtros),
+  barras de preço por serviço e comparador lado a lado em `/fornecedores/comparar?servico=` (“Escolher este” =
+  `chooseQuote`, que aprova e pode recusar os outros do mesmo serviço). Orçamento rápido na gaveta (`quick-quote.tsx`,
+  `Sheet` da portaria): soltar o PDF em qualquer lugar da página abre a gaveta; fornecedor buscado ou criado ali
+  (`quickSupplier`, reaproveita o mesmo nome). Ícone e cor por ramo em `components/suppliers/look.tsx` (só cores do
+  tema). Campos com vários botões usam `FieldGroup` (no `Field`, que é `<label>`, clicar no texto aciona o 1º botão).
 - **Notificações no celular** (Web Push, `src/lib/push.ts`): toda notificação do app (canal "app" em Mensagens) também vai
   para os aparelhos inscritos (`PushDevice`), pelo `notify()`. Inscrição em Meu perfil (`perfil/push.tsx`); service worker
   em `public/sw.js` (sem cache de páginas). Endereços de inscrição só dos serviços oficiais (anti-SSRF, `actions/push.ts`).

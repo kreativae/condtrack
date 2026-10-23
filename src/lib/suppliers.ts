@@ -86,3 +86,25 @@ export function parseRating(v: unknown) {
   const n = Math.round(Number(v));
   return n >= 1 && n <= 5 ? n : null;
 }
+
+/** Dias entre duas datas "AAAA-MM-DD" (b − a) */
+function daysBetween(a: string, b: string) {
+  return Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000);
+}
+
+/** Validade em palavras, com o tom do aviso: vencida (bad), vence em até 5 dias (warn), ou a data (muted). */
+export function validityLabel(validUntilDay: string | null, today: string): { text: string; tone: "bad" | "warn" | "muted" } | null {
+  if (!validUntilDay) return null;
+  const d = daysBetween(today, validUntilDay);
+  if (d < 0) return { text: d === -1 ? "validade venceu ontem" : `validade vencida há ${-d} dias`, tone: "bad" };
+  if (d === 0) return { text: "vale até hoje", tone: "warn" };
+  if (d <= 5) return { text: d === 1 ? "vale até amanhã" : `vale por mais ${d} dias`, tone: "warn" };
+  return { text: `válido até ${validUntilDay.split("-").reverse().join("/")}`, tone: "muted" };
+}
+
+/** Quanto este valor está acima do menor (ex.: "+12%"); o menor (ou igual) não tem rótulo. */
+export function priceDiff(cents: number, minCents: number) {
+  if (cents <= minCents || minCents <= 0) return null;
+  const pct = ((cents - minCents) / minCents) * 100;
+  return `+${pct < 1 ? pct.toFixed(1).replace(".", ",") : Math.round(pct)}%`;
+}

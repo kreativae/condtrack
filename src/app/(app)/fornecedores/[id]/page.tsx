@@ -11,6 +11,7 @@ import { loadSupplierFor } from "@/lib/suppliers-server";
 import { setSupplierArchived } from "@/app/actions/suppliers";
 import { Badge, Card, CardHeader, LinkButton, PageHeader, buttonClass } from "@/components/ui";
 import { Stars } from "../stars";
+import { CategoryIcon } from "@/components/suppliers/look";
 
 export const metadata: Metadata = { title: "Fornecedor" };
 
@@ -21,6 +22,7 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
   if (!s) notFound();
   const quotes = await db.supplierQuote.findMany({ where: { supplierId: id }, orderBy: { createdAt: "desc" }, include: { _count: { select: { files: true } } } });
   const approved = quotes.filter((q) => q.status === "approved");
+  const decidedCount = quotes.filter((q) => q.status === "approved" || q.status === "rejected").length;
   const wa = whatsappNumber(s.phone);
   const manage = canDecideQuote(user.role);
 
@@ -36,7 +38,7 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
       <Link href="/fornecedores?aba=agenda" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Agenda de fornecedores</Link>
       <PageHeader
         eyebrow={s.category ?? "Fornecedor"}
-        title={<span className="flex flex-wrap items-center gap-3">{s.name}{s.archivedAt && <Badge>arquivado</Badge>}</span>}
+        title={<span className="flex flex-wrap items-center gap-3"><CategoryIcon category={s.category} size="lg" />{s.name}{s.archivedAt && <Badge>arquivado</Badge>}</span>}
         description={<Stars value={s.rating} size="size-4" />}
         actions={
           <>
@@ -45,6 +47,21 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
           </>
         }
       />
+
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          ["Orçamentos", String(quotes.length), quotes.length ? `${quotes.filter((q) => q.status === "pending").length} aguardando` : "nenhum ainda"],
+          ["Aprovado no total", fmtBRL(approved.reduce((n, q) => n + q.amountCents, 0)), `${approved.length} serviço${approved.length === 1 ? "" : "s"}`],
+          ["Taxa de aprovação", decidedCount ? `${Math.round((approved.length / decidedCount) * 100)}%` : "—", decidedCount ? `de ${decidedCount} decidido${decidedCount === 1 ? "" : "s"}` : "nada decidido"],
+          ["Último orçamento", quotes[0] ? fmtRelative(quotes[0].createdAt) : "—", quotes[0]?.title ?? ""],
+        ].map(([label, value, hint]) => (
+          <Card key={label} className="min-w-0 p-4">
+            <p className="text-xs text-muted">{label}</p>
+            <p className="mt-1 truncate font-display text-xl font-semibold tabular-nums">{value}</p>
+            <p className="truncate text-[11px] text-muted">{hint}</p>
+          </Card>
+        ))}
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <div className="space-y-5">

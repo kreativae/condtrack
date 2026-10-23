@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canChangeQuote, canDecideQuote, parseRating, quoteExpired, quoteGroups, quoteKey, supplierLetter, whatsappNumber } from "../suppliers";
+import { canChangeQuote, canDecideQuote, parseRating, priceDiff, quoteExpired, quoteGroups, quoteKey, supplierLetter, validityLabel, whatsappNumber } from "../suppliers";
 
 describe("fornecedores e orçamentos", () => {
   it("só síndico e superadmin decidem; o zelador não", () => {
@@ -65,5 +65,25 @@ describe("fornecedores e orçamentos", () => {
     expect(parseRating("0")).toBeNull();
     expect(parseRating("9")).toBeNull();
     expect(parseRating("")).toBeNull();
+  });
+
+  it("validade em palavras, com aviso perto de vencer", () => {
+    const t = "2026-10-23";
+    expect(validityLabel(null, t)).toBeNull();
+    expect(validityLabel("2026-10-20", t)).toEqual({ text: "validade vencida há 3 dias", tone: "bad" });
+    expect(validityLabel("2026-10-22", t)?.text).toBe("validade venceu ontem");
+    expect(validityLabel("2026-10-23", t)).toEqual({ text: "vale até hoje", tone: "warn" });
+    expect(validityLabel("2026-10-24", t)?.text).toBe("vale até amanhã");
+    expect(validityLabel("2026-10-27", t)).toEqual({ text: "vale por mais 4 dias", tone: "warn" });
+    expect(validityLabel("2026-11-30", t)).toEqual({ text: "válido até 30/11/2026", tone: "muted" });
+    // Virada de mês e horário de verão não mudam a conta
+    expect(validityLabel("2026-11-02", "2026-10-31")?.text).toBe("vale por mais 2 dias");
+  });
+
+  it("diferença para o menor preço", () => {
+    expect(priceDiff(1000, 1000)).toBeNull();
+    expect(priceDiff(1120, 1000)).toBe("+12%");
+    expect(priceDiff(1005, 1000)).toBe("+0,5%");
+    expect(priceDiff(900, 1000)).toBeNull();
   });
 });

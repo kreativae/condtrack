@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Paperclip, Plus, X } from "lucide-react";
 import type { SupplierState } from "@/app/actions/suppliers";
-import { Alert, Button, Field, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Field, FieldGroup, Input, Select, Textarea } from "@/components/ui";
 import { fmtSize } from "@/lib/finance";
 import { MAX_QUOTE_FILES, MAX_QUOTE_FILE_BYTES, QUOTE_FILE_TYPES } from "@/lib/suppliers";
 
@@ -73,7 +73,7 @@ export function QuoteForm({ action, initial, suppliers, supplierId, titles, isNe
   return (
     <form onSubmit={submit} className="space-y-5">
       {isNew && (
-        <Field label="Fornecedor">
+        <FieldGroup label="Fornecedor">
           {suppliers.length ? (
             <div className="flex gap-2">
               <Select name="supplierId" required defaultValue={supplierId ?? ""} className="min-w-0 flex-1">
@@ -85,7 +85,7 @@ export function QuoteForm({ action, initial, suppliers, supplierId, titles, isNe
           ) : (
             <p className="text-sm text-muted">Nenhum fornecedor ainda. <Link href="/fornecedores/novo" className="font-medium text-brand hover:underline">Cadastre o primeiro</Link>.</p>
           )}
-        </Field>
+        </FieldGroup>
       )}
 
       <div className="grid gap-4 sm:grid-cols-[1.6fr_1fr]">
@@ -115,7 +115,7 @@ export function QuoteForm({ action, initial, suppliers, supplierId, titles, isNe
       </div>
 
       {isNew && (
-        <Field label="Arquivos do orçamento" hint="PDF ou foto do orçamento, até 8 MB cada.">
+        <FieldGroup label="Arquivos do orçamento" hint="PDF ou foto do orçamento, até 8 MB cada.">
           <div className="space-y-2">
             {files.map((f, i) => (
               <div key={i} className="flex items-center gap-2 rounded-xl bg-bg-2 px-3 py-2 text-sm">
@@ -140,7 +140,7 @@ export function QuoteForm({ action, initial, suppliers, supplierId, titles, isNe
             />
             <Button type="button" variant="outline" size="sm" onClick={() => input.current?.click()}><Paperclip className="size-4" />Anexar PDF ou foto</Button>
           </div>
-        </Field>
+        </FieldGroup>
       )}
 
       {error && <Alert>{error}</Alert>}

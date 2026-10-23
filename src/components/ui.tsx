@@ -114,6 +114,17 @@ export function Field({ label, hint, children, className }: { label: string; hin
   );
 }
 
+/** Como Field, mas sem <label>: para grupos com vários botões (no <label>, clicar no texto aciona o primeiro botão). */
+export function FieldGroup({ label, hint, children, className }: { label: string; hint?: string; children: ReactNode; className?: string }) {
+  return (
+    <div role="group" aria-label={label} className={cx("block", className)}>
+      <span className="mb-1.5 block text-[13px] font-medium text-fg-2">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+    </div>
+  );
+}
+
 export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
   return (
     <Card className="@container p-4 sm:p-5">

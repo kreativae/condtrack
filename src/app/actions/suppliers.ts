@@ -190,3 +190,57 @@ export async function removeQuoteFile(fileId: string) {
   await audit(user, "remove_file", "supplier_quote", q.id, { old: { arquivo: f.fileName }, condominiumId: q.condominiumId });
   refresh(q.supplierId, q.id);
 }
+
+/** Cadastro rápido de dentro do orçamento: só nome, ramo e telefone. Devolve o fornecedor para já ficar escolhido. */
+export async function quickSupplier(input: { name: string; category?: string; phone?: string }): Promise<{ error?: string; supplier?: { id: string; name: string; category: string | null } }> {
+  const user = await requireUser(...SUPPLIER_ROLES);
+  if (user.impersonator) return READONLY;
+  const name = input.name.trim().replace(/\s+/g, " ").slice(0, 120);
+  if (name.length < 2) return { error: "Informe o nome do fornecedor." };
+  const condoId = await supplierCondo(user);
+  if (!condoId) return { error: "Escolha um condomínio no menu." };
+  // Mesmo nome já cadastrado: usa o que existe (volta para a agenda se estava arquivado)
+  const same = await db.supplier.findFirst({ where: { condominiumId: condoId, name: { equals: name, mode: "insensitive" } } });
+  if (same) {
+    if (same.archivedAt) await db.supplier.update({ where: { id: same.id }, data: { archivedAt: null } });
+    return { supplier: { id: same.id, name: same.name, category: same.category } };
+  }
+  const s = await db.supplier.create({
+    data: {
+      condominiumId: condoId, name,
+      category: input.category?.trim().slice(0, 60) || null,
+      phone: input.phone?.trim().slice(0, 40) || null,
+      createdById: user.id, createdByName: user.name,
+    },
+  });
+  await audit(user, "create", "supplier", s.id, { new: { nome: s.name, ramo: s.category }, condominiumId: condoId });
+  refresh();
+  return { supplier: { id: s.id, name: s.name, category: s.category } };
+}
+
+/**
+ * Comparador: o síndico escolhe um orçamento (aprova) e, se quiser, recusa de uma vez os outros que aguardam
+ * para o mesmo serviço, com o motivo "escolhido outro fornecedor". Cada um avisa quem cadastrou.
+ */
+export async function chooseQuote(id: string, rejectOthers: boolean, _prev: SupplierState, form: FormData): Promise<SupplierState> {
+  const user = await requireUser("superadmin", "syndic");
+  if (user.impersonator) return READONLY;
+  const q = await loadQuoteFor(user, id);
+  if (!q) return { error: "Orçamento não encontrado." };
+  const approved = new FormData();
+  approved.set("decision", "approve");
+  approved.set("note", String(form.get("note") ?? ""));
+  const res = await decideQuote(id, undefined, approved);
+  if (res?.error || !rejectOthers) return res;
+
+  const key = quoteKey(q.title);
+  const others = (await db.supplierQuote.findMany({ where: { condominiumId: q.condominiumId, status: "pending", id: { not: id } }, select: { id: true, title: true } }))
+    .filter((o) => quoteKey(o.title) === key);
+  for (const o of others) {
+    const f = new FormData();
+    f.set("decision", "reject");
+    f.set("note", `Escolhido outro fornecedor: ${q.supplier.name} (${fmtBRL(q.amountCents)}).`);
+    await decideQuote(o.id, undefined, f);
+  }
+  return { ok: true };
+}

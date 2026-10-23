@@ -11,6 +11,7 @@ import { loadQuoteFor } from "@/lib/suppliers-server";
 import { cancelQuote } from "@/app/actions/suppliers";
 import { Alert, Badge, Card, CardHeader, LinkButton, PageHeader, buttonClass, cx } from "@/components/ui";
 import { DecidePanel, QuoteFiles } from "../../quote-parts";
+import { CategoryIcon } from "@/components/suppliers/look";
 
 export const metadata: Metadata = { title: "Orçamento" };
 
@@ -49,7 +50,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
       <PageHeader
         eyebrow="Orçamento"
         title={q.title}
-        description={<Link href={`/fornecedores/${q.supplierId}`} className="font-medium text-brand hover:underline">{q.supplier.name}</Link>}
+        description={<Link href={`/fornecedores/${q.supplierId}`} className="inline-flex items-center gap-2 font-medium text-brand hover:underline"><CategoryIcon category={q.supplier.category} size="sm" />{q.supplier.name}</Link>}
         actions={editable && <LinkButton href={`/fornecedores/orcamento/${id}/editar`} variant="outline"><Pencil className="size-4" />Editar</LinkButton>}
       />
 
@@ -85,7 +86,10 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
 
           {others.length > 0 && (
             <Card>
-              <CardHeader title={<span className="flex items-center gap-2"><Scale className="size-4 text-brand" />Outros orçamentos deste serviço</span>} />
+              <CardHeader
+                title={<span className="flex items-center gap-2"><Scale className="size-4 text-brand" />Outros orçamentos deste serviço</span>}
+                action={<Link href={`/fornecedores/comparar?servico=${encodeURIComponent(q.title)}`} className="text-xs font-medium text-brand hover:underline">Comparar lado a lado</Link>}
+              />
               <div className="divide-y divide-line border-t border-line">
                 {[...others, q].sort((a, b) => a.amountCents - b.amountCents).map((o) => {
                   const ost = quoteStatus(o.status);
