@@ -72,6 +72,8 @@ model Condominium {
   accessGrants     AccessGrant[]
   accessEntries    AccessEntry[]
   parcels          Parcel[]
+  suppliers        Supplier[]
+  supplierQuotes   SupplierQuote[]
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -995,4 +997,76 @@ model Parcel {
 
   @@index([condominiumId, status])
   @@index([unitId, status])
+}
+
+/// Fornecedor do condomínio (agenda de contatos de quem presta serviço ou vende material). Arquivado some da agenda.
+model Supplier {
+  id            String          @id @default(cuid())
+  condominiumId String
+  name          String
+  /// Ramo (Elétrica, Hidráulica, Jardinagem…): texto livre com sugestões
+  category      String?
+  contactName   String?
+  phone         String?
+  email         String?
+  /// CNPJ ou CPF
+  document      String?
+  address       String?
+  notes         String?
+  /// Avaliação de 1 a 5 (opcional)
+  rating        Int?
+  archivedAt    DateTime?
+  createdById   String?
+  createdByName String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  condominium   Condominium     @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  quotes        SupplierQuote[]
+
+  @@index([condominiumId, archivedAt])
+}
+
+/// Orçamento de um fornecedor: o zelador cadastra, o síndico aprova ou recusa. status: pending | approved | rejected | cancelled
+model SupplierQuote {
+  id            String              @id @default(cuid())
+  condominiumId String
+  supplierId    String
+  /// Serviço ou material orçado; orçamentos com o mesmo serviço aparecem lado a lado para comparar
+  title         String
+  description   String?
+  amountCents   Int
+  validUntil    DateTime?
+  /// Prazo de execução e condição de pagamento, como o fornecedor escreveu
+  deadline      String?
+  paymentTerms  String?
+  status        String              @default("pending")
+  createdById   String?
+  createdByName String
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  decidedById   String?
+  decidedByName String?
+  decidedAt     DateTime?
+  decisionNote  String?
+  condominium   Condominium         @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  files         SupplierQuoteFile[]
+
+  @@index([condominiumId, status])
+  @@index([supplierId])
+}
+
+/// Arquivo do orçamento (PDF ou foto), entregue por /api/fornecedores/anexo/[id]
+model SupplierQuoteFile {
+  id           String        @id @default(cuid())
+  quoteId      String
+  url          String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  uploadedById String?
+  createdAt    DateTime      @default(now())
+  quote        SupplierQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
 }

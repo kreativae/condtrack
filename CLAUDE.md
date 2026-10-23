@@ -111,6 +111,16 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   página). Serviço: abre a OS `leadDays` antes de `nextDue` (atribuída ao prestador do plano) e já avança `nextDue` com
   `updateMany` condicional (nunca abre duas vezes; ciclos atrasados viram uma OS só). Documento: aviso antes (`alertedFor =
   data`) e no vencimento (`data!`) até "Renovado". Sugestões entram pausadas. Modelos `maint_*` em Mensagens.
+- **Fornecedores** (`/fornecedores`; zelador, síndico e superadmin): abas Orçamentos (padrão) e Agenda de fornecedores
+  (A–Z, busca, filtro por ramo, telefone/WhatsApp/e-mail, arquivados só para quem decide). `Supplier` (arquivar =
+  `archivedAt`, os orçamentos ficam) → `SupplierQuote` (pending → approved | rejected, ou cancelled por quem cadastrou
+  ou por quem decide enquanto aguarda) → `SupplierQuoteFile` (PDF/foto até 8 MB, pasta `quote-<condomínio>`, sobe
+  por `/api/fornecedores/orcamento/[id]/anexos` e abre por `/api/fornecedores/anexo/[id]`, fora do proxy e da rota de
+  mídias). O zelador cadastra; só síndico e superadmin decidem (`decideQuote`, `updateMany` condicional; recusa exige
+  motivo). Orçamentos com o mesmo serviço (`quoteKey()`: sem acento/caixa) aparecem lado a lado para comparar.
+  Regras puras em `src/lib/suppliers.ts` (testadas), acesso em `suppliers-server.ts`, ações em `actions/suppliers.ts`.
+  Avisos `quote_created` (síndico) e `quote_decided` (quem cadastrou) em Mensagens; bloco "Orçamentos para aprovar"
+  no painel do síndico. Entram no backup do condomínio (dados + arquivos em `orcamentos/`).
 - **Notificações no celular** (Web Push, `src/lib/push.ts`): toda notificação do app (canal "app" em Mensagens) também vai
   para os aparelhos inscritos (`PushDevice`), pelo `notify()`. Inscrição em Meu perfil (`perfil/push.tsx`); service worker
   em `public/sw.js` (sem cache de páginas). Endereços de inscrição só dos serviços oficiais (anti-SSRF, `actions/push.ts`).

@@ -12,7 +12,7 @@ const USER_SELECT = { id: true, name: true, email: true, phone: true, cpf: true,
 /** Todos os dados do condomínio, sem senhas nem segredos. */
 export async function condoBackupData(id: string) {
   const where = { condominiumId: id };
-  const [condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, accessPeople, accessEntries, parcels] = await Promise.all([
+  const [condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, accessPeople, accessEntries, parcels, suppliers] = await Promise.all([
     db.condominium.findUnique({ where: { id } }),
     db.building.findMany({ where, include: { units: { include: { residents: true } } } }),
     db.membership.findMany({ where, include: { user: { select: USER_SELECT } } }),
@@ -33,8 +33,9 @@ export async function condoBackupData(id: string) {
     db.accessPerson.findMany({ where, include: { grants: true } }),
     db.accessEntry.findMany({ where, include: { dests: true }, orderBy: { createdAt: "asc" } }),
     db.parcel.findMany({ where, orderBy: { receivedAt: "asc" } }),
+    db.supplier.findMany({ where, include: { quotes: { include: { files: true } } } }),
   ]);
-  return { condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, accessPeople, accessEntries, parcels };
+  return { condominium, buildings, memberships, categories, commonAreas, serviceOrders, announcements, assemblies, financeEntries, financeBudgets, maintenancePlans, checklistItems, checklistNotes, subscription, payments, auditLogs, bookings, accessPeople, accessEntries, parcels, suppliers };
 }
 
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").slice(0, 120);
@@ -47,7 +48,7 @@ async function readAll(url: string) {
   return new Uint8Array(await new Response(f.body).arrayBuffer());
 }
 
-/** .zip com dados.json e os anexos do Financeiro. Fotos e vídeos das OS ficam de fora (só os dados de cada um). */
+/** .zip com dados.json, os anexos do Financeiro e os arquivos dos orçamentos. Fotos e vídeos das OS ficam de fora (só os dados de cada um). */
 export async function condoBackupZip(id: string) {
   const data = await condoBackupData(id);
   if (!data.condominium) return null;
@@ -61,13 +62,24 @@ export async function condoBackupZip(id: string) {
       else missing.push(name);
     }
   }
+  for (const s of data.suppliers) {
+    for (const q of s.quotes) {
+      for (const f of q.files) {
+        const bytes = await readAll(f.url).catch(() => null);
+        const name = `orcamentos/${safeName(s.name).slice(0, 50)}/${q.createdAt.toISOString().slice(0, 10)} ${safeName(q.title).slice(0, 50)} (${f.id.slice(-6)})/${safeName(f.fileName)}`;
+        if (bytes) entries.push({ name, data: bytes });
+        else missing.push(name);
+      }
+    }
+  }
   const readme = [
     `Backup do condomínio ${data.condominium.name}`,
     `Gerado em ${new Date().toISOString()}`,
     "",
     "dados.json: todos os registros (cadastro, estrutura, pessoas e vínculos, OS com linha do tempo, comunicados,",
-    "assembleias com votos, financeiro com histórico, orçamento, manutenção, checklist, reservas, portaria, encomendas, assinatura e auditoria).",
+    "assembleias com votos, financeiro com histórico, orçamento, manutenção, checklist, reservas, portaria, encomendas, fornecedores e orçamentos, assinatura e auditoria).",
     "financeiro/: notas fiscais, boletos e comprovantes de cada lançamento.",
+    "orcamentos/: arquivos dos orçamentos de fornecedores.",
     "Fotos e vídeos das OS não entram no arquivo; os dados de captura de cada mídia estão em dados.json.",
     ...(missing.length ? ["", "Arquivos não encontrados no armazenamento:", ...missing] : []),
   ].join("\n");
@@ -91,6 +103,7 @@ export async function purgeCondominiumData(id: string) {
   for (const o of orderIds) await deleteFolder(o).catch(() => null);
   await deleteFolder(`fin-${id}`).catch(() => null);
   await deleteFolder(`checklist-${id}`).catch(() => null);
+  await deleteFolder(`quote-${id}`).catch(() => null);
   for (const p of await db.parcel.findMany({ where: { condominiumId: id, photoUrl: { not: null } }, select: { id: true } })) await deleteFolder(`parcel-${p.id}`).catch(() => null);
   if (c.logoUrl?.startsWith("/api/media/")) await deleteFile(c.logoUrl).catch(() => null);
 

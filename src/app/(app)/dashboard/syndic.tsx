@@ -13,12 +13,13 @@ import { ChecklistSummary } from "@/components/checklist/summary";
 import { FinanceSummary } from "@/components/finance-summary";
 import { DashboardSettings } from "@/components/dashboard-settings";
 import { DASHBOARD_SECTIONS, dashboardVisibility } from "@/lib/dashboard";
+import { fmtBRL } from "@/lib/finance";
 
 export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
   const show = dashboardVisibility(user.dashboardHidden);
   const where = { condominiumId: cid };
-  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers] = await Promise.all([
+  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, quotes] = await Promise.all([
     orderMetrics(where),
     db.serviceOrder.findMany({ where: { ...where, status: "validated" }, include: orderListInclude, orderBy: { validatedAt: "asc" } }),
     db.serviceOrder.findMany({ where, include: orderListInclude, orderBy: { updatedAt: "desc" }, take: 6 }),
@@ -28,6 +29,7 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
     db.serviceCategory.findMany({ where }),
     db.commonArea.findMany({ where }),
     db.user.findMany({ where: inCondo(cid, ["provider"]), select: { id: true, name: true } }),
+    show("quotes") ? db.supplierQuote.findMany({ where: { ...where, status: "pending" }, include: { supplier: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
   ]);
   const name = (list: { id: string; name: string }[], id: string | null) => list.find((x) => x.id === id)?.name ?? "Sem categoria";
   const top = <T,>(rows: (T & { _count: number })[], key: (r: T) => string) =>
@@ -59,6 +61,27 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
         <section className="mb-8">
           <h2 className="mb-4 flex items-center gap-3 font-display font-semibold text-xl">Aprovações pendentes <span className="font-num text-sm text-brand">{pending.length}</span></h2>
           <OrderList orders={pending} />
+        </section>
+      )}
+
+      {show("quotes") && quotes.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-4 flex items-center gap-3 font-display text-xl font-semibold">
+            Orçamentos para aprovar <span className="font-num text-sm text-brand">{quotes.length}</span>
+            <Link href="/fornecedores" className="ml-auto text-xs font-medium text-brand hover:underline">Ver em Fornecedores</Link>
+          </h2>
+          <Card className="divide-y divide-line">
+            {quotes.slice(0, 5).map((q) => (
+              <Link key={q.id} href={`/fornecedores/orcamento/${q.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-bg-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{q.title}</span>
+                  <span className="block truncate text-xs text-muted">{q.supplier.name} · por {q.createdByName}</span>
+                </span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums">{fmtBRL(q.amountCents)}</span>
+              </Link>
+            ))}
+            {quotes.length > 5 && <Link href="/fornecedores" className="block px-4 py-2.5 text-center text-xs font-medium text-brand hover:bg-bg-2">Mais {quotes.length - 5}</Link>}
+          </Card>
         </section>
       )}
 

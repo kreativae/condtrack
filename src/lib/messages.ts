@@ -37,9 +37,17 @@ const BOOKING_VARS: Var[] = [
   { name: "convidados", desc: "Quantidade de convidados", sample: "35" },
 ];
 
+const QUOTE_VARS: Var[] = [
+  V.condominio, V.autor,
+  { name: "servico", desc: "Serviço ou material orçado", sample: "Pintura da fachada" },
+  { name: "fornecedor", desc: "Fornecedor", sample: "Cores & Cia Pinturas" },
+  { name: "valor", desc: "Valor do orçamento", sample: "R$ 18.500,00" },
+  { name: "comparar", desc: "Quantos orçamentos há para o mesmo serviço (a linha some quando é o único)", sample: "3 orçamentos para este serviço: compare antes de decidir." },
+];
+
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") || key.startsWith("parcel") ? "Reservas e portaria" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") || key.startsWith("parcel") ? "Reservas e portaria" : key.startsWith("quote") ? "Fornecedores" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -145,6 +153,8 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "quem", desc: "Quem retirou", sample: "Ana Souza" },
     { name: "hora", desc: "Horário da retirada", sample: "18:40" },
   ]),
+  notification("quote_created", "Novo orçamento para aprovar", "Síndico", "Orçamento para aprovar: {servico}", "{autor} cadastrou o orçamento de {fornecedor}: {valor}.\n{comparar}\nAprove ou recuse em Fornecedores.", QUOTE_VARS),
+  notification("quote_decided", "Orçamento aprovado ou recusado", "Quem cadastrou o orçamento", "Orçamento {decisao}: {servico}", "{fornecedor} · {valor}: orçamento {decisao} por {autor}.\n{comentario}", [...QUOTE_VARS, V.comentario, { name: "decisao", desc: "aprovado ou recusado", sample: "aprovado" }]),
   notification("maint_order", "OS de manutenção preventiva aberta", "Síndico e zelador", "Manutenção preventiva: {titulo}", "{protocolo} · prevista para {vencimento}.", [
     V.protocolo,
     V.titulo,
