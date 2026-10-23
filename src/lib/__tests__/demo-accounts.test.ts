@@ -14,9 +14,10 @@ describe("contas reais na demonstração", () => {
     expect(normalizeDemoAccounts({ syndic: "a@b.co", council: "A@b.co" }).error).toMatch(/um[a]? conta por perfil/);
   });
 
-  it("o Setting salvo só devolve e-mails dos perfis conhecidos", () => {
-    expect(parseDemoAccounts('{"syndic":"s@x.co","caretaker":"nada","outro":"o@x.co"}')).toEqual({ syndic: "s@x.co" });
-    expect(parseDemoAccounts("quebrado")).toEqual({});
+  it("o Setting salvo só vale para os perfis conhecidos; o que faltar vem das contas de teste", () => {
+    // Perfil sem e-mail salvo (ou inválido) volta com a conta de teste padrão
+    expect(parseDemoAccounts('{"syndic":"s@x.co","caretaker":"nada","outro":"o@x.co"}')).toEqual({ ...DEMO_DEFAULT_ACCOUNTS, syndic: "s@x.co" });
+    expect(parseDemoAccounts("quebrado")).toEqual(DEMO_DEFAULT_ACCOUNTS);
     // Nada salvo ainda: as contas de teste padrão (uma por perfil, sem repetir)
     expect(parseDemoAccounts(null)).toEqual(DEMO_DEFAULT_ACCOUNTS);
     expect(normalizeDemoAccounts(DEMO_DEFAULT_ACCOUNTS).error).toBeUndefined();

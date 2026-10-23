@@ -137,18 +137,20 @@ export async function createDemoCondominium(opts: { syndicEmail: string; real?: 
   // Síndico (com as permissões extras); o condomínio ativo dele só muda se não tiver nenhum
   const syndic = await account(opts.syndicEmail, "syndic", "checklist_edit,audit");
   const caretaker = await realOr(real.caretaker, "caretaker", () => mk(person(r.next() < 0.3), "zelador", "caretaker"));
+  // Com contas reais informadas, elas fazem também os papéis extras (outro conselheiro, outro morador, os prestadores de
+  // cada ramo): nenhuma conta @demo é criada para esses perfis
   const providers = {} as Record<ProviderKind, Awaited<ReturnType<typeof mk>>>;
   for (const kind of Object.keys(PROVIDER_KINDS) as ProviderKind[]) {
     const n = person(r.next() < 0.4);
     const k = PROVIDER_KINDS[kind];
-    const fake = () => mk(n, kind, "provider", { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty });
-    providers[kind] = kind === "geral" ? await realOr(real.provider, "provider", fake, { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty }) : await fake();
+    const extra = { company: `${n.split(" ")[1]} ${r.pick(k.suffixes)}`, specialty: k.specialty };
+    providers[kind] = kind !== "geral" && real.provider ? providers.geral : await realOr(real.provider, "provider", () => mk(n, kind, "provider", extra), extra);
   }
   const providerFor = (cat: string) => (Object.keys(PROVIDER_KINDS) as ProviderKind[]).map((k) => (PROVIDER_KINDS[k].cats as readonly string[]).includes(cat) ? providers[k] : null).find(Boolean) ?? providers.geral;
   const council1 = await realOr(real.council, "council", () => mk(person(true), "conselho1", "council"));
-  const council2 = await mk(person(false), "conselho2", "council");
+  const council2 = real.council ? council1 : await mk(person(false), "conselho2", "council");
   const res1 = await realOr(real.resident, "resident", () => mk(person(true), "morador1", "resident"));
-  const res2 = await mk(person(false), "morador2", "resident");
+  const res2 = real.resident ? res1 : await mk(person(false), "morador2", "resident");
   const [uC1, uC2, uR1, uR2] = r.shuffle(units.map((_, i) => i)).slice(0, 4);
   await db.userUnit.createMany({
     data: [

@@ -58,7 +58,7 @@ export async function SuperadminDashboard({ user, welcome, scope }: { user: Curr
         </div>
       )}
       {show("stats") && (
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
+      <div className={cx("mb-6 grid grid-cols-2 gap-4 md:grid-cols-3", scope ? "xl:grid-cols-5" : "2xl:grid-cols-6")}>
         <Stat label="MRR" value={brl(mrr)} tone="brand" hint={`${subs.length} pagante(s)`} />
         {!scope && <Stat label="Condomínios ativos" value={condos.length} />}
         <Stat label="Usuários ativos" value={users} />

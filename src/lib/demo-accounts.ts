@@ -43,13 +43,11 @@ export function normalizeDemoAccounts(input: Partial<Record<string, unknown>>): 
   return { accounts };
 }
 
-/** Lê o Setting salvo (o que não for e-mail é ignorado); sem nada salvo, as contas de teste padrão. */
+/** Lê o Setting salvo (o que não for e-mail é ignorado); perfil sem e-mail salvo volta com a conta de teste padrão. */
 export function parseDemoAccounts(raw: string | null | undefined): DemoAccounts {
-  if (raw == null) return DEMO_DEFAULT_ACCOUNTS;
+  let v: Record<string, unknown> = {};
   try {
-    const v = JSON.parse(raw ?? "{}") as Record<string, unknown>;
-    return Object.fromEntries(DEMO_SLOTS.flatMap((s) => (typeof v[s.key] === "string" && EMAIL.test(v[s.key] as string) ? [[s.key, v[s.key]]] : []))) as DemoAccounts;
-  } catch {
-    return {};
-  }
+    v = JSON.parse(raw ?? "{}") as Record<string, unknown>;
+  } catch {}
+  return Object.fromEntries(DEMO_SLOTS.map((s) => [s.key, typeof v[s.key] === "string" && EMAIL.test(v[s.key] as string) ? v[s.key] : DEMO_DEFAULT_ACCOUNTS[s.key]])) as DemoAccounts;
 }
