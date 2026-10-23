@@ -28,6 +28,9 @@ model Condominium {
   osCounter            Int       @default(0)
   /// Número do último chamado (#1, #2…)
   ticketCounter        Int       @default(0)
+  /// Parceiro comercial que trouxe o condomínio (comissão sobre os pagamentos a partir de partnerLinkedAt)
+  partnerId            String?
+  partnerLinkedAt      DateTime?
   /// Horário limite do checklist do zelador ("HH:MM", fuso de Brasília); vazio = sem alerta
   checklistDeadline    String?
   /// Último dia (YYYY-MM-DD) em que o alerta de checklist atrasado foi enviado
@@ -78,6 +81,8 @@ model Condominium {
   supplierQuotes   SupplierQuote[]
   quoteGroups      QuoteGroup[]
   tickets          Ticket[]
+  commissions      Commission[]
+  partner          Partner?          @relation(fields: [partnerId], references: [id], onDelete: SetNull)
 }
 
 /// kind: tower (torre/bloco, unidades por andar) | block (quadra/rua, casas ou lotes)
@@ -430,6 +435,7 @@ model Payment {
   createdAt        DateTime  @default(now())
 
   condominium Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  commission  Commission?
 
   @@index([condominiumId, createdAt])
   @@index([status, paidAt])
@@ -1163,4 +1169,56 @@ model TicketMessage {
   ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, createdAt])
+}
+
+/// Parceiro comercial: indicador (referrer), vendedor (seller) ou administradora (agency). Recebe comissão sobre os
+/// pagamentos dos condomínios ligados a ele. Regras padrão por tipo em Assinaturas → Comissões (Setting
+/// commission_rules); firstPct/firstMonths/afterPct preenchidos = regra própria deste parceiro. Regras em lib/commissions.ts.
+model Partner {
+  id           String        @id @default(cuid())
+  /// Código que o síndico informa na assinatura (maiúsculas e números)
+  code         String        @unique
+  name         String
+  kind         String        @default("seller")
+  document     String?
+  email        String?
+  phone        String?
+  pixKey       String?
+  notes        String?
+  firstPct     Float?
+  firstMonths  Int?
+  afterPct     Float?
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  condominiums Condominium[]
+  commissions  Commission[]
+}
+
+/// Comissão de um pagamento (uma por fatura paga). status: pending (carência) → due (a pagar) → paid; ou cancelled.
+model Commission {
+  id            String      @id @default(cuid())
+  partnerId     String
+  condominiumId String
+  paymentId     String      @unique
+  /// Valor pago na fatura e a base depois do desconto de impostos/taxas, em centavos
+  paidCents     Int
+  baseCents     Int
+  pct           Float
+  amountCents   Int
+  /// first = dentro do prazo da comissão maior; after = depois dele
+  phase         String
+  status        String      @default("pending")
+  createdAt     DateTime    @default(now())
+  paidAt        DateTime?
+  paidByName    String?
+  paidNote      String?
+  cancelledAt   DateTime?
+  cancelReason  String?
+  partner       Partner     @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  payment       Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId, status])
+  @@index([condominiumId])
 }

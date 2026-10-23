@@ -1,4 +1,5 @@
 import "server-only";
+import { syncCommissions } from "./commissions-server";
 import { db } from "./db";
 import { inCondo } from "./memberships";
 import { appUrl } from "./url";
@@ -239,7 +240,10 @@ export async function upsertFromStripeInvoice(inv: Stripe.Invoice) {
     invoicePdf: inv.invoice_pdf ?? null,
     createdAt: ts(inv.created) ?? new Date(),
   };
-  return db.payment.upsert({ where: { stripeInvoiceId: inv.id }, create: { stripeInvoiceId: inv.id, ...data }, update: data });
+  const payment = await db.payment.upsert({ where: { stripeInvoiceId: inv.id }, create: { stripeInvoiceId: inv.id, ...data }, update: data });
+  // Fatura paga de condomínio com parceiro: gera a comissão (falha aqui não pode derrubar o webhook)
+  if (payment.status === "paid") await syncCommissions(condominiumId).catch((e) => console.error("[comissão]", e));
+  return payment;
 }
 
 /** Sincroniza assinatura + faturas de um condomínio direto da API (não depende de webhook). */

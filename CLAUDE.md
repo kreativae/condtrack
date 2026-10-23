@@ -242,6 +242,17 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   cobradas; `Subscription.unitAmount` guarda o total (preço × quantidade). Mudou unidade na Estrutura → `syncDealUnits`
   ajusta a quantidade (só de quem já está na negociação). Com negociação ativa, o síndico só vê a proposta.
 
+- **Assinaturas → Parceiros e comissões** (`/admin/assinaturas?aba=geral|parceiros|comissoes`, superadmin): `Partner`
+  (código único `normalizeCode()`, tipo referrer/seller/agency, Pix; `firstPct/firstMonths/afterPct` preenchidos = regra
+  própria) ← `Condominium.partnerId` + `partnerLinkedAt` (só pagamentos desde essa data geram comissão). `Commission` é
+  uma por `Payment` (pending = carência → due → paid com comprovante, ou cancelled com motivo; nunca apagar).
+  Regras por tipo, carência (nº de pagamentos) e desconto da base no Setting `commission_rules`, editadas na aba
+  Comissões; padrão: indicador 10% por 12 meses, vendedor 20% por 12 meses e 5% depois, administradora 20% sem prazo,
+  carência 2. Mudança vale para as próximas. Regras puras em `src/lib/commissions.ts` (testado); `syncCommissions()`
+  (`commissions-server.ts`) roda a cada fatura paga (`upsertFromStripeInvoice`) e ao vincular. Ações em
+  `actions/partners.ts`. Vínculo pela assinatura do condomínio, pela ficha do parceiro (`parceiros/[id]`) ou pelo
+  síndico, que digita o código em `/assinatura` (só se ainda não houver parceiro).
+
 - **Esqueci minha senha**: `/esqueci-senha` → e-mail com link de uso único (1 h, `PasswordReset` guarda só o hash;
   `lib/password-reset.ts`) → `/redefinir-senha`. Resposta igual exista ou não a conta; até 3 pedidos/hora por conta.
   Precisa do e-mail ativo; texto no modelo `password_forgot` em Mensagens.

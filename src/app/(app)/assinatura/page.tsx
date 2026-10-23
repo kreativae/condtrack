@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AlertTriangle, CalendarClock, CreditCard, RefreshCw } from "lucide-react";
+import { AlertTriangle, CalendarClock, CreditCard, Handshake, RefreshCw } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { stripe, stripeConfigured } from "@/lib/stripe";
@@ -11,6 +11,7 @@ import { Alert, Card, CardHeader, PageHeader, buttonClass } from "@/components/u
 import { InvoiceTable, SubscriptionBadge } from "@/components/billing/shared";
 import { PlanPicker } from "./plan-picker";
 import { DealOffer } from "./deal-offer";
+import { PartnerCodeForm } from "@/components/billing/partner-forms";
 
 export const metadata: Metadata = { title: "Assinatura" };
 
@@ -35,12 +36,13 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
     } catch {}
   }
 
-  const [sub, plans, units, invoices, deal] = await Promise.all([
+  const [sub, plans, units, invoices, deal, condo] = await Promise.all([
     db.subscription.findUnique({ where: { condominiumId: cid }, include: { plan: true } }),
     db.plan.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     db.unit.count({ where: { building: { condominiumId: cid } } }),
     db.payment.findMany({ where: { condominiumId: cid, status: { not: "draft" } }, orderBy: { createdAt: "desc" }, take: 24 }),
     db.billingDeal.findUnique({ where: { condominiumId: cid } }),
+    db.condominium.findUnique({ where: { id: cid }, select: { partner: { select: { name: true } } } }),
   ]);
   // Negociação especial ativa: o síndico vê só ela (os planos padrão somem)
   const activeDeal = deal?.active ? deal : null;
@@ -169,6 +171,18 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
         />
       </section>
       )}
+
+      {/* Código de quem indicou o Condtrack (parceiro comercial): só enquanto o condomínio não tem um */}
+      <Card className="mb-10 flex flex-wrap items-center gap-x-6 gap-y-3 p-5">
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Handshake className="size-5" /></span>
+          <span className="min-w-0">
+            <b className="block text-sm">{condo?.partner ? "Indicação registrada" : "Alguém indicou o Condtrack?"}</b>
+            <span className="block text-xs text-muted">{condo?.partner ? `Indicação de ${condo.partner.name}.` : "Informe o código de parceiro que você recebeu."}</span>
+          </span>
+        </span>
+        {!condo?.partner && <PartnerCodeForm />}
+      </Card>
 
       <section>
         <h2 className="mb-4 font-display text-xl font-semibold">Histórico de faturas</h2>

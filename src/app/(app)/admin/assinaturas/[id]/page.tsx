@@ -12,6 +12,7 @@ import { InvoiceTable, SubscriptionBadge } from "@/components/billing/shared";
 import { Card, CardHeader, PageHeader, Stat, buttonClass } from "@/components/ui";
 import { AdminPlanForm } from "./admin-plan-form";
 import { DealForm } from "./deal-form";
+import { LinkPartnerForm } from "@/components/billing/partner-forms";
 
 export const metadata: Metadata = { title: "Assinatura do condomínio" };
 
@@ -23,12 +24,16 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
     include: { subscription: { include: { plan: true } }, users: { where: { role: "syndic" }, select: { name: true, email: true } } },
   });
   if (!condo) notFound();
-  const [invoices, plans, units, deal] = await Promise.all([
+  const [invoices, plans, units, deal, partners, commission] = await Promise.all([
     db.payment.findMany({ where: { condominiumId: id, status: { not: "draft" } }, orderBy: { createdAt: "desc" } }),
     db.plan.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     db.unit.count({ where: { building: { condominiumId: id } } }),
     db.billingDeal.findUnique({ where: { condominiumId: id } }),
+    db.partner.findMany({ where: { OR: [{ active: true }, { condominiums: { some: { id } } }] }, select: { id: true, name: true, code: true, kind: true }, orderBy: { name: "asc" } }),
+    db.commission.groupBy({ by: ["status"], where: { condominiumId: id }, _sum: { amountCents: true } }),
   ]);
+  const partner = partners.find((p) => p.id === condo.partnerId) ?? null;
+  const commissionSum = (st: string) => commission.find((c) => c.status === st)?._sum.amountCents ?? 0;
   const s = condo.subscription;
   const onDeal = !!s?.stripeSubscriptionId && !s?.planId && !!deal;
   const stripeCustomerUrl = s?.stripeCustomerId ? await stripeDashboardUrl(`customers/${s.stripeCustomerId}`) : null;
@@ -75,64 +80,85 @@ export default async function CondoBillingPage({ params }: PageProps<"/admin/ass
         <Stat label="Total recebido" value={brl(totalPaid)} tone="ok" />
       </div>
 
-      <Card id="negociacao" className="mb-8 scroll-mt-24">
-        <CardHeader
-          title="Negociação especial"
-          subtitle="Preço por unidade para este condomínio (mensal e anual). A cobrança acompanha as unidades cadastradas, com mínimo."
-          action={deal ? (deal.active ? <span className="rounded-full bg-ok/10 px-2.5 py-0.5 text-xs font-semibold text-ok">Ativa</span> : <span className="rounded-full bg-muted/10 px-2.5 py-0.5 text-xs font-semibold text-muted">Inativa</span>) : null}
-        />
-        <div className="p-5">
-          <DealForm
-            condominiumId={id}
-            units={units}
-            live={live}
-            deal={deal && { monthlyUnitPrice: deal.monthlyUnitPrice, yearlyUnitPrice: deal.yearlyUnitPrice, minUnits: deal.minUnits, trialDays: deal.trialDays, notes: deal.notes, active: deal.active }}
-          />
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-6">
+          <Card id="negociacao" className="scroll-mt-24">
+            <CardHeader
+              title="Negociação especial"
+              subtitle="Preço por unidade para este condomínio (mensal e anual). A cobrança acompanha as unidades cadastradas, com mínimo."
+              action={deal ? (deal.active ? <span className="rounded-full bg-ok/10 px-2.5 py-0.5 text-xs font-semibold text-ok">Ativa</span> : <span className="rounded-full bg-muted/10 px-2.5 py-0.5 text-xs font-semibold text-muted">Inativa</span>) : null}
+            />
+            <div className="p-5">
+              <DealForm
+                condominiumId={id}
+                units={units}
+                live={live}
+                deal={deal && { monthlyUnitPrice: deal.monthlyUnitPrice, yearlyUnitPrice: deal.yearlyUnitPrice, minUnits: deal.minUnits, trialDays: deal.trialDays, notes: deal.notes, active: deal.active }}
+              />
+            </div>
+          </Card>
+          <section>
+            <h2 className="mb-4 font-display text-xl font-semibold">Faturas</h2>
+            <InvoiceTable invoices={invoices} scroll />
+          </section>
         </div>
-      </Card>
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-        <Card>
-          <CardHeader title="Detalhes" />
-          <dl className="grid gap-4 p-5 text-sm sm:grid-cols-2">
-            {[
-              ["Início do período", fmtDate(s?.currentPeriodStart)],
-              ["Fim do período / próxima cobrança", fmtDate(s?.currentPeriodEnd)],
-              ["Fim do teste", fmtDate(s?.trialEnd)],
-              ["Forma de pagamento", s?.paymentMethodLast4 ? `${s.paymentMethodBrand} •••• ${s.paymentMethodLast4}` : s?.paymentMethodBrand ?? "—"],
-              ["Cliente Stripe", s?.stripeCustomerId ?? "—"],
-              ["Assinatura Stripe", s?.stripeSubscriptionId ?? "—"],
-              ["Cancelada em", fmtDate(s?.canceledAt)],
-              ["Última sincronização", fmtDateTime(s?.syncedAt)],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-xs text-muted">{k}</dt>
-                <dd className="mt-0.5 break-all font-medium">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
-        <Card>
-          <CardHeader title="Ações" subtitle={live ? "Alterações aplicadas direto no Stripe" : "O síndico assina pela tela Assinatura do condomínio"} />
-          <div className="space-y-4 p-5">
-            {live && s ? (
-              <>
-                <AdminPlanForm condominiumId={id} plans={plans} planId={s.planId} interval={s.interval} />
-                <form action={adminSetCancel.bind(null, id, !s.cancelAtPeriodEnd)} className="border-t border-line pt-4">
-                  <button className={buttonClass(s.cancelAtPeriodEnd ? "success" : "danger") + " w-full"}>
-                    {s.cancelAtPeriodEnd ? "Reverter cancelamento" : "Cancelar no fim do período"}
-                  </button>
-                </form>
-              </>
-            ) : (
-              <p className="text-sm text-muted">Sem assinatura ativa. Assim que o síndico concluir o checkout, ela aparecerá aqui.</p>
-            )}
-          </div>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader
+              title={<span className="flex items-center gap-2"><Handshake className="size-4 text-brand" />Parceiro</span>}
+              subtitle={partner ? <>Indicação de <Link href={`/admin/assinaturas/parceiros/${partner.id}`} className="font-medium text-brand hover:underline">{partner.name}</Link> desde {fmtDate(condo.partnerLinkedAt)}</> : "Quem vendeu ou indicou este condomínio."}
+            />
+            <div className="space-y-4 p-5">
+              {partner && (
+                <dl className="grid grid-cols-3 gap-2 text-xs">
+                  <div><dt className="text-muted">A pagar</dt><dd className="font-num text-sm font-semibold">{brl(commissionSum("due"))}</dd></div>
+                  <div><dt className="text-muted">Carência</dt><dd className="font-num text-sm font-semibold">{brl(commissionSum("pending"))}</dd></div>
+                  <div><dt className="text-muted">Pago</dt><dd className="font-num text-sm font-semibold">{brl(commissionSum("paid"))}</dd></div>
+                </dl>
+              )}
+              <LinkPartnerForm condominiumId={id} current={condo.partnerId} partners={partners.map((p) => ({ id: p.id, label: `${p.name} · ${p.code}` }))} />
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Ações" subtitle={live ? "Alterações aplicadas direto no Stripe" : "O síndico assina pela tela Assinatura do condomínio"} />
+            <div className="space-y-4 p-5">
+              {live && s ? (
+                <>
+                  <AdminPlanForm condominiumId={id} plans={plans} planId={s.planId} interval={s.interval} />
+                  <form action={adminSetCancel.bind(null, id, !s.cancelAtPeriodEnd)} className="border-t border-line pt-4">
+                    <button className={buttonClass(s.cancelAtPeriodEnd ? "success" : "danger") + " w-full"}>
+                      {s.cancelAtPeriodEnd ? "Reverter cancelamento" : "Cancelar no fim do período"}
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <p className="text-sm text-muted">Sem assinatura ativa. Assim que o síndico concluir o checkout, ela aparecerá aqui.</p>
+              )}
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Detalhes" />
+            <dl className="grid gap-3 p-5 text-sm">
+              {[
+                ["Início do período", fmtDate(s?.currentPeriodStart)],
+                ["Fim do período / próxima cobrança", fmtDate(s?.currentPeriodEnd)],
+                ["Fim do teste", fmtDate(s?.trialEnd)],
+                ["Forma de pagamento", s?.paymentMethodLast4 ? `${s.paymentMethodBrand} •••• ${s.paymentMethodLast4}` : s?.paymentMethodBrand ?? "—"],
+                ["Cliente Stripe", s?.stripeCustomerId ?? "—"],
+                ["Assinatura Stripe", s?.stripeSubscriptionId ?? "—"],
+                ["Cancelada em", fmtDate(s?.canceledAt)],
+                ["Última sincronização", fmtDateTime(s?.syncedAt)],
+              ].map(([k, v]) => (
+                <div key={k} className="flex items-baseline justify-between gap-3">
+                  <dt className="shrink-0 text-xs text-muted">{k}</dt>
+                  <dd className="min-w-0 break-all text-right font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        </div>
       </div>
-
-      <h2 className="mb-4 font-display text-xl font-semibold">Faturas</h2>
-      <InvoiceTable invoices={invoices} scroll />
     </div>
   );
 }
