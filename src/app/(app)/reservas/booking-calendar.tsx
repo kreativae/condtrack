@@ -65,6 +65,7 @@ export function BookingCalendar({ month, today, areas, events, canBook }: { mont
           {days.map((d) => {
             const list = byDay.get(d) ?? [];
             const out = !d.startsWith(month);
+            const past = !out && d < today;
             return (
               <button
                 key={d}
@@ -73,15 +74,16 @@ export function BookingCalendar({ month, today, areas, events, canBook }: { mont
                 className={cx(
                   "flex min-h-14 flex-col gap-0.5 rounded-lg border p-1 text-left transition sm:min-h-20",
                   selected === d ? "border-brand ring-1 ring-brand" : "border-line hover:border-line-strong",
-                  out ? "bg-bg-2/50 opacity-50" : "bg-surface",
+                  // Outro mês: só o contorno tracejado, bem apagado · dia que já passou: fundo cinza
+                  out ? "border-dashed bg-transparent opacity-40" : past ? "bg-bg-2" : "bg-surface",
                 )}
               >
-                <span className={cx("text-[11px]", d === today ? "flex size-5 items-center justify-center rounded-full bg-brand font-semibold text-brand-ink" : "text-fg-2")}>{Number(d.slice(8))}</span>
+                <span className={cx("text-[11px]", d === today ? "flex size-5 items-center justify-center rounded-full bg-brand font-semibold text-brand-ink" : past ? "text-muted" : "text-fg-2")}>{Number(d.slice(8))}</span>
                 {/* Celular: pontinhos; computador: horário e área */}
-                <span className="flex flex-wrap gap-0.5 sm:hidden">
+                <span className={cx("flex flex-wrap gap-0.5 sm:hidden", past && "opacity-60")}>
                   {list.slice(0, 4).map((e, i) => <span key={i} className={cx("size-1.5 rounded-full", colorOf(e.areaId).dot, e.status === "pending" && "opacity-50")} />)}
                 </span>
-                <span className="hidden flex-col gap-0.5 sm:flex">
+                <span className={cx("hidden flex-col gap-0.5 sm:flex", past && "opacity-60")}>
                   {list.slice(0, 3).map((e, i) => (
                     <span key={i} className={cx("truncate rounded px-1 text-[10px] font-medium leading-4", colorOf(e.areaId).chip, e.status === "pending" && "outline-1 outline-dashed outline-current -outline-offset-1")}>
                       {brtParts(new Date(e.startAt)).hm} {areas.find((a) => a.id === e.areaId)?.name.split(" ")[0]}
@@ -93,7 +95,7 @@ export function BookingCalendar({ month, today, areas, events, canBook }: { mont
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-muted">Contorno tracejado = aguardando aprovação. Toque num dia para ver os horários.</p>
+        <p className="mt-2 text-xs text-muted">Etiqueta tracejada = aguardando aprovação. Dias em cinza já passaram. Toque num dia para ver os horários.</p>
       </div>
 
       <div className="min-w-0 rounded-2xl border border-line bg-surface p-4 lg:sticky lg:top-[calc(4rem+var(--chrome,0rem)+0.75rem)] lg:self-start">
