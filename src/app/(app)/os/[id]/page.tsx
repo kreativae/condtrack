@@ -171,8 +171,15 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="min-w-0 space-y-6">
+      {/* Celular: o que a pessoa precisa fazer vem antes das fotos e da linha do tempo.
+          Computador: ações no topo da coluna lateral e o resto do painel abaixo delas. */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:grid-rows-[auto_1fr]">
+        <div className="space-y-6 lg:col-start-2 lg:row-start-1">
+          <ActionPanel o={o} user={user} providers={providers} />
+          {user.role === "superadmin" && <AdminDeleteOrder id={o.id} protocol={o.protocol} />}
+        </div>
+
+        <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
           {beforePhoto && afterPhoto && <BeforeAfter before={beforePhoto.url} after={afterPhoto.url} alt={o.title} />}
 
           <Card>
@@ -258,9 +265,7 @@ export default async function OrderPage({ params }: PageProps<"/os/[id]">) {
         </div>
 
         {/* Painel lateral */}
-        <aside className="space-y-6">
-          <ActionPanel o={o} user={user} providers={providers} />
-          {user.role === "superadmin" && <AdminDeleteOrder id={o.id} protocol={o.protocol} />}
+        <aside className="space-y-6 self-start lg:col-start-2 lg:row-start-2">
 
           <ResponsiblesCard
             orderId={o.id}

@@ -56,6 +56,8 @@ function videoDuration(file: File): Promise<number> {
 export function MediaUploader({ orderId, phase, remaining, compact }: Props) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
+  // Celular: abre direto a câmera traseira (sem passar pela escolha de arquivo)
+  const camera = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +98,7 @@ export function MediaUploader({ orderId, phase, remaining, compact }: Props) {
     }
     setBusy(null);
     if (input.current) input.current.value = "";
+    if (camera.current) camera.current.value = "";
     router.refresh();
   }
 
@@ -103,12 +106,25 @@ export function MediaUploader({ orderId, phase, remaining, compact }: Props) {
   return (
     <div>
       <input ref={input} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple hidden onChange={(e) => handle(e.target.files)} />
+      <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handle(e.target.files)} />
+      {/* Celular: dois botões grandes, câmera e galeria */}
+      <div className="grid grid-cols-2 gap-2 sm:hidden">
+        <button type="button" disabled={disabled} onClick={() => camera.current?.click()} className="flex h-14 items-center justify-center gap-2 rounded-xl bg-brand font-semibold text-brand-ink transition active:scale-[0.98] disabled:opacity-60">
+          {busy ? <Loader2 className="size-5 animate-spin" /> : <Camera className="size-5" />}Tirar foto
+        </button>
+        <button type="button" disabled={disabled} onClick={() => input.current?.click()} className="flex h-14 items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface font-semibold text-fg transition active:scale-[0.98] disabled:opacity-60">
+          <Upload className="size-5" />Galeria
+        </button>
+      </div>
+      <p className={clsx("mt-2 text-center text-xs sm:hidden", busy ? "font-medium text-brand" : "text-muted")}>
+        {busy ?? (remaining > 0 ? `Fotos e vídeos (até 2 min) · ${remaining} restante(s)` : "Limite de arquivos atingido")}
+      </p>
       <button
         type="button"
         disabled={disabled}
         onClick={() => input.current?.click()}
         className={clsx(
-          "group flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-brand/[0.03] text-center transition hover:bg-brand/[0.07] disabled:cursor-not-allowed disabled:opacity-60",
+          "group hidden w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-brand/[0.03] text-center transition hover:bg-brand/[0.07] disabled:cursor-not-allowed disabled:opacity-60 sm:flex",
           compact ? "px-4 py-4" : "px-6 py-8",
         )}
       >
@@ -119,7 +135,7 @@ export function MediaUploader({ orderId, phase, remaining, compact }: Props) {
           </span>
         )}
         <span className="text-sm font-medium">{busy ?? (remaining > 0 ? "Tirar foto ou enviar arquivos" : "Limite de arquivos atingido")}</span>
-        {!busy && remaining > 0 && <span className="text-xs text-muted">Fotos e vídeos (até 2 min) · {remaining} restante(s) · marca d’água automática</span>}
+        {!busy && remaining > 0 && <span className="text-xs text-muted">Fotos e vídeos (até 2 min) · {remaining} restante(s) · data e local ficam nos dados da OS</span>}
       </button>
       {error && <p className="mt-2 text-xs text-bad">{error}</p>}
     </div>
