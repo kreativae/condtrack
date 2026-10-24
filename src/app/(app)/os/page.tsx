@@ -71,12 +71,17 @@ export default async function OrdersPage({ searchParams }: PageProps<"/os">) {
         />
 
         {one(sp.excluida) && <div className="mb-4"><Alert tone="ok">OS {one(sp.excluida)} excluída.</Alert></div>}
-        <div className="mb-4 no-scrollbar flex gap-1 overflow-x-auto border-b border-line">
+        {/* No celular as abas viram pílulas roláveis; no computador, abas sublinhadas */}
+        <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:gap-1 sm:border-b sm:border-line sm:px-0">
           {tabs.map(([k, label]) => (
             <Link
               key={k}
               href={`/os?view=${k}${history ? "&h=1" : ""}`}
-              className={cx("-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition", view === k && !status ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}
+              aria-current={view === k && !status ? "page" : undefined}
+              className={cx(
+                "whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition sm:-mb-px sm:rounded-none sm:border-0 sm:border-b-2 sm:py-2.5 sm:font-normal",
+                view === k && !status ? "border-fg bg-fg text-bg sm:border-brand sm:bg-transparent sm:text-brand" : "border-line-strong bg-surface text-fg-2 sm:border-transparent sm:bg-transparent sm:text-muted sm:hover:text-fg",
+              )}
             >
               {label}
             </Link>
