@@ -9,7 +9,7 @@ import { orderListInclude, orderScope } from "@/lib/orders";
 import { ACTIVE_STATUSES, PRIORITY_META, STATUS_META, STATUSES } from "@/lib/workflow";
 import { OrderRows } from "@/components/order-list";
 import { FrozenPage, FrozenTop, Pager, ScrollCard, pageParam, withPage } from "@/components/frozen";
-import { Alert, Input, LinkButton, PageHeader, Select, buttonClass, cx } from "@/components/ui";
+import { Alert, Input, LinkButton, PageHeader, Select, buttonClass, cx, tabClass, tabRowClass } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Ordens de serviço" };
 
@@ -71,18 +71,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/os">) {
         />
 
         {one(sp.excluida) && <div className="mb-4"><Alert tone="ok">OS {one(sp.excluida)} excluída.</Alert></div>}
-        {/* No celular as abas viram pílulas roláveis; no computador, abas sublinhadas */}
-        <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:gap-1 sm:border-b sm:border-line sm:px-0">
+        <div className={cx(tabRowClass, "mb-4")}>
           {tabs.map(([k, label]) => (
-            <Link
-              key={k}
-              href={`/os?view=${k}${history ? "&h=1" : ""}`}
-              aria-current={view === k && !status ? "page" : undefined}
-              className={cx(
-                "whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition sm:-mb-px sm:rounded-none sm:border-0 sm:border-b-2 sm:py-2.5 sm:font-normal",
-                view === k && !status ? "border-fg bg-fg text-bg sm:border-brand sm:bg-transparent sm:text-brand" : "border-line-strong bg-surface text-fg-2 sm:border-transparent sm:bg-transparent sm:text-muted sm:hover:text-fg",
-              )}
-            >
+            <Link key={k} href={`/os?view=${k}${history ? "&h=1" : ""}`} aria-current={view === k && !status ? "page" : undefined} className={tabClass(view === k && !status)}>
               {label}
             </Link>
           ))}

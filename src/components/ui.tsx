@@ -125,6 +125,15 @@ export function FieldGroup({ label, hint, children, className }: { label: string
   );
 }
 
+/** Abas de página: pílulas roláveis no celular, sublinhadas a partir do sm. Use num contêiner com `tabRowClass`. */
+export function tabClass(active: boolean) {
+  return cx(
+    "shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition sm:-mb-px sm:rounded-none sm:border-0 sm:border-b-2 sm:px-3 sm:py-2 sm:font-medium",
+    active ? "border-fg bg-fg text-bg sm:border-brand sm:bg-transparent sm:text-brand" : "border-line-strong bg-surface text-fg-2 sm:border-transparent sm:bg-transparent sm:text-muted sm:hover:text-fg",
+  );
+}
+export const tabRowClass = "no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:gap-1 sm:border-b sm:border-line sm:px-0";
+
 /** Cartão de número; com `href`, o cartão inteiro abre a lista correspondente. */
 export function Stat({ label, value, hint, tone, href }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone; href?: string }) {
   const card = (

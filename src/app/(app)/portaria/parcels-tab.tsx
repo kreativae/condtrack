@@ -35,8 +35,9 @@ export async function ParcelsTab({ condoId, sp, units }: { condoId: string; sp: 
   const base = (v: string) => `/portaria?aba=encomendas${v === "entregues" ? "&ver=entregues" : ""}${unitFilter ? `&unidade=${unitFilter}` : ""}`;
 
   return (
+    // Até telas grandes, a lista vem primeiro (no celular, receber já fica no atalho "Encomenda" do topo)
     <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-      <Card>
+      <Card className="max-2xl:order-2">
         <CardHeader title="Receber encomenda" subtitle="Quem mora na unidade recebe o aviso com o local onde ela ficou." />
         <div className="p-5"><ReceiveParcelForm units={units} carriers={carriers} locations={locations} labelUnits={labelUnits} residents={residents} /></div>
       </Card>

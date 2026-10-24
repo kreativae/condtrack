@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { GRANT_STATUS, PERSON_KINDS, brt, brtParts, docKey, expectedToday, grantSchedule, grantStatus, type PersonKind } from "@/lib/booking";
 import { gateCondo } from "@/lib/booking-server";
 import { byUnit, unitLabel } from "@/lib/units";
-import { Badge, Card, CardHeader, Empty, PageHeader, Select, buttonClass, cx, type Tone } from "@/components/ui";
+import { Badge, Card, CardHeader, Empty, PageHeader, Select, buttonClass, cx, tabClass, type Tone } from "@/components/ui";
 import { ExitButton, QuickEntryButton } from "@/components/portaria/people";
 import { ArrivalButton } from "../reservas/booking-ui";
 import { ContactAgenda } from "./agenda";
@@ -337,10 +337,10 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
       <div className="mb-3 lg:hidden"><StatChips items={chips} /></div>
 
       {/* Abas e, no computador, os números na mesma linha */}
-      <div className="mb-5 flex items-end gap-3 border-b border-line">
-        <nav className="flex shrink-0 gap-1 overflow-x-auto [scrollbar-width:none] max-lg:min-w-0 max-lg:flex-1">
+      <div className="mb-5 flex items-end gap-3 sm:border-b sm:border-line">
+        <nav className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 max-lg:min-w-0 max-lg:flex-1 sm:mx-0 sm:gap-1 sm:px-0">
           {tabs.map(([k, l]) => (
-            <Link key={k} href={k === "hoje" ? "/portaria" : `/portaria?aba=${k}`} className={cx("-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>{l}</Link>
+            <Link key={k} href={k === "hoje" ? "/portaria" : `/portaria?aba=${k}`} aria-current={tab === k ? "page" : undefined} className={tabClass(tab === k)}>{l}</Link>
           ))}
         </nav>
         <div className="ml-auto hidden min-w-0 pb-1 lg:block"><StatChips items={chips} oneLine /></div>

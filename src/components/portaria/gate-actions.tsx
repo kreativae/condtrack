@@ -95,11 +95,12 @@ export function GateActions({ unit, units, carriers, locations, residents, kinds
   }, [router, unitId, shortcuts]);
 
   const short = unit?.label;
-  const tiles: { key: Action; icon: typeof DoorOpen; label: string; kbd: string }[] = [
-    { key: "parcel", icon: PackagePlus, label: "Encomenda", kbd: "R" },
-    { key: "entry", icon: DoorOpen, label: "Entrada", kbd: "E" },
-    { key: "batch", icon: Layers, label: "Lote", kbd: "L" },
-    { key: "person", icon: UserPlus, label: unit ? "Autorizar" : "Pessoa", kbd: unit ? "A" : "P" },
+  // tone: cor do ícone nos blocos do celular (cada atalho reconhecível de relance)
+  const tiles: { key: Action; icon: typeof DoorOpen; label: string; kbd: string; tone: string }[] = [
+    { key: "parcel", icon: PackagePlus, label: "Encomenda", kbd: "R", tone: "bg-brand-soft text-brand" },
+    { key: "entry", icon: DoorOpen, label: "Entrada", kbd: "E", tone: "bg-ok/12 text-ok" },
+    { key: "batch", icon: Layers, label: "Lote", kbd: "L", tone: "bg-warn/12 text-warn" },
+    { key: "person", icon: UserPlus, label: unit ? "Autorizar" : "Pessoa", kbd: unit ? "A" : "P", tone: "bg-info/12 text-info" },
   ];
   const titles: Record<Action, string> = {
     parcel: short ? `Receber encomenda · ${short}` : "Receber encomenda",
@@ -120,10 +121,14 @@ export function GateActions({ unit, units, carriers, locations, residents, kinds
             title={`${t.label} (tecla ${t.kbd})`}
             className={cx(
               "group relative flex items-center justify-center rounded-2xl border border-line bg-surface font-medium text-fg-2 transition hover:border-brand/40 hover:text-brand",
-              row ? "h-14 gap-2 px-4 text-sm shadow-card" : "flex-col gap-1 px-1 py-2.5 text-xs sm:flex-row sm:gap-2 sm:px-3 sm:py-3 sm:text-sm",
+              row ? "h-14 gap-2 px-4 text-sm shadow-card" : "flex-col gap-1.5 px-1 py-3 text-xs font-semibold active:scale-[0.97] sm:flex-row sm:gap-2 sm:px-3 sm:py-3 sm:text-sm",
             )}
           >
-            <t.icon className="size-5 text-fg group-hover:text-brand" />
+            {row ? (
+              <t.icon className="size-5 text-fg group-hover:text-brand" />
+            ) : (
+              <span className={cx("flex size-10 items-center justify-center rounded-xl sm:size-8", t.tone)}><t.icon className="size-5" /></span>
+            )}
             <span className="truncate">{t.label}</span>
             {row ? (
               <kbd className="rounded border border-line px-1 font-mono text-[10px] text-muted">{t.kbd}</kbd>
