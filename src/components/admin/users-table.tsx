@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { fmtRelative } from "@/lib/format";
-import { Avatar, Badge, Empty, cx } from "@/components/ui";
+import { Avatar, Badge, Empty, cx, tabClass, tabRowClass } from "@/components/ui";
 import { Pager, ScrollCard, pageParam, withPage } from "@/components/frozen";
 
 const PAGE = 50;
@@ -25,9 +25,9 @@ export async function UsersTable({ where, base, role, roles, showCondo, canImper
   });
   return (
     <>
-      <div className="mb-4 no-scrollbar flex shrink-0 gap-1 overflow-x-auto border-b border-line">
+      <div className={cx(tabRowClass, "mb-4 shrink-0")}>
         {[["", "Todos"], ...roles.map((r) => [r, ROLE_LABEL[r]])].map(([k, l]) => (
-          <Link key={k} href={withPage(base, { ...params, role: k || undefined }, 1)} className={cx("-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm", (role ?? "") === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>
+          <Link key={k} href={withPage(base, { ...params, role: k || undefined }, 1)} aria-current={(role ?? "") === k ? "page" : undefined} className={tabClass((role ?? "") === k)}>
             {l}
           </Link>
         ))}

@@ -5,7 +5,7 @@ import { categoryIcon } from "@/lib/category-icons";
 import {
   createBuilding, createUnit, deleteArea, deleteBuilding, deleteCategory, deleteUnit, generateUnits, renameBuilding, saveArea, saveCategory, saveLayout, saveParcelLists, updateUnit,
 } from "@/app/actions/structure";
-import { Badge, Card, CardHeader, Empty, cx } from "@/components/ui";
+import { Badge, Card, CardHeader, Empty, cx, tabClass, tabRowClass } from "@/components/ui";
 import { UNIT_TYPES, byNumber, structureWords } from "@/lib/units";
 import { ChecklistAdmin } from "@/components/checklist/admin";
 import { parcelOptions } from "@/lib/parcels-server";
@@ -46,12 +46,13 @@ export async function StructureManager({ condominiumId, basePath, tab }: { condo
 
   return (
     <div>
-      <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-line">
+      <nav className={cx(tabRowClass, "mb-6")}>
         {STRUCTURE_TABS.map(({ key, label, icon: Icon }) => (
           <Link
             key={key}
             href={`${basePath}?tab=${key}`}
-            className={cx("-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition", tab === key ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}
+            aria-current={tab === key ? "page" : undefined}
+            className={cx(tabClass(tab === key), "flex items-center gap-2")}
           >
             <Icon className="size-4" />
             {key === "torres" ? words.tab : label}

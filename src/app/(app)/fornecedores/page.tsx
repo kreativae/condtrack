@@ -10,7 +10,7 @@ import {
   QUOTE_STATUS, SUPPLIER_ROLES, canDecideQuote, groupLabel, groupStats, quoteStatus, supplierLetter, validityLabel, whatsappNumber, type QuoteStatus,
 } from "@/lib/suppliers";
 import { supplierCondo } from "@/lib/suppliers-server";
-import { Badge, Card, Empty, LinkButton, PageHeader, cx } from "@/components/ui";
+import { Badge, Card, Empty, LinkButton, PageHeader, cx, tabClass, tabRowClass } from "@/components/ui";
 import { CategoryIcon } from "@/components/suppliers/look";
 import { Stars } from "./stars";
 import { QuickQuote } from "./quick-quote";
@@ -68,9 +68,9 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
+      <nav className={cx(tabRowClass, "mb-6")}>
         {tabs.map(([k, l, n, tone]) => (
-          <Link key={k} href={k === "cotacoes" ? "/fornecedores" : `/fornecedores?aba=${k}`} className={cx("-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition", tab === k ? "border-brand text-brand" : "border-transparent text-muted hover:text-fg")}>
+          <Link key={k} href={k === "cotacoes" ? "/fornecedores" : `/fornecedores?aba=${k}`} aria-current={tab === k ? "page" : undefined} className={cx(tabClass(tab === k), "inline-flex items-center gap-1.5")}>
             {l}
             {!!n && <span className={cx("rounded-full px-1.5 text-[11px] font-semibold", tone === "warn" ? "bg-warn/15 text-warn" : "bg-bg-2 text-muted")}>{n}</span>}
           </Link>
