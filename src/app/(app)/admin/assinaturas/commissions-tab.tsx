@@ -46,7 +46,9 @@ export async function CommissionsTab({ status }: { status: string }) {
         <Stat label={`Pago em ${new Date().getFullYear()}`} value={brl(paidYear._sum.amountCents ?? 0)} />
       </div>
 
-      <div className="mb-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+      {/* Esquerda: o que pagar e o histórico; direita: as regras, fixas ao rolar */}
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader title="A pagar por parceiro" subtitle="Pague por Pix e registre o comprovante." />
             {byPartner.length ? (
@@ -62,14 +64,9 @@ export async function CommissionsTab({ status }: { status: string }) {
                 ))}
               </ul>
             ) : (
-              <p className="px-5 py-6 text-sm text-muted">Nada a pagar agora.</p>
+              <p className="px-5 py-4 text-sm text-muted">Nada a pagar agora.</p>
             )}
           </Card>
-          <Card>
-            <CardHeader title="Regras de comissão" subtitle="Valem para as próximas comissões; as já geradas não mudam. Cada parceiro pode ter regra própria na ficha." />
-            <div className="p-5"><CommissionRulesForm settings={settings} /></div>
-          </Card>
-      </div>
 
           <Card className="overflow-hidden">
             <CardHeader
@@ -83,42 +80,53 @@ export async function CommissionsTab({ status }: { status: string }) {
                 </div>
               }
             />
-            <div className="max-h-[32rem] overflow-auto overscroll-contain">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className={`${stickyHead} text-left text-xs font-medium text-muted`}>
-                  <tr>
-                    <th className="px-5 py-3 font-medium">Pagamento</th>
-                    <th className="px-5 py-3 font-medium">Parceiro</th>
-                    <th className="px-5 py-3 font-medium">Condomínio</th>
-                    <th className="px-5 py-3 text-right font-medium">Base</th>
-                    <th className="px-5 py-3 text-right font-medium">Comissão</th>
-                    <th className="px-5 py-3 font-medium">Situação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {history.map((c) => {
-                    const st = commissionStatus(c.status);
-                    return (
-                      <tr key={c.id}>
-                        <td className="whitespace-nowrap px-5 py-3 text-xs">{fmtDate(c.payment.paidAt)}</td>
-                        <td className="px-5 py-3"><Link href={`/admin/assinaturas/parceiros/${c.partner.id}`} className="hover:text-brand">{c.partner.name}</Link></td>
-                        <td className="px-5 py-3 text-xs">{c.condominium.name}</td>
-                        <td className="whitespace-nowrap px-5 py-3 text-right font-num text-xs tabular-nums text-muted">{brl(c.baseCents)}</td>
-                        <td className="whitespace-nowrap px-5 py-3 text-right font-num font-semibold tabular-nums">{brl(c.amountCents)}<span className="block text-[11px] font-normal text-muted">{String(c.pct).replace(".", ",")}%{c.phase === "after" ? " · depois do prazo" : ""}</span></td>
-                        <td className="px-5 py-3">
-                          <Badge tone={st.tone}>{st.label}</Badge>
-                          {c.status === "paid" && <p className="mt-1 text-[11px] text-muted">{fmtDate(c.paidAt)} · {c.paidNote}</p>}
-                          {c.status === "cancelled" && <p className="mt-1 text-[11px] text-muted">{c.cancelReason}</p>}
-                          {(c.status === "pending" || c.status === "due") && <div className="mt-1"><CancelCommissionButton id={c.id} /></div>}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {!history.length && <tr><td colSpan={6} className="px-5 py-10 text-center text-muted">Nenhuma comissão {filter ? "nesta situação" : "ainda: elas nascem a cada fatura paga de condomínio com parceiro"}.</td></tr>}
-                </tbody>
-              </table>
-            </div>
+            {history.length ? (
+              <div className="max-h-[36rem] overflow-auto overscroll-contain">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className={`${stickyHead} text-left text-xs font-medium text-muted`}>
+                    <tr>
+                      <th className="px-5 py-3 font-medium">Condomínio e parceiro</th>
+                      <th className="px-3 py-3 text-right font-medium">Base</th>
+                      <th className="px-3 py-3 text-right font-medium">Comissão</th>
+                      <th className="px-5 py-3 font-medium">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {history.map((c) => {
+                      const st = commissionStatus(c.status);
+                      return (
+                        <tr key={c.id} className="align-top">
+                          <td className="px-5 py-3">
+                            <span className="block font-medium">{c.condominium.name}</span>
+                            <span className="block text-xs text-muted">
+                              <Link href={`/admin/assinaturas/parceiros/${c.partner.id}`} className="hover:text-brand">{c.partner.name}</Link> · pago em {fmtDate(c.payment.paidAt)}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-3 text-right font-num text-xs tabular-nums text-muted">{brl(c.baseCents)}</td>
+                          <td className="whitespace-nowrap px-3 py-3 text-right font-num font-semibold tabular-nums">{brl(c.amountCents)}<span className="block text-[11px] font-normal text-muted">{String(c.pct).replace(".", ",")}%{c.phase === "after" ? " · depois do prazo" : ""}</span></td>
+                          <td className="px-5 py-3">
+                            <Badge tone={st.tone}>{st.label}</Badge>
+                            {c.status === "paid" && <p className="mt-1 text-[11px] text-muted">{fmtDate(c.paidAt)} · {c.paidNote}</p>}
+                            {c.status === "cancelled" && <p className="mt-1 text-[11px] text-muted">{c.cancelReason}</p>}
+                            {(c.status === "pending" || c.status === "due") && <div className="mt-1"><CancelCommissionButton id={c.id} /></div>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="px-5 py-8 text-center text-sm text-muted">Nenhuma comissão {filter ? "nesta situação" : "ainda: elas nascem a cada fatura paga de condomínio com parceiro"}.</p>
+            )}
           </Card>
+        </div>
+
+        <Card className="xl:sticky xl:top-24">
+          <CardHeader title="Regras de comissão" subtitle="Valem para as próximas comissões; as já geradas não mudam. Cada parceiro pode ter regra própria na ficha." />
+          <div className="p-5"><CommissionRulesForm settings={settings} /></div>
+        </Card>
+      </div>
     </>
   );
 }
