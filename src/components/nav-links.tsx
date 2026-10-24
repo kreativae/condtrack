@@ -413,6 +413,11 @@ export function MenuButton() {
   );
 }
 
+/** Fundo em pílula atrás do ícone do atalho ativo. */
+function TabPill({ on, children }: { on: boolean; children: React.ReactNode }) {
+  return <span className={clsx("flex h-7 w-12 items-center justify-center rounded-full transition-colors", on && "bg-brand-soft")}>{children}</span>;
+}
+
 type MobileUser = { name: string; avatarUrl: string | null; roleLabel: string; place: string };
 
 /**
@@ -466,20 +471,20 @@ export function MobileNav({ items, initialPins, user, customized, condos }: { it
 
   return (
     <>
-      {/* Barra de atalhos */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" style={{ gridTemplateColumns: `repeat(${pinned.length + 1}, 1fr)` }}>
+      {/* Barra de atalhos: o item ativo ganha a pílula atrás do ícone (como nos apps de Android e iPhone) */}
+      <nav aria-label="Atalhos" className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-surface/95 px-1 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5 backdrop-blur lg:hidden" style={{ gridTemplateColumns: `repeat(${pinned.length + 1}, 1fr)` }}>
         {pinned.map((it) => {
           const Icon = ICONS[it.icon] ?? Gauge;
           const active = isActive(pathname, it.href);
           return (
-            <Link key={it.href} href={it.href} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium", active ? "text-brand" : "text-muted")}>
-              <Icon className="size-5" strokeWidth={1.6} />
+            <Link key={it.href} href={it.href} aria-current={active ? "page" : undefined} className={clsx("flex min-h-12 flex-col items-center justify-center gap-1 text-[11px]", active ? "font-bold text-brand" : "font-semibold text-muted")}>
+              <TabPill on={active}><Icon className="size-[21px]" strokeWidth={active ? 2.1 : 1.8} /></TabPill>
               <span className="max-w-full truncate px-1">{it.short ?? it.label}</span>
             </Link>
           );
         })}
-        <button type="button" onClick={() => setOpen(true)} className={clsx("flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium", open ? "text-brand" : "text-muted")}>
-          <Menu className="size-5" strokeWidth={1.6} />
+        <button type="button" onClick={() => setOpen(true)} aria-expanded={open} className={clsx("flex min-h-12 flex-col items-center justify-center gap-1 text-[11px]", open ? "font-bold text-brand" : "font-semibold text-muted")}>
+          <TabPill on={open}><Menu className="size-[21px]" strokeWidth={open ? 2.1 : 1.8} /></TabPill>
           <span>Menu</span>
         </button>
       </nav>
