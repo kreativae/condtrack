@@ -125,9 +125,10 @@ export function FieldGroup({ label, hint, children, className }: { label: string
   );
 }
 
-export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
-  return (
-    <Card className="@container p-4 sm:p-5">
+/** Cartão de número; com `href`, o cartão inteiro abre a lista correspondente. */
+export function Stat({ label, value, hint, tone, href }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone; href?: string }) {
+  const card = (
+    <Card className={cx("@container h-full p-4 sm:p-5", href && "transition group-hover:border-line-strong group-active:scale-[0.98]")}>
       <p className="text-xs font-medium leading-snug text-muted [overflow-wrap:anywhere] sm:text-[13px]">{label}</p>
       <p
         className={cx(
@@ -143,6 +144,7 @@ export function Stat({ label, value, hint, tone }: { label: string; value: React
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </Card>
   );
+  return href ? <Link href={href} className="group block rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">{card}</Link> : card;
 }
 
 export function Avatar({ name, src, size = 36 }: { name: string; src?: string | null; size?: number }) {

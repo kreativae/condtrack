@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CalendarDays, CheckCircle2, FileText, MessageSquare, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { inCondo } from "@/lib/memberships";
 import type { CurrentUser } from "@/lib/auth";
@@ -17,13 +17,14 @@ import { fmtBRL } from "@/lib/finance";
 import { feedInclude } from "@/components/feed-card";
 import { ServiceShowcase } from "@/components/service-card";
 import { TicketMiniList } from "@/components/tickets/ticket-mini-list";
-import { nowMs } from "@/lib/format";
+import { fmtRelative, nowMs } from "@/lib/format";
+import { ActionList, type ActionItem } from "@/components/action-list";
 
 export async function SyndicDashboard({ user }: { user: CurrentUser }) {
   const cid = user.condominiumId!;
   const show = dashboardVisibility(user.dashboardHidden);
   const where = { condominiumId: cid };
-  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, quotes, delivered, tickets] = await Promise.all([
+  const [m, pending, recent, byCat, byArea, byProvider, cats, areas, providers, quotes, delivered, tickets, bookings] = await Promise.all([
     orderMetrics(where),
     db.serviceOrder.findMany({ where: { ...where, status: "validated" }, include: orderListInclude, orderBy: { validatedAt: "asc" } }),
     db.serviceOrder.findMany({ where, include: orderListInclude, orderBy: { updatedAt: "desc" }, take: 6 }),
@@ -36,7 +37,16 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
     show("quotes") ? db.supplierQuote.findMany({ where: { ...where, status: "pending" }, include: { supplier: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
     show("delivered") ? db.serviceOrder.findMany({ where: { ...where, status: "approved" }, include: feedInclude, orderBy: { approvedAt: "desc" }, take: 4 }) : [],
     show("tickets") ? db.ticket.findMany({ where: { ...where, status: { in: ["open", "in_review"] } }, orderBy: { createdAt: "asc" } }) : [],
+    show("todo") ? db.booking.findMany({ where: { ...where, status: "pending" }, include: { commonArea: { select: { name: true } } }, orderBy: { startAt: "asc" }, take: 3 }) : [],
   ]);
+  // "Precisa de você": o que espera decisão, do mais antigo para o mais novo, poucos de cada assunto
+  const when = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const todo: ActionItem[] = show("todo") ? [
+    ...pending.slice(0, 2).map((o) => ({ href: `/os/${o.id}`, icon: CheckCircle2, tone: "brand" as const, title: `Aprovar · ${o.title}`, sub: `${o.protocol} · validada ${o.validatedAt ? fmtRelative(o.validatedAt) : "pelo zelador"}` })),
+    ...quotes.slice(0, 2).map((q) => ({ href: `/fornecedores/orcamento/${q.id}`, icon: FileText, tone: "warn" as const, title: `Orçamento · ${q.title}`, sub: `${q.supplier.name} · ${fmtBRL(q.amountCents)}` })),
+    ...tickets.filter((t) => t.status === "open").slice(0, 2).map((t) => ({ href: `/chamados/${t.id}`, icon: MessageSquare, tone: "warn" as const, title: `Chamado #${t.number} · ${t.title}`, sub: `Aberto ${fmtRelative(t.createdAt)}` })),
+    ...bookings.map((b) => ({ href: `/reservas/${b.id}`, icon: CalendarDays, tone: "ok" as const, title: `Reserva · ${b.commonArea.name}`, sub: when.format(b.startAt) })),
+  ] : [];
   const name = (list: { id: string; name: string }[], id: string | null) => list.find((x) => x.id === id)?.name ?? "Sem categoria";
   const top = <T,>(rows: (T & { _count: number })[], key: (r: T) => string) =>
     rows.map((r) => ({ name: key(r), value: r._count })).sort((a, b) => b.value - a.value).slice(0, 6);
@@ -52,13 +62,15 @@ export async function SyndicDashboard({ user }: { user: CurrentUser }) {
         actions={<><DashboardSettings sections={DASHBOARD_SECTIONS.syndic} hidden={user.dashboardHidden.split(",").filter(Boolean)} /><LinkButton href="/os/nova"><Plus className="size-4" />Nova OS</LinkButton></>}
       />
       {show("stats") && (
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="OS em aberto" value={m.open} />
-        <Stat label="Aguardando sua aprovação" value={m.counts.validated} tone={m.counts.validated ? "brand" : undefined} />
-        <Stat label="Atrasadas" value={m.overdue} tone={m.overdue ? "bad" : undefined} />
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Stat label="OS em aberto" value={m.open} href="/os" />
+        <Stat label="Aguardando sua aprovação" value={m.counts.validated} tone={m.counts.validated ? "brand" : undefined} href="/os?view=approve" />
+        <Stat label="Atrasadas" value={m.overdue} tone={m.overdue ? "bad" : undefined} href="/os" />
         <Stat label="Tempo médio de resolução" value={fmtHours(m.avgHours)} hint={`${m.approved30} concluídas em 30 dias`} />
       </div>
       )}
+
+      <ActionList items={todo} />
 
       {show("checklist") && <ChecklistSummary condominiumId={cid} />}
       {show("finance") && <FinanceSummary condominiumId={cid} />}

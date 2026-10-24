@@ -15,6 +15,7 @@ export const DASHBOARD_SECTIONS: Record<Role, DashSection[]> = {
   ],
   syndic: [
     { key: "stats", label: "Indicadores" },
+    { key: "todo", label: "Precisa de você" },
     { key: "checklist", label: "Checklist de hoje" },
     { key: "finance", label: "Resumo financeiro" },
     { key: "pending", label: "Aprovações pendentes" },
