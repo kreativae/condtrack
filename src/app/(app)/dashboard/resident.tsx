@@ -57,7 +57,7 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
       />
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Link href="/reservas" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><CalendarDays className="size-5" /></span>
+          <span className="flex size-10 items-center justify-center rounded-xl bg-ok/12 text-ok"><CalendarDays className="size-5" /></span>
           <span className="min-w-0 flex-1"><b className="block text-sm">Reservas</b><span className="text-xs text-muted">{next ? `Próxima: ${next.commonArea.name}, ${fmtPeriod(next.startAt, next.endAt)}` : "Salão, churrasqueira e outros espaços"}</span></span>
         </Link>
         <Link href="/minha-unidade" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
@@ -65,13 +65,13 @@ export async function ResidentDashboard({ user }: { user: CurrentUser }) {
           <span className="min-w-0 flex-1"><b className="block text-sm">Minha unidade</b><span className={parcels ? "text-xs font-medium text-brand" : "text-xs text-muted"}>{parcels ? `${parcels} encomenda(s) aguardando na portaria` : "Moradores, visitantes, prestadores e encomendas"}</span></span>
         </Link>
         <Link href={openTickets ? "/chamados" : "/chamados/novo"} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-brand/40">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"><Inbox className="size-5" /></span>
+          <span className="flex size-10 items-center justify-center rounded-xl bg-warn/12 text-warn"><Inbox className="size-5" /></span>
           <span className="min-w-0 flex-1"><b className="block text-sm">Chamados</b><span className={openTickets ? "text-xs font-medium text-brand" : "text-xs text-muted"}>{openTickets ? `${openTickets} chamado(s) em andamento` : "Problema, reclamação ou sugestão para o síndico"}</span></span>
         </Link>
       </div>
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Entregues em 30 dias" value={month} tone="brand" />
-        <Stat label={`Entregues em ${new Date().getFullYear()}`} value={year} />
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Stat label="Entregues em 30 dias" value={month} tone="brand" href="/feed?periodo=30d" />
+        <Stat label={`Entregues em ${new Date().getFullYear()}`} value={year} href="/feed?periodo=ano" />
         <Stat label="Tempo médio de resolução" value={fmtHours(avgHours)} />
         <Stat label="Avaliação média" value={ratings._avg.rating ? `${ratings._avg.rating.toFixed(1)} ★` : "—"} />
       </div>

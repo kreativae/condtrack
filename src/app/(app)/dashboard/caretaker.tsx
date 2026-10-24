@@ -38,10 +38,10 @@ export async function CaretakerDashboard({ user }: { user: CurrentUser }) {
         actions={<><DashboardSettings sections={DASHBOARD_SECTIONS.caretaker} hidden={user.dashboardHidden.split(",").filter(Boolean)} /><LinkButton href="/os/nova"><Plus className="size-4" />Registrar ocorrência</LinkButton></>}
       />
       {show("stats") && (
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <Stat label="Para validar" value={toValidate.length} tone={toValidate.length ? "brand" : undefined} />
-        <Stat label="Em andamento" value={inProgress} />
-        <Stat label="Abertas hoje" value={today} />
+      <div className="mb-6 grid grid-cols-3 gap-3 sm:mb-8 sm:gap-4">
+        <Stat label="Para validar" value={toValidate.length} tone={toValidate.length ? "brand" : undefined} href="/os?view=validate" />
+        <Stat label="Em andamento" value={inProgress} href="/os?status=in_progress" />
+        <Stat label="Abertas hoje" value={today} href="/os" />
       </div>
       )}
       <div className={cx("grid gap-8", (show("validate") || show("urgent")) && show("checklist") && "lg:grid-cols-[1.5fr_1fr]")}>
@@ -61,7 +61,8 @@ export async function CaretakerDashboard({ user }: { user: CurrentUser }) {
           )}
         </div>
         )}
-        {show("checklist") && <ChecklistToday items={checklist} canCheck condominiumId={user.condominiumId!} footer={<Link href="/checklist" className="text-xs font-medium text-brand hover:underline">Histórico do checklist →</Link>} />}
+        {/* No celular o checklist do dia vem primeiro: é a rotina do zelador */}
+        {show("checklist") && <div className="max-lg:order-first"><ChecklistToday items={checklist} canCheck condominiumId={user.condominiumId!} footer={<Link href="/checklist" className="text-xs font-medium text-brand hover:underline">Histórico do checklist →</Link>} /></div>}
       </div>
 
       {show("delivered") && delivered.length > 0 && (

@@ -27,10 +27,10 @@ export async function ProviderDashboard({ user }: { user: CurrentUser }) {
     <div className="animate-in">
       <PageHeader eyebrow={user.company ?? "Prestador de serviço"} title="Minhas ordens de serviço" actions={<DashboardSettings sections={DASHBOARD_SECTIONS.provider} hidden={user.dashboardHidden.split(",").filter(Boolean)} />} />
       {show("stats") && (
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <Stat label="A fazer" value={group(["assigned", "in_progress", "rejected"]).length} tone="brand" />
-        <Stat label="Em validação" value={group(["completed", "validated"]).length} />
-        <Stat label="Aprovadas" value={done} tone="ok" />
+      <div className="mb-6 grid grid-cols-3 gap-3 sm:mb-8 sm:gap-4">
+        <Stat label="A fazer" value={group(["assigned", "in_progress", "rejected"]).length} tone="brand" href="/os" />
+        <Stat label="Em validação" value={group(["completed", "validated"]).length} href="/os" />
+        <Stat label="Aprovadas" value={done} tone="ok" href="/os?h=1" />
       </div>
       )}
       <div className="space-y-8">
