@@ -82,6 +82,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   das páginas prende elementos `fixed` dentro dela no Chrome.
 - **Cartões de números** (`Stat` em `ui.tsx`): o tamanho do valor depende só da largura do cartão (`@container`),
   para cartões lado a lado ficarem iguais. Use `fmtBRL()` para dinheiro (sinal de menos que não quebra linha).
+  Com `href`, o cartão inteiro abre a lista correspondente.
+- **Visual de app no celular** (guia: a prévia "Condtrack App" nos artefatos): abas de página com `tabClass()` +
+  `tabRowClass` (`ui.tsx`: pílulas roláveis no celular, sublinhadas a partir do `sm`); "Precisa de você"
+  (`components/action-list.tsx`, bloco `todo` do painel do síndico) junta o que espera decisão; barra de atalhos
+  com pílula atrás do ícone ativo (`TabPill` em `nav-links.tsx`). Ícone colorido por assunto: `bg-<tom>/12 text-<tom>`.
 - **Checklist do zelador**: `src/lib/checklist*.ts`, `src/app/actions/checklist.ts`, `src/app/api/cron/checklist`.
   O alerta de atraso roda a cada 15 min e também quando alguém abre o app depois do prazo. Na branch `server`, quem
   chama `/api/cron/checklist` é uma Scheduled Task do Coolify (ver `docs/deploy-coolify.md`, seção 2); o workflow do
