@@ -17,9 +17,13 @@ function refresh(partnerId?: string, condoId?: string) {
   if (condoId) revalidatePath(`/admin/assinaturas/${condoId}`);
 }
 
-/** "20" / "20,5" / "" → número ou null (vazio = usa a regra do tipo) */
-const pct = z.preprocess((v) => (v === "" || v == null ? null : Number(String(v).replace(",", "."))), z.number().min(0, "Percentual entre 0 e 100.").max(100, "Percentual entre 0 e 100.").nullable());
-const months = z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().int("Meses em número inteiro.").min(0).max(120).nullable());
+/** "20" / "20,5" / "20%" / "12 meses" → número; vazio → null (usa a regra do tipo) */
+const toNumber = (v: unknown) => {
+  const s = String(v ?? "").replace(/[^\d,.]/g, "").replace(",", ".");
+  return s === "" ? null : Number(s);
+};
+const pct = z.preprocess(toNumber, z.number({ error: "Percentual em número (ex.: 20 ou 12,5)." }).min(0, "Percentual entre 0 e 100.").max(100, "Percentual entre 0 e 100.").nullable());
+const months = z.preprocess(toNumber, z.number({ error: "Meses em número (ex.: 12; 0 = sem prazo)." }).int("Meses em número inteiro.").min(0, "Meses entre 0 e 120.").max(120, "Meses entre 0 e 120.").nullable());
 const text = (max: number) => z.string().trim().max(max).optional().transform((v) => v || null);
 
 const partnerSchema = z.object({
@@ -97,7 +101,7 @@ export async function linkCondoToPartner(partnerId: string, _: PartnerState, for
 /** Regras de comissão por tipo, carência e desconto da base (Assinaturas → Comissões). Valem para as próximas comissões. */
 export async function saveCommissionSettings(_: PartnerState, form: FormData): Promise<PartnerState> {
   const user = await requireUser("superadmin");
-  const num = (k: string) => Number(String(form.get(k) ?? "").replace(",", "."));
+  const num = (k: string) => toNumber(form.get(k)) ?? NaN;
   const raw = {
     rules: Object.fromEntries((Object.keys(PARTNER_KINDS) as PartnerKind[]).map((k) => [k, { pct: num(`${k}.pct`), months: num(`${k}.months`), afterPct: num(`${k}.afterPct`) }])),
     holdPayments: num("holdPayments"),
