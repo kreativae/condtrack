@@ -6,6 +6,7 @@ import {
 } from "@simplewebauthn/server";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import { db } from "@/lib/db";
+import { entryBlock } from "@/lib/memberships";
 import { audit } from "@/lib/audit";
 import { requireUser, setSessionCookie } from "@/lib/auth";
 import { guessDeviceName, passkeyConfig, storeChallenge, takeChallenge } from "@/lib/passkeys";
@@ -106,6 +107,8 @@ export async function verifyPasskeyLogin(response: AuthenticationResponseJSON, n
   const user = passkey.user;
   if (user.status !== "active") return { ok: false, error: "Seu acesso está desativado. Fale com a administração." };
   if (user.lockedUntil && user.lockedUntil > new Date()) return { ok: false, error: "Acesso temporariamente bloqueado por excesso de tentativas." };
+  const blocked = await entryBlock(user);
+  if (blocked) return { ok: false, error: blocked };
 
   try {
     const { verified, authenticationInfo } = await verifyAuthenticationResponse({

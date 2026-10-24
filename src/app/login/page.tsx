@@ -30,7 +30,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <>
           {desativado && (
             <p className="mb-6 rounded-2xl bg-warn/10 px-4 py-3 text-sm text-warn ring-1 ring-inset ring-warn/15">
-              Seu acesso foi encerrado: a conta foi desativada ou o condomínio não está mais na plataforma. Fale com a administração.
+              Seu acesso foi encerrado: a conta foi desativada ou não está vinculada a um condomínio ativo. Fale com a administração.
             </p>
           )}
           {expirou && (

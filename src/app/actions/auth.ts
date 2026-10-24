@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { entryBlock } from "@/lib/memberships";
 import { audit } from "@/lib/audit";
 import { getSettings } from "@/lib/settings";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -48,12 +49,11 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
     return generic;
   }
 
-  // Senha certa, mas só tinha vínculo com condomínios arquivados: não entra (checado depois da senha
-  // para não revelar a quem não sabe a senha que a conta existe)
-  const links = user.role === "superadmin" ? [] : await db.membership.findMany({ where: { userId: user.id }, select: { condominium: { select: { deletedAt: true } } } });
-  if (links.length && links.every((l) => l.condominium.deletedAt)) {
-    return { error: "Seu condomínio não está mais na plataforma. Fale com a administração." };
-  }
+  // Senha certa, mas sem nenhum condomínio ativo (nunca vinculado ou só arquivados): não entra. Checado depois
+  // da senha para não revelar a quem não sabe a senha que a conta existe. Sem isso a sessão abria e caía
+  // no /api/sair logo em seguida.
+  const blocked = await entryBlock(user);
+  if (blocked) return { error: blocked };
 
   const next = String(form.get("next") ?? "");
 

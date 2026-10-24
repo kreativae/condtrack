@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
+import { entryBlockReason } from "./entry-access";
 
 // Vínculos usuário ↔ condomínio. User.condominiumId/role/permissions = vínculo ATIVO;
 // para "quem é deste condomínio" use sempre os vínculos (pega quem está ativo em outro prédio).
@@ -51,3 +52,13 @@ export async function setMemberships(userId: string, list: { condominiumId: stri
 /** Síndicos ativos com vínculo no condomínio (quem aprova os pedidos do superadmin). */
 export const condoSyndics = (condominiumId: string) =>
   db.user.findMany({ where: { status: "active", ...inCondo(condominiumId, ["syndic"]) }, select: { id: true, name: true } });
+
+/** Mensagem para quem não pode abrir sessão (sem condomínio ativo), ou null. Ver `entryBlockReason`. */
+export async function entryBlock(user: { id: string; role: string; condominiumId: string | null }) {
+  if (user.role === "superadmin") return null;
+  const [active, links] = await Promise.all([
+    user.condominiumId ? db.condominium.findUnique({ where: { id: user.condominiumId }, select: { deletedAt: true } }) : null,
+    db.membership.findMany({ where: { userId: user.id }, select: { condominium: { select: { deletedAt: true } } } }),
+  ]);
+  return entryBlockReason({ role: user.role, activeCondoArchived: active ? !!active.deletedAt : null, linksArchived: links.map((l) => !!l.condominium.deletedAt) });
+}

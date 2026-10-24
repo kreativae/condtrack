@@ -10,6 +10,9 @@ const OPEN = ["/termos", "/privacidade"];
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (OPEN.some((p) => pathname === p)) return NextResponse.next();
+  // /api/sair limpa a sessão e manda para o login; chamado de novo já sem o cookie (a navegação
+  // depois de um redirecionamento), não pode responder com o JSON de "não autorizado"
+  if (pathname === "/api/sair") return NextResponse.next();
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   const isPublic = PUBLIC.some((p) => pathname.startsWith(p));
 
