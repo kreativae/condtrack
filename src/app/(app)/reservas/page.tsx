@@ -81,6 +81,9 @@ export default async function BookingsPage({ searchParams }: PageProps<"/reserva
       />
       {!areas.length && <Card className="mb-6"><Empty icon={<CalendarDays />} title="Nenhuma área aberta para reservas">{user.role === "syndic" ? "Marque “Pode ser reservada” nas áreas em Estrutura → Áreas comuns." : "O síndico libera as áreas em Estrutura."}</Empty></Card>}
 
+      {/* Pedidos esperando decisão vêm antes do calendário (no celular, sem precisar rolar) */}
+      {gate && pending.length > 0 && <PendingCard pending={pending} className="mb-6" />}
+
       {areas.length > 0 && (
         <Card className="mb-6 p-4 sm:p-5">
           <BookingCalendar month={month} today={brtParts(now).day} areas={areas} events={events} canBook={gate || units.length > 0} />
@@ -88,12 +91,7 @@ export default async function BookingsPage({ searchParams }: PageProps<"/reserva
       )}
 
       <div className="space-y-6">
-        {gate && (
-          <Card>
-            <CardHeader title={`Para aprovar (${pending.length})`} subtitle="O primeiro que decidir vale; quem pediu é avisado." />
-            {pending.length ? <div className="divide-y divide-line">{pending.map((b) => <BookingRow key={b.id} b={b} />)}</div> : <p className="px-5 py-6 text-sm text-muted">Nenhum pedido aguardando.</p>}
-          </Card>
-        )}
+        {gate && !pending.length && <PendingCard pending={pending} />}
 
         <Card>
           <CardHeader title={gate ? "Próximas reservas aprovadas" : "Minhas reservas"} />
@@ -111,5 +109,14 @@ export default async function BookingsPage({ searchParams }: PageProps<"/reserva
         )}
       </div>
     </div>
+  );
+}
+
+function PendingCard({ pending, className }: { pending: Parameters<typeof BookingRow>[0]["b"][]; className?: string }) {
+  return (
+    <Card className={className}>
+      <CardHeader title={`Para aprovar (${pending.length})`} subtitle="O primeiro que decidir vale; quem pediu é avisado." />
+      {pending.length ? <div className="divide-y divide-line">{pending.map((b) => <BookingRow key={b.id} b={b} />)}</div> : <p className="px-5 py-6 text-sm text-muted">Nenhum pedido aguardando.</p>}
+    </Card>
   );
 }

@@ -155,7 +155,10 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Stat label="Receitas recebidas" value={fmtBRL(incomePaid)} tone="ok" />
         <Stat label="Despesas pagas" value={fmtBRL(expensePaid)} tone="bad" />
-        <Stat label="Saldo do período" value={fmtBRL(incomePaid - expensePaid)} tone={incomePaid - expensePaid < 0 ? "bad" : undefined} hint="Recebido menos pago" />
+        {/* No celular o saldo vem primeiro, na largura toda */}
+        <div className="col-span-2 max-md:order-first md:col-span-1">
+          <Stat label="Saldo do período" value={fmtBRL(incomePaid - expensePaid)} tone={incomePaid - expensePaid < 0 ? "bad" : undefined} hint="Recebido menos pago" />
+        </div>
         <Stat label="A receber" value={fmtBRL(toReceive)} tone="info" />
         <Stat label="A pagar" value={fmtBRL(toPay)} tone="warn" hint={overdue ? `${overdue} vencido(s), em qualquer mês` : undefined} />
       </div>
@@ -167,7 +170,8 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
             {user.role === "superadmin" && <input type="hidden" name="condo" value={condo.id} />}
             <input type="hidden" name={p.kind === "year" ? "ano" : "mes"} value={p.key} />
             <Input name="q" defaultValue={q} placeholder="Buscar descrição, fornecedor ou nº da nota" />
-            <div className="grid gap-2 sm:grid-cols-3">
+            {/* No celular os filtros viram uma faixa com rolagem horizontal */}
+            <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-3 sm:px-0 [&>*]:min-w-48 sm:[&>*]:min-w-0">
               <Select name="tipo" defaultValue={tipo}>
                 <option value="">Receitas e despesas</option>
                 {Object.entries(FIN_TYPES).map(([k, l]) => <option key={k} value={k}>{l}s</option>)}

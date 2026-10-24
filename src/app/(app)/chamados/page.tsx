@@ -82,7 +82,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/chamados
 
       {manager && (
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Aguardando resposta" value={n("open")} tone={n("open") ? "warn" : undefined} />
+          <Stat label="Aguardando resposta" value={n("open")} tone={n("open") ? "warn" : undefined} href={href({ s: "", page: "" })} />
           <Stat label="Em análise" value={n("in_review")} />
           <Stat label="Viraram OS (em andamento)" value={n("converted")} tone={n("converted") ? "brand" : undefined} />
           <Stat label="Tempo médio de resposta" value={avgResponseLabel(recent)} hint={`${recent.filter((r) => r.status === "resolved").length} resolvidos em 30 dias`} />
@@ -92,9 +92,9 @@ export default async function TicketsPage({ searchParams }: PageProps<"/chamados
       {/* Abas, tipos e busca */}
       <div className="mb-5 space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1 rounded-xl bg-bg-2 p-1 text-sm">
+          <div className="flex w-full gap-1 rounded-xl bg-bg-2 p-1 text-sm sm:w-auto">
             {(Object.keys(TABS) as Tab[]).map((t) => (
-              <Link key={t} href={href({ s: t === "ativos" ? "" : t, page: "" })} className={cx("rounded-lg px-3 py-1.5 transition", tab === t ? "bg-surface font-medium text-brand shadow-card" : "text-muted hover:text-fg")}>
+              <Link key={t} href={href({ s: t === "ativos" ? "" : t, page: "" })} aria-current={tab === t ? "page" : undefined} className={cx("flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center transition sm:flex-none sm:py-1.5", tab === t ? "bg-surface font-medium text-brand shadow-card" : "text-muted hover:text-fg")}>
                 {TABS[t].label} <span className="font-num text-xs opacity-70">{tabCount(t)}</span>
               </Link>
             ))}
