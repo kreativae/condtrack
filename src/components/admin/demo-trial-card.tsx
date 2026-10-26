@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { CalendarClock, Mail, MessageCircle, Phone } from "lucide-react";
+import { CalendarClock, Mail, MessageCircle, Phone, Send } from "lucide-react";
 import { Alert, Badge, Card, CardHeader, Field, Input, buttonClass, cx } from "@/components/ui";
 import { updateDemoTrial, type TrialState } from "@/app/actions/demo";
 import { DEMO_TRIAL_DEFAULT_DAYS, DEMO_TRIAL_MAX_DAYS, trialStatus, whatsappNumber } from "@/lib/demo-trial";
@@ -12,10 +12,14 @@ type Props = {
   /** Agora, vindo do servidor (a página é renderizada lá; evita diferença na hidratação). */
   nowMs: number;
   contact: { name: string | null; email: string | null; phone: string | null };
+  /** Último envio do e-mail com as contas (ISO), se houve. */
+  inviteSentAt: string | null;
+  /** Só a demonstração externa tem a série de contas de teste para enviar. */
+  canInvite: boolean;
 };
 
 /** Prazo da demonstração (quando as contas de teste param de entrar) e contato de quem está testando. */
-export function DemoTrialCard({ id, expiresAt, nowMs, contact }: Props) {
+export function DemoTrialCard({ id, expiresAt, nowMs, contact, inviteSentAt, canInvite }: Props) {
   const [state, action, pending] = useActionState<TrialState, FormData>(updateDemoTrial.bind(null, id), null);
   const end = expiresAt ? new Date(expiresAt) : null;
   const status = trialStatus(end, nowMs);
@@ -61,6 +65,16 @@ export function DemoTrialCard({ id, expiresAt, nowMs, contact }: Props) {
           <button name="intent" value="save" disabled={pending} className={buttonClass("outline")}>Salvar contato</button>
           {status.kind === "active" && <button name="intent" value="end" disabled={pending} className={buttonClass("danger")}>Encerrar agora</button>}
         </div>
+        {canInvite && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line px-4 py-3">
+            <Send className="size-4 shrink-0 text-brand" />
+            <p className="min-w-0 flex-1 text-sm">
+              <span className="font-medium">Acesso por e-mail</span>
+              <span className="block text-xs text-muted">{inviteSentAt ? `Enviado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(inviteSentAt))}.` : "Ainda não enviado."} Contas de cada perfil, senha e prazo, para o e-mail acima.</span>
+            </p>
+            <button name="intent" value="invite" disabled={pending} className={buttonClass("outline", "sm")}>{inviteSentAt ? "Reenviar" : "Enviar"}</button>
+          </div>
+        )}
         {status.kind !== "none" && <p className="text-xs text-muted">Prorrogar soma os dias ao fim atual (ou a partir de agora, se já terminou) e libera as contas de novo.</p>}
         {state?.error && <Alert>{state.error}</Alert>}
         {state?.message && <Alert tone="ok">{state.message}</Alert>}

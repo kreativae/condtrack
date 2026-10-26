@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_TRIAL_DEFAULT_DAYS, parseTrialDays, trialEnd, trialLabel, trialStatus, whatsappNumber } from "../demo-trial";
+import { DEMO_TRIAL_DEFAULT_DAYS, inviteAccountLines, parseTrialDays, trialEnd, trialLabel, trialStatus, whatsappNumber } from "../demo-trial";
 
 const DAY = 86400_000;
 const now = Date.UTC(2026, 9, 26, 12);
@@ -50,5 +50,25 @@ describe("whatsappNumber", () => {
     expect(whatsappNumber("+55 11 98422-1180")).toBe("5511984221180");
     expect(whatsappNumber("123")).toBeNull();
     expect(whatsappNumber(null)).toBeNull();
+  });
+});
+
+describe("inviteAccountLines", () => {
+  const labels = { syndic: "Síndico", caretaker: "Zelador", resident: "Morador", provider: "Prestador" };
+  const test = (e: string) => e.endsWith("@condtrack.app");
+  it("ordena pelos perfis, tira contas reais e repetidas", () => {
+    expect(
+      inviteAccountLines(
+        [
+          { role: "provider", email: "prestador3@condtrack.app" },
+          { role: "syndic", email: "sindico3@condtrack.app" },
+          { role: "resident", email: "fulano@gmail.com" },
+          { role: "caretaker", email: "zelador3@condtrack.app" },
+          { role: "provider", email: "zelador3@condtrack.app" },
+        ],
+        labels,
+        test,
+      ),
+    ).toEqual(["Síndico: sindico3@condtrack.app", "Zelador: zelador3@condtrack.app", "Prestador: prestador3@condtrack.app"]);
   });
 });

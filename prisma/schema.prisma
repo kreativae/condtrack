@@ -46,6 +46,8 @@ model Condominium {
   demoContactName       String?
   demoContactEmail      String?
   demoContactPhone      String?
+  /// Último envio do e-mail com as contas e o prazo para quem testa
+  demoInviteSentAt      DateTime?
   /// Arquivado ("excluído") pelo superadmin: some da plataforma, mas os dados ficam guardados e podem ser restaurados
   deletedAt             DateTime?
   deletedBy             String?

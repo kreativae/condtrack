@@ -10,6 +10,7 @@ import { addGateDemo, createDemoCondominium, deleteDemoCondominium } from "@/lib
 import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 import { DEMO_ACCOUNTS_KEY, DEMO_SLOTS, externalDemoAccounts, externalEmailFilter, nextExternalNumber, normalizeDemoAccounts } from "@/lib/demo-accounts";
 import { parseTrialDays, trialEnd } from "@/lib/demo-trial";
+import { sendDemoInvite } from "@/lib/demo-trial-server";
 
 const TRIAL_FIELDS = ["days", "contactName", "contactEmail", "contactPhone"] as const;
 
@@ -71,9 +72,11 @@ export async function createDemoCondo(_prev: DemoState, form: FormData): Promise
   // Externa: as contas de teste entram só até o fim do prazo; os superadmins são avisados quando acaba
   const expiresAt = trial?.days ? trialEnd(trial.days, Date.now()) : null;
   if (trial?.days) await db.condominium.update({ where: { id: condo.id }, data: { demoExpiresAt: expiresAt, ...trial.contact } });
-  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, tipo: external ? "externa" : "interna", contas: accounts, ...(trial?.days && { prazoDias: trial.days, fim: expiresAt, ...trial.contact }) }, condominiumId: condo.id });
+  // E-mail com as contas e o prazo para quem vai testar (marcado na janela e com e-mail do contato)
+  const invite = trial?.contact.demoContactEmail && form.get("sendInvite") === "1" ? await sendDemoInvite(condo.id) : null;
+  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, tipo: external ? "externa" : "interna", contas: accounts, ...(trial?.days && { prazoDias: trial.days, fim: expiresAt, ...trial.contact }), ...(invite && { convite: invite.ok ? `enviado para ${invite.to}` : invite.error }) }, condominiumId: condo.id });
   revalidatePath("/admin/condominios");
-  redirect(`/admin/condominios/${condo.id}`);
+  redirect(`/admin/condominios/${condo.id}${invite ? (invite.ok ? "?convite=enviado" : `?convite=${encodeURIComponent(invite.error)}`) : ""}`);
 }
 
 /** Exclui um condomínio de demonstração (só os marcados como demo) e tudo o que foi gerado nele. */
@@ -121,6 +124,13 @@ export async function updateDemoTrial(id: string, _prev: TrialState, form: FormD
   const trial = readTrial(form);
   if ("error" in trial) return { error: trial.error };
   const now = Date.now();
+  if (intent === "invite") {
+    await db.condominium.update({ where: { id }, data: trial.contact });
+    const r = await sendDemoInvite(id);
+    await audit(me, "demo_invite", "condominium", id, { new: { para: trial.contact.demoContactEmail, resultado: r.ok ? "enviado" : r.error }, condominiumId: id });
+    revalidatePath(`/admin/condominios/${id}`);
+    return r.ok ? { message: `Acesso enviado para ${r.to}.` } : { error: r.error };
+  }
   const data =
     intent === "extend" ? { ...trial.contact, demoExpiresAt: trialEnd(trial.days, now, c.demoExpiresAt), demoExpiredNotifiedAt: null }
     : intent === "end" ? { ...trial.contact, demoExpiresAt: new Date(now), demoExpiredNotifiedAt: new Date(now) }

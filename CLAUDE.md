@@ -131,7 +131,11 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   biometria e no `getCurrentUser`; conta com outro condomínio passa para ele). `notifyExpiredDemos()`
   (`lib/demo-trial-server.ts`, cron e lista de condomínios) avisa os superadmins uma vez (`demoExpiredNotifiedAt`,
   modelo `demo_expired` em Mensagens). Card "Prazo do teste" na página: prorrogar (soma ao fim atual; zera o aviso),
-  salvar contato, encerrar agora (`updateDemoTrial`, auditado como `demo_trial`). Marcados com `Condominium.demo`; só esses têm o botão
+  salvar contato, encerrar agora (`updateDemoTrial`, auditado como `demo_trial`).
+  **Acesso por e-mail** para quem testa (modelo `demo_invite` em Mensagens: contas da série de teste por perfil,
+  `inviteAccountLines()`, senha padrão e prazo): caixa marcada na janela ao criar (resultado em `?convite=` na página) e
+  "Enviar/Reenviar" no card (`sendDemoInvite()` em `lib/demo-trial-server.ts`; só precisa do e-mail ativo;
+  `demoInviteSentAt`; auditado como `demo_invite`). Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias e as contas da série
   externa só dele, `isExternalDemoEmail()`, liberando o número; e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
 - **Manutenção preventiva** (`/manutencao`; superadmin e síndico editam, zelador vê): `MaintenancePlan`, regras de data em

@@ -41,3 +41,20 @@ export function whatsappNumber(phone: string | null | undefined) {
   if (d.length < 10) return null;
   return d.length <= 11 ? `55${d}` : d;
 }
+
+const INVITE_ORDER = ["syndic", "caretaker", "doorman", "council", "resident", "provider"];
+
+/**
+ * Linhas "Perfil: e-mail" para o e-mail de quem testa, na ordem dos perfis, um e-mail por linha (o mesmo e-mail em
+ * dois perfis aparece uma vez, no primeiro). `isTestAccount` diz quais contas são da série de teste (só essas têm a
+ * senha padrão; contas reais vinculadas à demonstração ficam de fora).
+ */
+export function inviteAccountLines(links: { role: string; email: string }[], labels: Record<string, string>, isTestAccount: (email: string) => boolean) {
+  const rank = (r: string) => (INVITE_ORDER.includes(r) ? INVITE_ORDER.indexOf(r) : INVITE_ORDER.length);
+  const seen = new Set<string>();
+  return [...links]
+    .filter((l) => isTestAccount(l.email))
+    .sort((a, b) => rank(a.role) - rank(b.role))
+    .filter((l) => (seen.has(l.email) ? false : (seen.add(l.email), true)))
+    .map((l) => `${labels[l.role] ?? l.role}: ${l.email}`);
+}

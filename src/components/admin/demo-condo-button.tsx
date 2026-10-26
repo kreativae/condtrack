@@ -112,6 +112,10 @@ export function DemoCondoButton({ saved, nextExternal }: { saved: DemoAccounts; 
                       <Field label="Telefone"><Input name="contactPhone" type="tel" inputMode="tel" defaultValue={state?.values?.contactPhone} placeholder="(11) 98888-7777" autoComplete="off" /></Field>
                       <div className="sm:col-span-2"><Field label="E-mail"><Input name="contactEmail" type="email" defaultValue={state?.values?.contactEmail} placeholder="pessoa@empresa.com" autoComplete="off" /></Field></div>
                     </div>
+                    <label className="mt-3 flex items-start gap-2.5 text-sm">
+                      <input type="checkbox" name="sendInvite" value="1" defaultChecked className="mt-0.5 size-4 accent-[var(--brand)]" />
+                      <span>Enviar o acesso por e-mail <span className="block text-xs text-muted">Com as contas de cada perfil, a senha e o prazo. Só vai se o e-mail estiver preenchido; dá para reenviar depois.</span></span>
+                    </label>
                   </div>
                 </div>
               )}

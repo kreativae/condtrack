@@ -196,6 +196,28 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "valor", desc: "Valor da cobrança", sample: "R$ 200,00" },
   ]),
   {
+    key: "demo_invite",
+    group: "Demonstrações",
+    label: "Acesso à demonstração (para quem vai testar)",
+    audience: "Contato da demonstração externa (enviado pelo superadmin)",
+    channels: [],
+    required: ["contas", "senha"],
+    vars: [
+      { name: "nome", desc: "Primeiro nome de quem testa (vazio = linha some)", sample: "Marina" },
+      { name: "condominio", desc: "Nome da demonstração", sample: "Residencial Vale das Acácias" },
+      { name: "contas", desc: "Um perfil por linha: perfil e e-mail de login", sample: "Síndico: sindico3@condtrack.app\nZelador: zelador3@condtrack.app" },
+      { name: "senha", desc: "Senha de todas as contas", sample: "condtrack123" },
+      { name: "prazo", desc: "Até quando o teste vale (vazio = sem prazo, a linha some)", sample: "02/11/2026 às 14:30" },
+    ],
+    fields: [
+      { key: "subject", label: "Assunto", kind: "text", default: "Seu acesso de teste ao Condtrack" },
+      { key: "title", label: "Título", kind: "text", default: "Sua demonstração do Condtrack está pronta" },
+      { key: "message", label: "Mensagem", kind: "textarea", default: "Olá, {nome}!\nPreparamos o condomínio {condominio}, com dados fictícios em todas as áreas, para você testar o Condtrack.\nEntre com qualquer um destes perfis para ver o sistema pelos olhos de cada um:\n{contas}\nSenha de todos: {senha}\nO teste vale até {prazo}." },
+      { key: "cta", label: "Botão", kind: "text", default: "Entrar no Condtrack" },
+      { key: "footnote", label: "Nota de rodapé", kind: "textarea", default: "As contas são só para teste e deixam de funcionar no fim do prazo. Dúvidas? Responda este e-mail." },
+    ],
+  },
+  {
     key: "invite",
     group: "Acesso",
     label: "Convite com senha provisória",

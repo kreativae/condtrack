@@ -15,15 +15,18 @@ import { DemoTrialCard } from "@/components/admin/demo-trial-card";
 import { nowMs } from "@/lib/format";
 import { ArchiveCondoButton, ForceDeleteCondoButton, PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
 import { fmtDateTime } from "@/lib/format";
-import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { Alert, Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { LAYOUTS, type Layout } from "@/lib/units";
-import { DEMO_PASSWORD } from "@/lib/demo-accounts";
+import { DEMO_PASSWORD, isExternalDemoEmail } from "@/lib/demo-accounts";
 
 export const metadata: Metadata = { title: "Condomínio" };
 // Excluir uma demonstração apaga as mídias de cada OS
 export const maxDuration = 60;
 
-export default async function CondoPage({ params }: PageProps<"/admin/condominios/[id]">) {
+export default async function CondoPage({ params, searchParams }: PageProps<"/admin/condominios/[id]">) {
+  // Resultado do envio do acesso logo depois de criar a demonstração (?convite=enviado ou o erro)
+  const convite = (await searchParams).convite;
+  const invite = typeof convite === "string" ? convite : null;
   await requireUser("superadmin");
   const { id } = await params;
   const c = await db.condominium.findUnique({
@@ -79,12 +82,15 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
             <CardHeader title="Síndicos" subtitle="Quem administra e aprova os pedidos do superadmin" />
             <SyndicsCard condoId={c.id} syndics={syndics} />
           </Card>
+          {c.demo && invite && (invite === "enviado" ? <Alert tone="ok">Acesso enviado por e-mail para {c.demoContactEmail}.</Alert> : <Alert>O acesso não foi enviado: {invite}</Alert>)}
           {c.demo && !c.deletedAt && (
             <DemoTrialCard
               id={c.id}
               expiresAt={c.demoExpiresAt?.toISOString() ?? null}
               nowMs={nowMs()}
               contact={{ name: c.demoContactName, email: c.demoContactEmail, phone: c.demoContactPhone }}
+              inviteSentAt={c.demoInviteSentAt?.toISOString() ?? null}
+              canInvite={demoLogins.some((l) => isExternalDemoEmail(l.user.email))}
             />
           )}
           {demoLogins.length > 0 && (
