@@ -3,8 +3,9 @@ import { db } from "@/lib/db";
 import { maybeAlertLate } from "@/lib/checklist-server";
 import { runMaintenance } from "@/lib/maintenance-server";
 import { closeExpiredAssemblies } from "@/lib/assembly-server";
+import { notifyExpiredDemos } from "@/lib/demo-trial-server";
 
-// Verificação periódica (GitHub Actions a cada 15 min): checklist atrasado, manutenção preventiva e fim das votações.
+// Verificação periódica (a cada 15 min): checklist atrasado, manutenção preventiva, fim das votações e fim do teste das demonstrações.
 // Protegida por CRON_SECRET: Authorization: Bearer <CRON_SECRET>.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -14,5 +15,6 @@ export async function GET(req: Request) {
   for (const c of condos) await maybeAlertLate(c.id, now);
   const maintenance = await runMaintenance(now);
   const assembliesClosed = await closeExpiredAssemblies(now);
-  return NextResponse.json({ checked: condos.length, maintenance, assembliesClosed });
+  const demosExpired = await notifyExpiredDemos(now);
+  return NextResponse.json({ checked: condos.length, maintenance, assembliesClosed, demosExpired });
 }

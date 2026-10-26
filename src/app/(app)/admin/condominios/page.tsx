@@ -9,7 +9,9 @@ import { SubscriptionBadge } from "@/components/billing/shared";
 import { DemoCondoButton } from "@/components/admin/demo-condo-button";
 import { DEMO_ACCOUNTS_KEY, externalEmailFilter, nextExternalNumber, parseDemoAccounts } from "@/lib/demo-accounts";
 import { PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, nowMs } from "@/lib/format";
+import { trialLabel, trialStatus } from "@/lib/demo-trial";
+import { notifyExpiredDemos } from "@/lib/demo-trial-server";
 
 export const metadata: Metadata = { title: "Condomínios" };
 // A geração do condomínio de demonstração leva alguns segundos
@@ -17,6 +19,10 @@ export const maxDuration = 60;
 
 export default async function CondosPage() {
   await requireUser("superadmin");
+  const now = nowMs();
+  // Fim do teste das demonstrações: avisa também ao abrir a lista, além do cron. Fora do after(): o aviso monta o link
+  // do e-mail com o endereço do pedido, que não existe mais dentro do after() numa página. Sem nada vencido, é uma consulta.
+  await notifyExpiredDemos(now).catch((e) => console.error("[demo] aviso de fim do teste", e));
   const archived = await db.condominium.findMany({ where: { deletedAt: { not: null } }, select: { id: true, name: true, deletedAt: true, deletedBy: true }, orderBy: { deletedAt: "desc" } });
   const condos = await db.condominium.findMany({
     where: { deletedAt: null },
@@ -42,6 +48,7 @@ export default async function CondosPage() {
                     <span className="flex size-11 items-center justify-center rounded-xl bg-elevated text-brand ring-1 ring-line-strong"><Building2 className="size-5" strokeWidth={1.5} /></span>
                     <span className="flex flex-wrap justify-end gap-1.5">
                       {c.demo && <Badge tone="info">Demonstração</Badge>}
+                      {c.demo && trialLabel(c.demoExpiresAt, now) && <Badge tone={trialStatus(c.demoExpiresAt, now).kind === "expired" ? "bad" : "warn"} dot>{trialLabel(c.demoExpiresAt, now)}</Badge>}
                       <Badge tone={c.active ? "ok" : "muted"} dot>{c.active ? "Ativo" : "Inativo"}</Badge>
                     </span>
                   </div>

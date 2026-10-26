@@ -9,6 +9,19 @@ import { audit } from "@/lib/audit";
 import { addGateDemo, createDemoCondominium, deleteDemoCondominium } from "@/lib/demo-condo";
 import { ADMIN_CONDO_COOKIE } from "@/lib/admin-scope";
 import { DEMO_ACCOUNTS_KEY, DEMO_SLOTS, externalDemoAccounts, externalEmailFilter, nextExternalNumber, normalizeDemoAccounts } from "@/lib/demo-accounts";
+import { parseTrialDays, trialEnd } from "@/lib/demo-trial";
+
+const TRIAL_FIELDS = ["days", "contactName", "contactEmail", "contactPhone"] as const;
+
+/** Prazo e contato de quem testa (demonstração externa), lidos do formulário. */
+function readTrial(form: FormData) {
+  const get = (k: string) => String(form.get(k) ?? "").trim();
+  const { days, error } = parseTrialDays(get("days"));
+  if (error) return { error };
+  const email = get("contactEmail").toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Contato: o e-mail não parece certo." };
+  return { days: days!, contact: { demoContactName: get("contactName").slice(0, 120) || null, demoContactEmail: email.slice(0, 160) || null, demoContactPhone: get("contactPhone").slice(0, 40) || null } };
+}
 
 /** `values`: o que foi digitado, para a janela não perder os e-mails quando volta com erro */
 export type DemoState = { error?: string; values?: Record<string, string>; mode?: "internal" | "external" } | null;
@@ -28,8 +41,11 @@ async function nextExternalDemoNumber() {
 export async function createDemoCondo(_prev: DemoState, form: FormData): Promise<DemoState> {
   const me = await requireUser("superadmin");
   const external = form.get("mode") === "external";
-  const values = Object.fromEntries(DEMO_SLOTS.map((s) => [s.key, String(form.get(s.key) ?? "")]));
+  const values = Object.fromEntries([...DEMO_SLOTS.map((s) => s.key), ...TRIAL_FIELDS].map((k) => [k, String(form.get(k) ?? "")]));
   const mode = external ? "external" : "internal";
+  const read = external ? readTrial(form) : null;
+  if (read && "error" in read) return { error: read.error, values, mode };
+  const trial = read;
   const { accounts, error } = normalizeDemoAccounts(external ? externalDemoAccounts(await nextExternalDemoNumber()) : values);
   if (error) return { error, values, mode };
 
@@ -52,7 +68,10 @@ export async function createDemoCondo(_prev: DemoState, form: FormData): Promise
   });
   const { syndic, ...real } = accounts;
   const condo = await createDemoCondominium({ syndicEmail: syndic!, real });
-  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, tipo: external ? "externa" : "interna", contas: accounts }, condominiumId: condo.id });
+  // Externa: as contas de teste entram só até o fim do prazo; os superadmins são avisados quando acaba
+  const expiresAt = trial?.days ? trialEnd(trial.days, Date.now()) : null;
+  if (trial?.days) await db.condominium.update({ where: { id: condo.id }, data: { demoExpiresAt: expiresAt, ...trial.contact } });
+  await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, tipo: external ? "externa" : "interna", contas: accounts, ...(trial?.days && { prazoDias: trial.days, fim: expiresAt, ...trial.contact }) }, condominiumId: condo.id });
   revalidatePath("/admin/condominios");
   redirect(`/admin/condominios/${condo.id}`);
 }
@@ -85,4 +104,30 @@ export async function addGateDemoAction(id: string, _prev: GateDemoState): Promi
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Não foi possível gerar os dados." };
   }
+}
+
+export type TrialState = { error?: string; message?: string } | null;
+
+/**
+ * Prazo e contato de uma demonstração: "extend" soma dias (a partir do fim atual, ou de agora se já venceu),
+ * "save" só guarda o contato, "end" encerra o teste agora. Prorrogar libera as contas de novo e zera o aviso.
+ */
+export async function updateDemoTrial(id: string, _prev: TrialState, form: FormData): Promise<TrialState> {
+  const me = await requireUser("superadmin");
+  if (me.impersonator) return { error: "Indisponível em modo de visualização." };
+  const c = await db.condominium.findUnique({ where: { id }, select: { demo: true, deletedAt: true, demoExpiresAt: true, demoContactName: true, demoContactEmail: true, demoContactPhone: true } });
+  if (!c?.demo || c.deletedAt) return { error: "Demonstração não encontrada." };
+  const intent = String(form.get("intent") ?? "save");
+  const trial = readTrial(form);
+  if ("error" in trial) return { error: trial.error };
+  const now = Date.now();
+  const data =
+    intent === "extend" ? { ...trial.contact, demoExpiresAt: trialEnd(trial.days, now, c.demoExpiresAt), demoExpiredNotifiedAt: null }
+    : intent === "end" ? { ...trial.contact, demoExpiresAt: new Date(now), demoExpiredNotifiedAt: new Date(now) }
+    : trial.contact;
+  await db.condominium.update({ where: { id }, data });
+  await audit(me, "demo_trial", "condominium", id, { old: { fim: c.demoExpiresAt, nome: c.demoContactName, email: c.demoContactEmail, telefone: c.demoContactPhone }, new: { acao: intent, fim: "demoExpiresAt" in data ? data.demoExpiresAt : c.demoExpiresAt, ...trial.contact }, condominiumId: id });
+  revalidatePath(`/admin/condominios/${id}`);
+  revalidatePath("/admin/condominios");
+  return { message: intent === "extend" ? `Prorrogado por ${trial.days} dia(s).` : intent === "end" ? "Teste encerrado: as contas de teste não entram mais." : "Contato salvo." };
 }

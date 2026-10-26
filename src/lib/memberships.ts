@@ -1,7 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
-import { entryBlockReason } from "./entry-access";
+import { condoState, entryBlockReason } from "./entry-access";
 
 // Vínculos usuário ↔ condomínio. User.condominiumId/role/permissions = vínculo ATIVO;
 // para "quem é deste condomínio" use sempre os vínculos (pega quem está ativo em outro prédio).
@@ -56,9 +56,16 @@ export const condoSyndics = (condominiumId: string) =>
 /** Mensagem para quem não pode abrir sessão (sem condomínio ativo), ou null. Ver `entryBlockReason`. */
 export async function entryBlock(user: { id: string; role: string; condominiumId: string | null }) {
   if (user.role === "superadmin") return null;
+  const sel = { deletedAt: true, demoExpiresAt: true } as const;
   const [active, links] = await Promise.all([
-    user.condominiumId ? db.condominium.findUnique({ where: { id: user.condominiumId }, select: { deletedAt: true } }) : null,
-    db.membership.findMany({ where: { userId: user.id }, select: { condominium: { select: { deletedAt: true } } } }),
+    user.condominiumId ? db.condominium.findUnique({ where: { id: user.condominiumId }, select: sel }) : null,
+    db.membership.findMany({ where: { userId: user.id }, select: { condominium: { select: sel } } }),
   ]);
-  return entryBlockReason({ role: user.role, activeCondoArchived: active ? !!active.deletedAt : null, linksArchived: links.map((l) => !!l.condominium.deletedAt) });
+  const now = Date.now();
+  return entryBlockReason({ role: user.role, activeCondo: active ? condoState(active, now) : null, links: links.map((l) => condoState(l.condominium, now)) });
+}
+
+/** Filtro de condomínios que deixam entrar: não arquivados e sem prazo de demonstração vencido. */
+export function enterableCondo(nowMs: number): Prisma.CondominiumWhereInput {
+  return { deletedAt: null, OR: [{ demoExpiresAt: null }, { demoExpiresAt: { gt: new Date(nowMs) } }] };
 }

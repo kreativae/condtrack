@@ -55,7 +55,7 @@ const QUOTE_VARS: Var[] = [
 
 const notification = (key: string, label: string, audience: string, title: string, message: string, vars: Var[] = OS_VARS): TemplateDef => ({
   key,
-  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") || key.startsWith("parcel") ? "Reservas e portaria" : key.startsWith("quote") ? "Fornecedores" : key.startsWith("ticket") ? "Chamados" : "Comunicados",
+  group: key.startsWith("os_") || key === "council_request" ? "Ordens de serviço" : key.startsWith("billing") ? "Assinatura" : key.startsWith("checklist") ? "Checklist do zelador" : key.startsWith("maint") ? "Manutenção preventiva" : key.startsWith("assembly") ? "Assembleias" : key.startsWith("booking") || key.startsWith("gate") || key.startsWith("parcel") ? "Reservas e portaria" : key.startsWith("quote") ? "Fornecedores" : key.startsWith("ticket") ? "Chamados" : key.startsWith("demo") ? "Demonstrações" : "Comunicados",
   label,
   audience,
   channels: ["app", "email"],
@@ -185,6 +185,11 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "documento", desc: "Documento ou laudo", sample: "AVCB" },
     { name: "vencimento", desc: "Data de vencimento", sample: "15/10/2026" },
     V.condominio,
+  ]),
+  notification("demo_expired", "Fim do teste de uma demonstração", "Superadmins", "Teste encerrado: {condominio}", "O prazo da demonstração {condominio} terminou em {fim} e as contas de teste não entram mais.\nQuem testava: {contato}\nProrrogue ou exclua a demonstração na página do condomínio.", [
+    V.condominio,
+    { name: "fim", desc: "Data e hora em que o teste terminou", sample: "02/11/2026 14:30" },
+    { name: "contato", desc: "Nome, e-mail e telefone de quem testava (a linha some quando não foi informado)", sample: "Marina Lopes · marina@exemplo.com · (11) 98888-7777" },
   ]),
   notification("billing_payment_failed", "Falha no pagamento", "Síndico e superadmins", "Falha no pagamento da assinatura", "{condominio}: não conseguimos cobrar {valor}. Atualize a forma de pagamento.", [
     V.condominio,

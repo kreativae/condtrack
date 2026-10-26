@@ -6,6 +6,8 @@ import { db } from "./db";
 import { SESSION_COOKIE, signSession, verifySession, type SessionPayload } from "./session-token";
 import { getSettings } from "./settings";
 import type { Role } from "./roles";
+import { condoState } from "./entry-access";
+import { enterableCondo } from "./memberships";
 
 /** Avisos que a pessoa ocultou até o próximo login (ex.: lembrete das duas etapas). */
 export const HIDE_2FA_TIP_COOKIE = "hide_2fa_tip";
@@ -56,9 +58,11 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!session) return null;
   let user = await loadUser(session.uid);
   if (!user || user.status !== "active") return null;
-  // Sem condomínio ativo (vínculo removido) ou com ele arquivado: passa para outro vínculo; sem nenhum, a sessão não vale mais
-  if (user.role !== "superadmin" && (!user.condominium || user.condominium.deletedAt)) {
-    const other = await db.membership.findFirst({ where: { userId: user.id, condominium: { deletedAt: null } }, orderBy: { createdAt: "asc" } });
+  // Sem condomínio ativo (vínculo removido), com ele arquivado ou com o prazo da demonstração vencido: passa para
+  // outro vínculo; sem nenhum, a sessão não vale mais (vai para /api/sair)
+  const now = Date.now();
+  if (user.role !== "superadmin" && (!user.condominium || condoState(user.condominium, now) !== "ok")) {
+    const other = await db.membership.findFirst({ where: { userId: user.id, condominium: enterableCondo(now) }, orderBy: { createdAt: "asc" } });
     if (!other) return null;
     await db.user.update({ where: { id: user.id }, data: { condominiumId: other.condominiumId, role: other.role, permissions: other.permissions } });
     user = await loadUser(session.uid);

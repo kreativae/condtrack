@@ -6,6 +6,7 @@ import { FlaskConical, Loader2, Presentation, Users, X } from "lucide-react";
 import { Alert, Button, Field, Input, buttonClass, cx } from "@/components/ui";
 import { DEMO_PASSWORD, DEMO_SLOTS, externalDemoAccounts, type DemoAccounts } from "@/lib/demo-accounts";
 import { createDemoCondo, type DemoState } from "@/app/actions/demo";
+import { DEMO_TRIAL_DEFAULT_DAYS, DEMO_TRIAL_MAX_DAYS } from "@/lib/demo-trial";
 
 /**
  * Cria um condomínio de demonstração com dados fictícios, vinculado como síndico ao e-mail escolhido. Os outros perfis
@@ -93,6 +94,25 @@ export function DemoCondoButton({ saved, nextExternal }: { saved: DemoAccounts; 
                     ))}
                   </dl>
                   <p className="mt-3 text-xs text-muted">Se outra demonstração externa for criada antes, esta fica com o próximo número livre.</p>
+                </div>
+              )}
+              {mode === "external" && (
+                <div className="space-y-3 rounded-2xl border border-line p-4">
+                  <div className="flex items-end gap-3">
+                    <Field label="Acesso por quantos dias">
+                      <Input name="days" type="number" min={1} max={DEMO_TRIAL_MAX_DAYS} inputMode="numeric" required defaultValue={state?.values?.days || DEMO_TRIAL_DEFAULT_DAYS} className="w-28" />
+                    </Field>
+                    <p className="pb-2.5 text-xs text-muted">Depois disso as contas de teste não entram mais e você recebe um aviso. Dá para prorrogar na página do condomínio.</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Quem vai testar <span className="font-normal text-muted">(opcional)</span></p>
+                    <p className="mb-2 text-xs text-muted">Fica na página da demonstração e no aviso de fim do teste.</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Nome"><Input name="contactName" defaultValue={state?.values?.contactName} placeholder="Nome e empresa" autoComplete="off" /></Field>
+                      <Field label="Telefone"><Input name="contactPhone" type="tel" inputMode="tel" defaultValue={state?.values?.contactPhone} placeholder="(11) 98888-7777" autoComplete="off" /></Field>
+                      <div className="sm:col-span-2"><Field label="E-mail"><Input name="contactEmail" type="email" defaultValue={state?.values?.contactEmail} placeholder="pessoa@empresa.com" autoComplete="off" /></Field></div>
+                    </div>
+                  </div>
                 </div>
               )}
               {state?.error && <Alert>{state.error}</Alert>}

@@ -11,6 +11,8 @@ import { CondoForm } from "@/components/admin/condo-form";
 import { DeleteDemoButton } from "@/components/admin/delete-demo-button";
 import { SyndicsCard } from "@/components/admin/syndics-card";
 import { GateDemoButton } from "@/components/admin/gate-demo-button";
+import { DemoTrialCard } from "@/components/admin/demo-trial-card";
+import { nowMs } from "@/lib/format";
 import { ArchiveCondoButton, ForceDeleteCondoButton, PurgeCondoButton, RestoreCondoButton } from "@/components/admin/archive-condo";
 import { fmtDateTime } from "@/lib/format";
 import { Card, CardHeader, LinkButton, PageHeader, Stat } from "@/components/ui";
@@ -77,6 +79,14 @@ export default async function CondoPage({ params }: PageProps<"/admin/condominio
             <CardHeader title="Síndicos" subtitle="Quem administra e aprova os pedidos do superadmin" />
             <SyndicsCard condoId={c.id} syndics={syndics} />
           </Card>
+          {c.demo && !c.deletedAt && (
+            <DemoTrialCard
+              id={c.id}
+              expiresAt={c.demoExpiresAt?.toISOString() ?? null}
+              nowMs={nowMs()}
+              contact={{ name: c.demoContactName, email: c.demoContactEmail, phone: c.demoContactPhone }}
+            />
+          )}
           {demoLogins.length > 0 && (
             <Card>
               <CardHeader title="Contas para entrar" subtitle={`Criadas pela demonstração com a senha ${DEMO_PASSWORD} (contas que já existiam mantêm a senha delas).`} />

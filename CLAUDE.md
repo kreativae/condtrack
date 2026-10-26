@@ -124,7 +124,14 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Dois tipos na janela: **Interna** (apresentações do superadmin: as contas acima, editáveis) e **Externa** (testes de
   outras pessoas: série numerada nova `sindicoN|zeladorN|…@condtrack.app`, senha `condtrack123`; N = menor número sem
   nenhuma conta da série, `nextExternalNumber()`, recalculado no servidor ao criar; não mexe no Setting). Escolha por
-  rádio de verdade (`name="mode"`). A página da demonstração mostra o card "Contas para entrar". Marcados com `Condominium.demo`; só esses têm o botão
+  rádio de verdade (`name="mode"`). A página da demonstração mostra o card "Contas para entrar".
+  **Prazo do teste** (externa; `Condominium.demoExpiresAt`, padrão 7 dias, 1–90, regras em `src/lib/demo-trial.ts`,
+  testadas) e **contato de quem testa** (`demoContactName/Email/Phone`, opcionais) na mesma janela. Vencido, as contas
+  só desse condomínio não entram (`condoState()`/`entryBlockReason()` em `lib/entry-access.ts`, usados no login, na
+  biometria e no `getCurrentUser`; conta com outro condomínio passa para ele). `notifyExpiredDemos()`
+  (`lib/demo-trial-server.ts`, cron e lista de condomínios) avisa os superadmins uma vez (`demoExpiredNotifiedAt`,
+  modelo `demo_expired` em Mensagens). Card "Prazo do teste" na página: prorrogar (soma ao fim atual; zera o aviso),
+  salvar contato, encerrar agora (`updateDemoTrial`, auditado como `demo_trial`). Marcados com `Condominium.demo`; só esses têm o botão
   "Excluir demonstração" (`deleteDemoCondominium`: apaga tudo, inclusive as pessoas fictícias e as contas da série
   externa só dele, `isExternalDemoEmail()`, liberando o número; e troca o vínculo ativo de quem é real). Usuários fictícios têm senha aleatória descartada.
 - **Manutenção preventiva** (`/manutencao`; superadmin e síndico editam, zelador vê): `MaintenancePlan`, regras de data em
