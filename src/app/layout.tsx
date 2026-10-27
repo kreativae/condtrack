@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans, Sora } from "next/font/google";
 import { cookies } from "next/headers";
 import { getThemeAppearance } from "@/lib/theme-appearance-server";
 import { resolveColors, themeCss } from "@/lib/theme-appearance";
+import { SplashScreen } from "@/components/splash-screen";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -42,7 +43,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <style id="theme-appearance" dangerouslySetInnerHTML={{ __html: css }} />
         </head>
       )}
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <SplashScreen />
+        {children}
+      </body>
     </html>
   );
 }

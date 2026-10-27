@@ -43,6 +43,9 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   gradiente `.logo-mark` (segue a Aparência), verde do conferido em `--mark-accent`. Nome "condtrack" em minúsculas
   na fonte Sora (`font-brand`). Ícones (aba, app instalado, iPhone, selo das notificações) gerados do mesmo desenho
   por `node scripts/brand-icons.mjs`: mudou o símbolo, rode de novo.
+  **Tela de abertura** (`components/splash-screen.tsx`, no layout raiz; estilos `.splash` em `globals.css`): só no
+  celular (até 1023 px) e no app instalado, uma vez por sessão (`sessionStorage`), some sozinha em ~1,6 s ou no toque.
+  HTML/CSS com a página + script logo depois (não espera o React). `background_color` do manifesto = índigo da abertura.
 - **Cores**: tudo usa variáveis CSS (`--brand`, `--surface`, `--fg`…) de `src/app/globals.css`, expostas ao Tailwind
   como `bg-surface`, `text-brand` etc. **Não use cores fixas** (`#hex`, `bg-slate-*`) em componentes: elas ignoram a aba Aparência.
 - **Configurações → Aparência** (`?aba=aparencia`): cores do sistema nos temas claro e escuro. `src/lib/theme-appearance.ts`

@@ -6,7 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Condtrack",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#f6f7f9",
+    // Fundo da abertura nativa do Android (ícone sobre esta cor), emendando na tela de abertura do app
+    background_color: "#3b35b5",
     theme_color: "#5b5bd6",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
