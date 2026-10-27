@@ -39,6 +39,10 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 
 ## Onde mora cada coisa (além do README)
 
+- **Marca "Andares"** (`components/logo.tsx`): três andares em escada + traço de conferido, grade de 64; quadro com o
+  gradiente `.logo-mark` (segue a Aparência), verde do conferido em `--mark-accent`. Nome "condtrack" em minúsculas
+  na fonte Sora (`font-brand`). Ícones (aba, app instalado, iPhone, selo das notificações) gerados do mesmo desenho
+  por `node scripts/brand-icons.mjs`: mudou o símbolo, rode de novo.
 - **Cores**: tudo usa variáveis CSS (`--brand`, `--surface`, `--fg`…) de `src/app/globals.css`, expostas ao Tailwind
   como `bg-surface`, `text-brand` etc. **Não use cores fixas** (`#hex`, `bg-slate-*`) em componentes: elas ignoram a aba Aparência.
 - **Configurações → Aparência** (`?aba=aparencia`): cores do sistema nos temas claro e escuro. `src/lib/theme-appearance.ts`

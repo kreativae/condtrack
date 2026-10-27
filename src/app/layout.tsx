@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Sora } from "next/font/google";
 import { cookies } from "next/headers";
 import { getThemeAppearance } from "@/lib/theme-appearance-server";
 import { resolveColors, themeCss } from "@/lib/theme-appearance";
@@ -7,6 +7,8 @@ import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], weight: ["500", "600", "700", "800"] });
+// Só o nome "condtrack" na marca
+const sora = Sora({ variable: "--font-sora", subsets: ["latin"], weight: ["700"] });
 
 export const metadata: Metadata = {
   title: { default: "Condtrack · Gestão Condominial", template: "%s · Condtrack" },
@@ -34,7 +36,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Cores personalizadas (só #rrggbb validados), valendo para todas as páginas
   const css = themeCss(appearance);
   return (
-    <html lang="pt-BR" data-theme={theme} className={`${inter.variable} ${jakarta.variable} h-full`}>
+    <html lang="pt-BR" data-theme={theme} className={`${inter.variable} ${jakarta.variable} ${sora.variable} h-full`}>
       {css && (
         <head>
           <style id="theme-appearance" dangerouslySetInnerHTML={{ __html: css }} />

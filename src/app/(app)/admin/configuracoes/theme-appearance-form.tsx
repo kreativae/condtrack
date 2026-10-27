@@ -204,7 +204,7 @@ function Preview({ t, mode }: { t: ThemeAppearance; mode: ThemeMode }) {
         <div className="hidden space-y-1 sm:block">
           <div className="mb-3 flex items-center gap-2 px-1">
             <LogoMark size={22} />
-            <span className="font-display text-sm font-bold">Cond<span className="text-brand">track</span></span>
+            <span className="font-brand text-sm font-bold tracking-[-0.035em]">cond<span className="text-brand">track</span></span>
           </div>
           {nav.map(({ icon: Icon, label, active }) => (
             <span key={label} className={cx("flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium", active ? "bg-brand-soft text-brand" : "text-fg-2")}>

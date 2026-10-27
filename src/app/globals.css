@@ -79,6 +79,7 @@
   --color-info: var(--info);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-brand: var(--font-sora), var(--font-jakarta), ui-sans-serif, sans-serif;
   --font-num: var(--font-jakarta), var(--font-inter), sans-serif;
   --shadow-card: var(--shadow);
   --shadow-pop: var(--shadow-lg);
@@ -121,7 +122,11 @@ body {
   background: var(--brand-2);
 }
 
-/* Logo: gradiente da marca, igual nos dois temas (Aparência pode trocar) */
+/* Logo: gradiente da marca, igual nos dois temas (Aparência pode trocar). O verde de "conferido" é parte do
+   símbolo e não muda com o tema: só aparece sobre o quadro da marca ou fundos coloridos. */
+:root {
+  --mark-accent: #34d399;
+}
 .logo-mark {
   background: linear-gradient(145deg, var(--logo-1, #7b7bf2) 0%, var(--logo-2, #5b5bd6) 55%, var(--logo-3, #4338ca) 100%);
   box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--logo-2, #5b5bd6) 60%, transparent);
