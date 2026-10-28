@@ -13,7 +13,14 @@ function Preview({ style }: { style: MenuStyle }) {
   const label = <span className="block h-1 w-8 rounded-full bg-muted/50" />;
   return (
     <span className="flex h-24 w-full flex-col gap-1.5 overflow-hidden rounded-lg bg-bg-2 p-2.5" aria-hidden="true">
-      {style === "accordion" ? (
+      {style === "sections" ? (
+        <>
+          {bar("w-1/2", true)}
+          <span className="mt-0.5">{label}</span>{bar("w-2/3")}{bar("w-1/2")}
+          <span className="mt-0.5">{label}</span>{bar("w-3/5")}
+          <span className="mt-auto flex items-center gap-1 border-t border-line-strong pt-1.5"><span className="block size-2.5 rounded-full bg-muted/50" />{bar("w-1/3")}</span>
+        </>
+      ) : style === "accordion" ? (
         <>
           {label}{bar("w-3/4", true)}{bar("w-2/3")}{bar("w-1/2")}
           <span className="mt-1 flex items-center justify-between">{label}<span className="block h-1.5 w-3 rounded-full bg-line-strong" /></span>
@@ -42,7 +49,7 @@ export function MenuStyleForm({ initial }: { initial: MenuStyle }) {
       <CardHeader title="Menu lateral" subtitle="Vale para todos os perfis, no computador. No celular o menu continua como lista." />
       <form {...form} className="space-y-4 p-5">
         <input type="hidden" name="style" value={style} />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {(Object.keys(MENU_STYLES) as MenuStyle[]).map((k) => (
             <button
               key={k}

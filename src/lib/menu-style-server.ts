@@ -8,8 +8,8 @@ export const getMenuStyle = cache(async (): Promise<MenuStyle> => {
   const row = await db.setting.findUnique({ where: { key: MENU_SETTING_KEY } }).catch(() => null);
   try {
     const v = row ? (JSON.parse(row.value) as { style?: unknown }).style : null;
-    return isMenuStyle(v) ? v : "classic";
+    return isMenuStyle(v) ? v : "sections";
   } catch {
-    return "classic";
+    return "sections";
   }
 });

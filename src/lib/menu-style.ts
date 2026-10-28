@@ -1,7 +1,10 @@
 // Estilo do menu lateral (computador), escolhido pelo superadmin em Configurações → Aparência.
 // Seguro para client e server.
+import type { NavItem } from "./nav";
+import type { Role } from "./roles";
 
 export const MENU_STYLES = {
+  sections: { label: "Seções", hint: "Grupos com título, sempre abertos; Auditoria e Configurações no cartão do seu nome. Recomendado." },
   classic: { label: "Atual", hint: "Lista completa, como sempre foi." },
   accordion: { label: "Sanfona", hint: "Itens em grupos por assunto que abrem e fecham. Mais curto e organizado." },
   more: { label: "Com “Mais”", hint: "Os 7 primeiros da ordem de cada pessoa à vista; o resto em “Mais”." },
@@ -18,20 +21,43 @@ export const ACCORDION_MIN = 8;
 
 /** Grupos da sanfona, na ordem em que aparecem. */
 export const NAV_GROUPS = [
+  { key: "inicio", label: "" },
   { key: "dia", label: "Dia a dia" },
   { key: "dinheiro", label: "Dinheiro" },
   { key: "comunicacao", label: "Comunicação" },
   { key: "portaria", label: "Portaria e reservas" },
   { key: "admin", label: "Administração" },
+  { key: "plataforma", label: "Plataforma" },
 ] as const;
 export type NavGroupKey = (typeof NAV_GROUPS)[number]["key"];
 
 /** Em que grupo fica cada página (o que não estiver aqui vai para "Dia a dia"). */
 const GROUP_OF: Record<string, NavGroupKey> = {
+  "/dashboard": "inicio",
   "/financeiro": "dinheiro", "/relatorios": "dinheiro",
   "/comunicados": "comunicacao", "/assembleias": "comunicacao",
   "/reservas": "portaria", "/portaria": "portaria", "/minha-unidade": "portaria",
-  "/admin/condominios": "admin", "/admin/usuarios": "admin", "/usuarios": "admin", "/admin/assinaturas": "admin", "/admin/interessados": "admin", "/assinatura": "admin",
+  "/admin/condominios": "plataforma", "/admin/usuarios": "plataforma", "/admin/assinaturas": "plataforma", "/admin/interessados": "plataforma",
+  "/usuarios": "admin", "/assinatura": "admin",
   "/admin/auditoria": "admin", "/auditoria": "admin", "/admin/configuracoes": "admin", "/estrutura": "admin", "/meus-condominios": "admin",
 };
 export const groupOf = (href: string): NavGroupKey => GROUP_OF[href.split("?")[0]] ?? "dia";
+
+/** Estilo "Seções": páginas que saem da lista e vão para o cartão do nome (rodapé do menu). */
+export const USER_MENU_HREFS = ["/admin/auditoria", "/auditoria", "/admin/configuracoes"];
+/** Estilo "Seções": páginas fora da lista em cada perfil (o painel já leva até elas). */
+const SECTIONS_HIDDEN: Partial<Record<Role, string[]>> = { superadmin: ["/feed"], syndic: ["/feed"] };
+
+export type NavSection = { key: NavGroupKey; label: string; items: NavItem[] };
+
+/**
+ * Menu "Seções": a lista (já na ordem da pessoa) dividida nos grupos de NAV_GROUPS, sempre abertos, sem os grupos
+ * vazios; Auditoria e Configurações vão para `userMenu` e o feed sai do menu do síndico e do superadmin.
+ */
+export function sectionLayout(items: NavItem[], role: Role): { sections: NavSection[]; userMenu: NavItem[] } {
+  const hidden = SECTIONS_HIDDEN[role] ?? [];
+  const userMenu = USER_MENU_HREFS.map((h) => items.find((it) => it.href === h)).filter((it): it is NavItem => !!it);
+  const rest = items.filter((it) => !USER_MENU_HREFS.includes(it.href) && !hidden.includes(it.href));
+  const sections = NAV_GROUPS.map((g) => ({ key: g.key, label: g.label, items: rest.filter((it) => groupOf(it.href) === g.key) })).filter((g) => g.items.length);
+  return { sections, userMenu };
+}

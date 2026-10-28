@@ -14,7 +14,8 @@ import { userMemberships } from "@/lib/memberships";
 import { CondoSwitcher } from "@/components/condo-switcher";
 import { ROLE_LABEL } from "@/lib/roles";
 import { logout, stopImpersonating } from "@/app/actions/auth";
-import { SideNav, MobileNav, MenuButton, NAV_PINS_COOKIE } from "@/components/nav-links";
+import { SideNav, MobileNav, MenuButton, UserMenu, NAV_PINS_COOKIE } from "@/components/nav-links";
+import { ACCORDION_MIN, sectionLayout } from "@/lib/menu-style";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Logo } from "@/components/logo";
@@ -52,6 +53,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const rank = (href: string, i: number) => (saved.includes(href) ? saved.indexOf(href) : 1000 + i);
   const items = base.map((it, i) => ({ it, r: rank(it.href, i) })).sort((a, b) => a.r - b.r).map((x) => x.it);
   const customized = saved.length > 0;
+  // Estilo "Seções": cartão do nome com Auditoria e Configurações (abaixo de 8 itens o menu vira lista)
+  const sections = menuStyle === "sections" && items.length >= ACCORDION_MIN;
   const unit = user.units[0]?.unit;
   const jar = await cookies();
   const theme = jar.get("theme")?.value === "dark" ? "dark" : "light";
@@ -88,17 +91,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       className="min-h-dvh lg:grid lg:grid-cols-[252px_1fr]"
       style={{ "--chrome": `${((user.impersonator ? 1 : 0) + (billingNotice ? 1 : 0)) * 2}rem` } as React.CSSProperties}
     >
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 py-5 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 pb-3 pt-5 lg:flex">
         <Link href="/dashboard" className="px-3">
           <Logo />
         </Link>
 
         {scopeList ? (
-          <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={scopeList} current={scope} /></div>
+          <div className="mx-1 mb-3 mt-5"><CondoSwitcher condos={scopeList} current={scope} /></div>
         ) : multi ? (
-          <div className="mx-1 mb-4 mt-6"><CondoSwitcher condos={multi.list} current={multi.current} mode="member" subtitle={ROLE_LABEL[user.role]} /></div>
+          <div className="mx-1 mb-3 mt-5"><CondoSwitcher condos={multi.list} current={multi.current} mode="member" subtitle={ROLE_LABEL[user.role]} /></div>
         ) : (
-        <div className="mx-1 mb-4 mt-6 flex items-center gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5">
+        <div className="mx-1 mb-3 mt-5 flex items-center gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
             <Building2 className="size-4" strokeWidth={1.8} />
           </span>
@@ -109,8 +112,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
         )}
 
-        <SideNav items={items} customized={customized} menuStyle={menuStyle} />
+        <SideNav items={items} customized={customized} menuStyle={menuStyle} role={user.role} />
 
+        {sections ? (
+          <div className="mt-auto border-t border-line pt-3">
+            <UserMenu name={user.name} avatarUrl={user.avatarUrl} subtitle={`${ROLE_LABEL[user.role]}${unit ? ` · ${unitLabel(unit, true)}` : ""}`} links={sectionLayout(items, user.role).userMenu} />
+          </div>
+        ) : (
         <div className="mt-auto space-y-1 border-t border-line pt-3">
           <Link href="/perfil" className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-bg-2">
             <Avatar name={user.name} src={user.avatarUrl} size={34} />
@@ -128,6 +136,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </button>
           </form>
         </div>
+        )}
       </aside>
 
       <div className="flex min-w-0 flex-col">

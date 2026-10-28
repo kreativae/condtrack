@@ -4,11 +4,12 @@ import Link from "next/link";
 import { startTransition, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell, Building, Building2, GripVertical, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Vote, Wallet, Wrench, ChevronDown, MoreHorizontal, CalendarDays, DoorOpen, Contact, Handshake, Inbox, UserPlus, type LucideIcon,
+  Bell, Building, Building2, GripVertical, LogOut, Menu, Pin, RotateCcw, X, ClipboardList, CreditCard, FileText, Settings, Gauge, History, Home, ListChecks, Megaphone, Plus, ShieldCheck, Sparkles, Users, Vote, Wallet, Wrench, ChevronDown, ChevronsUpDown, UserRound, MoreHorizontal, CalendarDays, DoorOpen, Contact, Handshake, Inbox, UserPlus, type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import type { NavItem } from "@/lib/nav";
-import { ACCORDION_MIN, MORE_VISIBLE, NAV_GROUPS, groupOf, type MenuStyle } from "@/lib/menu-style";
+import { ACCORDION_MIN, MORE_VISIBLE, NAV_GROUPS, groupOf, sectionLayout, type MenuStyle } from "@/lib/menu-style";
+import type { Role } from "@/lib/roles";
 import { logout } from "@/app/actions/auth";
 import { saveNavOrder } from "@/app/actions/nav";
 import { Logo } from "./logo";
@@ -272,7 +273,8 @@ function SideItem({ it, active, compact, lk, handlers, hidden }: {
 }
 
 /** Menu lateral do computador, no estilo escolhido em Configurações → Aparência. */
-export function SideNav({ items, customized, menuStyle = "classic" }: { items: NavItem[]; customized?: boolean; menuStyle?: MenuStyle }) {
+export function SideNav({ items, customized, menuStyle = "sections", role }: { items: NavItem[]; customized?: boolean; menuStyle?: MenuStyle; role: Role }) {
+  if (menuStyle === "sections" && items.length >= ACCORDION_MIN) return <SectionsNav items={items} customized={customized} role={role} />;
   if (menuStyle === "accordion" && items.length >= ACCORDION_MIN) return <AccordionNav items={items} customized={customized} />;
   if (menuStyle === "more" && items.length > MORE_VISIBLE + 1) return <MoreNav items={items} customized={customized} />;
   return <ListNav items={items} customized={customized} compact={menuStyle !== "classic"} />;
@@ -356,6 +358,7 @@ function AccordionNav({ items, customized }: { items: NavItem[]; customized?: bo
   return (
     <nav className="space-y-1" aria-label="Menu">
       {groups.map((g) => {
+        if (!g.label) return <GroupItems key={g.key} items={g.items} onCommit={commitGroup(g.key)} />;
         const isOpen = !!open[g.key] || g.key === activeGroup;
         return (
           <div key={g.key}>
@@ -369,6 +372,30 @@ function AccordionNav({ items, customized }: { items: NavItem[]; customized?: bo
         );
       })}
       {customized && <ResetOrder className="px-3 pt-2" />}
+    </nav>
+  );
+}
+
+/**
+ * Seções: os grupos de assunto com título, sempre abertos (o início fica solto no alto; Plataforma separada por uma
+ * linha). Auditoria e Configurações ficam no cartão do nome (`UserMenu`); arrastar muda a ordem dentro da seção.
+ */
+function SectionsNav({ items, customized, role }: { items: NavItem[]; customized?: boolean; role: Role }) {
+  const { sections } = sectionLayout(items, role);
+  // A ordem completa junta a seção arrastada (nova) com as outras como estão; o que saiu da lista mantém o lugar no fim
+  const commitGroup = (key: string) => async (order: string[]) => {
+    const shown = sections.flatMap((g) => (g.key === key ? order : g.items.map((it) => it.href)));
+    await saveNavOrder([...shown, ...items.map((it) => it.href).filter((h) => !shown.includes(h))]);
+  };
+  return (
+    <nav className="no-scrollbar -mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1" aria-label="Menu">
+      {sections.map((g) => (
+        <div key={g.key} className={clsx(g.key === "plataforma" && "border-t border-line pt-2.5")}>
+          {g.label && <p className="px-3 pb-0.5 text-[10.5px] font-bold uppercase tracking-[0.09em] text-muted">{g.label}</p>}
+          <GroupItems items={g.items} onCommit={commitGroup(g.key)} />
+        </div>
+      ))}
+      {customized && <ResetOrder className="px-3" />}
     </nav>
   );
 }
@@ -579,5 +606,59 @@ export function MobileNav({ items, initialPins, user, customized, condos }: { it
         </aside>
       </div>
     </>
+  );
+}
+
+/**
+ * Cartão do nome no rodapé do menu do computador (estilo "Seções"): abre para cima com Meu perfil, as páginas que
+ * saíram da lista (Auditoria, Configurações) e Sair. Fica marcado quando a página aberta é uma delas.
+ */
+export function UserMenu({ name, avatarUrl, subtitle, links }: { name: string; avatarUrl?: string | null; subtitle: string; links: NavItem[] }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const here = links.some((l) => isActive(pathname, l.href)) || pathname.startsWith("/perfil");
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  const row = (active: boolean) => clsx("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors", active ? "bg-brand-soft font-semibold text-brand" : "font-medium text-fg-2 hover:bg-bg-2 hover:text-fg");
+  return (
+    <div ref={box} className="relative">
+      {open && (
+        <div role="menu" className="absolute inset-x-0 bottom-full z-30 mb-2 space-y-0.5 rounded-2xl border border-line bg-surface p-1.5 shadow-pop animate-in">
+          <Link role="menuitem" href="/perfil" onClick={() => setOpen(false)} className={row(pathname.startsWith("/perfil"))}><UserRound className="size-[18px]" strokeWidth={1.8} />Meu perfil</Link>
+          {links.map((l) => {
+            const Icon = ICONS[l.icon] ?? Gauge;
+            return <Link key={l.href} role="menuitem" href={l.href} onClick={() => setOpen(false)} className={row(isActive(pathname, l.href))}><Icon className="size-[18px]" strokeWidth={1.8} />{l.label}</Link>;
+          })}
+          <div className="my-1 h-px bg-line" />
+          <form action={logout}>
+            <button role="menuitem" className={row(false)}><LogOut className="size-[18px]" strokeWidth={1.8} />Sair</button>
+          </form>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={clsx("flex w-full items-center gap-3 rounded-xl p-2 text-left transition", open || here ? "bg-bg-2" : "hover:bg-bg-2")}
+      >
+        <Avatar name={name} src={avatarUrl} size={34} />
+        <span className="min-w-0 flex-1 text-sm">
+          <span className="block truncate font-medium">{name}</span>
+          <span className="block truncate text-xs text-muted">{subtitle}</span>
+        </span>
+        <ChevronsUpDown className="size-4 shrink-0 text-muted" />
+      </button>
+    </div>
   );
 }

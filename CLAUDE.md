@@ -88,9 +88,13 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   pagos e pendentes, sem cancelados/excluídos). Salvar substitui as linhas do ano e grava `budget_updated` no `FinanceLog`.
   Mesmo acesso do Financeiro (conselho só vê, se liberado).
 - **Estilo do menu do computador** (Configurações → Aparência → Menu lateral; Setting público `menu_style`):
-  `classic` (lista), `accordion` (grupos por assunto em `lib/menu-style.ts`, `groupOf()`; abertos lembrados no
-  navegador; o grupo da página abre sozinho; arrastar dentro do grupo), `more` (7 primeiros + "Mais") e `compact`.
-  Página nova no menu: inclua o grupo dela em `GROUP_OF` (o padrão é "Dia a dia"). No celular o menu não muda.
+  `sections` (padrão: grupos de `NAV_GROUPS` com título, sempre abertos; "Visão global"/início solto no alto; Plataforma
+  do superadmin separada por linha; Auditoria e Configurações no cartão do nome, `UserMenu` em `nav-links.tsx`; feed fora
+  do menu do síndico e do superadmin, o painel leva até ele; regras em `sectionLayout()`, testado; com menos de 8 itens
+  vira lista), `classic` (lista), `accordion` (os mesmos grupos que abrem e fecham; abertos lembrados no navegador; o
+  grupo da página abre sozinho), `more` (7 primeiros + "Mais") e `compact`. Arrastar muda a ordem dentro do grupo.
+  Página nova no menu: inclua o grupo dela em `GROUP_OF` (`lib/menu-style.ts`; o padrão é "Dia a dia"). O menu do
+  superadmin precisa caber numa tela de 900 px de altura (rola se não couber). No celular o menu não muda.
 - **Ordem do menu**: cada usuário segura e arrasta os itens (desktop e celular, `useReorder` em `nav-links.tsx`); a ordem fica em
   `User.navOrder` (salva por `app/actions/nav.ts`) e o layout aplica. Páginas novas entram no fim da ordem salva.
 - **Painel personalizável**: ícone de ajustes no cabeçalho do dashboard (todos menos morador). Blocos de cada perfil em
