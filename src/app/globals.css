@@ -260,7 +260,7 @@ body {
 }
 html:has(.lp) {
   scroll-behavior: smooth;
-  scroll-padding-top: 16px;
+  scroll-padding-top: 80px; /* barra do site presa no alto */
 }
 .lp-ink {
   background: var(--lp-ink);

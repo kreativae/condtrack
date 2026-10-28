@@ -34,8 +34,8 @@ export type LandingProps = { plans: LandingPlan[]; trialDays: number; legal: { c
 export function Landing({ plans, trialDays, legal, turnstileSiteKey }: LandingProps) {
   return (
     <div className="lp flex min-h-dvh flex-col bg-bg text-fg">
+      <SiteHeader />
       <Hero trialDays={trialDays} />
-      <Highlights />
       <Demands />
       <Proof />
       <Access />
@@ -50,13 +50,11 @@ export function Landing({ plans, trialDays, legal, turnstileSiteKey }: LandingPr
 
 /* ─────────── Abertura ─────────── */
 
-function Hero({ trialDays }: { trialDays: number }) {
+/** Barra do site, presa no alto ao rolar (vidro escuro sobre as seções claras e escuras). */
+function SiteHeader() {
   return (
-    <section className="lp-ink relative overflow-hidden pb-16 sm:pb-20">
-      <div aria-hidden className="lp-glow absolute inset-0" />
-      <div aria-hidden className="lp-grid absolute inset-0" />
-
-      <header className={cx(WRAP, "relative flex h-[76px] items-center gap-8 sm:h-[84px]")}>
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[color-mix(in_srgb,var(--lp-ink)_85%,transparent)] text-white backdrop-blur-md">
+      <div className={cx(WRAP, "flex h-16 items-center gap-8 sm:h-[72px]")}>
         <Link href="/" aria-label="condtrack, início"><Logo invert tagline={false} /></Link>
         <nav className="hidden flex-1 gap-7 text-sm font-semibold text-white/70 md:flex">
           {[["#demandas", "Demandas"], ["#acessos", "Acessos"], ["#recursos", "Recursos"], ["#planos", "Planos"]].map(([href, label]) => (
@@ -65,8 +63,18 @@ function Hero({ trialDays }: { trialDays: number }) {
         </nav>
         <span className="flex-1 md:hidden" />
         <Link href="/login" className="text-sm font-semibold text-white/90 transition hover:text-white">Entrar</Link>
-        <a href="#demonstracao" className="hidden h-11 items-center rounded-full bg-white px-5 text-sm font-bold text-[var(--lp-ink)] transition hover:bg-white/90 sm:flex">Agendar demonstração</a>
-      </header>
+        <a href="#demonstracao" className="hidden h-10 items-center rounded-full bg-white px-5 text-sm font-bold text-[var(--lp-ink)] transition hover:bg-white/90 sm:flex">Agendar demonstração</a>
+      </div>
+    </header>
+  );
+}
+
+function Hero({ trialDays }: { trialDays: number }) {
+  // Sobe por baixo da barra presa (h-16 / 72px): no alto da página, a barra fica sobre o mesmo fundo escuro
+  return (
+    <section className="lp-ink relative -mt-16 overflow-hidden pb-16 pt-16 sm:-mt-[72px] sm:pb-20 sm:pt-[72px]">
+      <div aria-hidden className="lp-glow absolute inset-0" />
+      <div aria-hidden className="lp-grid absolute inset-0" />
 
       <div className={cx(WRAP, "relative flex flex-col items-center gap-6 pt-10 text-center sm:pt-14")}>
         <span className="inline-flex h-[34px] items-center gap-2.5 rounded-full border border-white/12 bg-white/[0.07] pl-1.5 pr-3.5 text-[13px] font-semibold text-white/85">
@@ -195,29 +203,6 @@ function DashboardMock() {
         </div>
       </div>
     </div>
-  );
-}
-
-/* ─────────── Faixa de destaques ─────────── */
-
-function Highlights() {
-  const items = [
-    { value: "6 perfis", label: "de acesso em cada condomínio" },
-    { value: "Antes e depois", label: "com foto em cada serviço" },
-    { value: "Sem custo", label: "por pessoa: o plano é do condomínio" },
-    { value: "LGPD", label: "com duas etapas no login e histórico de ações" },
-  ];
-  return (
-    <section className="border-b border-line bg-surface">
-      <div className={cx(WRAP, "grid grid-cols-2 gap-6 py-9 lg:grid-cols-4")}>
-        {items.map((p) => (
-          <div key={p.value} className="flex flex-col gap-1 border-l border-line pl-4 sm:pl-5">
-            <b className="font-display text-[22px] tracking-[-0.03em] sm:text-[28px]">{p.value}</b>
-            <span className="text-sm text-fg-2">{p.label}</span>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 

@@ -51,7 +51,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   em `lib/landing.ts`, testado: o 2º de 3 em destaque, anual com a economia em meses), dias grátis = `TRIAL_DAYS`, razão
   social e CNPJ de Dados legais (só depois de preenchidos). Faixas escuras em `.lp-ink` (tokens `.lp` em `globals.css`,
   derivados da cor do logo); fotos de `public/demo/servicos` (pasta `demo/` fora do proxy). Sem depoimentos nem números
-  de clientes inventados: entram quando houver de verdade.
+  de clientes inventados: entram quando houver de verdade. Barra do site (`SiteHeader`) presa no alto ao rolar; a abertura sobe por baixo dela.
   Formulário "Agende sua demonstração" (`landing/demo-form.tsx`, `requestDemo` em `actions/demo-request.ts`, validação
   em `lib/demo-request.ts`, testada) → `DemoRequest` + aviso `demo_request` aos superadmins (Mensagens). Campo escondido
   `website` contra robôs, Turnstile quando ligado em Segurança, limite por IP (5/h) e e-mail (3/dia) com a mesma resposta.
