@@ -89,8 +89,8 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   Mesmo acesso do Financeiro (conselho só vê, se liberado).
 - **Estilo do menu do computador** (Configurações → Aparência → Menu lateral; Setting público `menu_style`):
   `sections` (padrão: grupos de `NAV_GROUPS` com título, sempre abertos; "Visão global"/início solto no alto; Plataforma
-  do superadmin separada por linha; Auditoria e Configurações no cartão do nome, `UserMenu` em `nav-links.tsx`; feed fora
-  do menu do síndico e do superadmin, o painel leva até ele; regras em `sectionLayout()`, testado; com menos de 8 itens
+  do superadmin separada por linha; Auditoria e Configurações no cartão do nome, `UserMenu` em `nav-links.tsx`; feed de
+  serviços em Comunicação; regras em `sectionLayout()`, testado; com menos de 8 itens
   vira lista), `classic` (lista), `accordion` (os mesmos grupos que abrem e fecham; abertos lembrados no navegador; o
   grupo da página abre sozinho), `more` (7 primeiros + "Mais") e `compact`. Arrastar muda a ordem dentro do grupo.
   Página nova no menu: inclua o grupo dela em `GROUP_OF` (`lib/menu-style.ts`; o padrão é "Dia a dia"). O menu do

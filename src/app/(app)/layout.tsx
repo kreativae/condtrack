@@ -112,11 +112,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
         )}
 
-        <SideNav items={items} customized={customized} menuStyle={menuStyle} role={user.role} />
+        <SideNav items={items} customized={customized} menuStyle={menuStyle} />
 
         {sections ? (
           <div className="mt-auto border-t border-line pt-3">
-            <UserMenu name={user.name} avatarUrl={user.avatarUrl} subtitle={`${ROLE_LABEL[user.role]}${unit ? ` · ${unitLabel(unit, true)}` : ""}`} links={sectionLayout(items, user.role).userMenu} />
+            <UserMenu name={user.name} avatarUrl={user.avatarUrl} subtitle={`${ROLE_LABEL[user.role]}${unit ? ` · ${unitLabel(unit, true)}` : ""}`} links={sectionLayout(items).userMenu} />
           </div>
         ) : (
         <div className="mt-auto space-y-1 border-t border-line pt-3">

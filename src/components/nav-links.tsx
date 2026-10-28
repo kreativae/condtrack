@@ -9,7 +9,6 @@ import {
 import clsx from "clsx";
 import type { NavItem } from "@/lib/nav";
 import { ACCORDION_MIN, MORE_VISIBLE, NAV_GROUPS, groupOf, sectionLayout, type MenuStyle } from "@/lib/menu-style";
-import type { Role } from "@/lib/roles";
 import { logout } from "@/app/actions/auth";
 import { saveNavOrder } from "@/app/actions/nav";
 import { Logo } from "./logo";
@@ -259,7 +258,7 @@ function SideItem({ it, active, compact, lk, handlers, hidden }: {
       className={clsx(
         hidden ? "hidden" : "flex",
         "items-center rounded-xl transition-colors",
-        compact ? "gap-2.5 px-3 py-1.5 text-[13.5px]" : "gap-3 px-3 py-2 text-sm",
+        compact ? "gap-2.5 px-3 py-[5px] text-[13.5px]" : "gap-3 px-3 py-2 text-sm",
         NO_TOUCH_MENU,
         lk.lifted ? LIFTED : active ? "bg-brand-soft" : "hover:bg-bg-2",
         active ? "font-semibold text-brand" : clsx("font-medium", lk.lifted ? "text-fg" : "text-fg-2 hover:text-fg"),
@@ -273,8 +272,8 @@ function SideItem({ it, active, compact, lk, handlers, hidden }: {
 }
 
 /** Menu lateral do computador, no estilo escolhido em Configurações → Aparência. */
-export function SideNav({ items, customized, menuStyle = "sections", role }: { items: NavItem[]; customized?: boolean; menuStyle?: MenuStyle; role: Role }) {
-  if (menuStyle === "sections" && items.length >= ACCORDION_MIN) return <SectionsNav items={items} customized={customized} role={role} />;
+export function SideNav({ items, customized, menuStyle = "sections" }: { items: NavItem[]; customized?: boolean; menuStyle?: MenuStyle }) {
+  if (menuStyle === "sections" && items.length >= ACCORDION_MIN) return <SectionsNav items={items} customized={customized} />;
   if (menuStyle === "accordion" && items.length >= ACCORDION_MIN) return <AccordionNav items={items} customized={customized} />;
   if (menuStyle === "more" && items.length > MORE_VISIBLE + 1) return <MoreNav items={items} customized={customized} />;
   return <ListNav items={items} customized={customized} compact={menuStyle !== "classic"} />;
@@ -380,8 +379,8 @@ function AccordionNav({ items, customized }: { items: NavItem[]; customized?: bo
  * Seções: os grupos de assunto com título, sempre abertos (o início fica solto no alto; Plataforma separada por uma
  * linha). Auditoria e Configurações ficam no cartão do nome (`UserMenu`); arrastar muda a ordem dentro da seção.
  */
-function SectionsNav({ items, customized, role }: { items: NavItem[]; customized?: boolean; role: Role }) {
-  const { sections } = sectionLayout(items, role);
+function SectionsNav({ items, customized }: { items: NavItem[]; customized?: boolean }) {
+  const { sections } = sectionLayout(items);
   // A ordem completa junta a seção arrastada (nova) com as outras como estão; o que saiu da lista mantém o lugar no fim
   const commitGroup = (key: string) => async (order: string[]) => {
     const shown = sections.flatMap((g) => (g.key === key ? order : g.items.map((it) => it.href)));
