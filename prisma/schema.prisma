@@ -1231,3 +1231,29 @@ model Commission {
   @@index([partnerId, status])
   @@index([condominiumId])
 }
+
+/// Pedido de demonstração feito na página inicial (site de vendas). Fica na lista Interessados do superadmin.
+/// status: new → contacted → demo (demonstração criada, `condominiumId`) → won | lost
+model DemoRequest {
+  id            String   @id @default(cuid())
+  name          String
+  email         String
+  phone         String
+  condoName     String
+  units         Int?
+  /// syndic | pro | administrator | other
+  profile       String
+  message       String?
+  status        String   @default("new")
+  /// Anotação interna do superadmin
+  note          String?
+  /// Demonstração criada a partir do pedido (sem relação: o condomínio pode ser excluído depois)
+  condominiumId String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+}

@@ -31,7 +31,7 @@ const GROUP_OF: Record<string, NavGroupKey> = {
   "/financeiro": "dinheiro", "/relatorios": "dinheiro",
   "/comunicados": "comunicacao", "/assembleias": "comunicacao",
   "/reservas": "portaria", "/portaria": "portaria", "/minha-unidade": "portaria",
-  "/admin/condominios": "admin", "/admin/usuarios": "admin", "/usuarios": "admin", "/admin/assinaturas": "admin", "/assinatura": "admin",
+  "/admin/condominios": "admin", "/admin/usuarios": "admin", "/usuarios": "admin", "/admin/assinaturas": "admin", "/admin/interessados": "admin", "/assinatura": "admin",
   "/admin/auditoria": "admin", "/auditoria": "admin", "/admin/configuracoes": "admin", "/estrutura": "admin", "/meus-condominios": "admin",
 };
 export const groupOf = (href: string): NavGroupKey => GROUP_OF[href.split("?")[0]] ?? "dia";

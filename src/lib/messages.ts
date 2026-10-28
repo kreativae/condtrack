@@ -191,6 +191,13 @@ export const TEMPLATES: TemplateDef[] = [
     { name: "fim", desc: "Data e hora em que o teste terminou", sample: "02/11/2026 14:30" },
     { name: "contato", desc: "Nome, e-mail e telefone de quem testava (a linha some quando não foi informado)", sample: "Marina Lopes · marina@exemplo.com · (11) 98888-7777" },
   ]),
+  notification("demo_request", "Pedido de demonstração pelo site", "Superadmins", "Pedido de demonstração: {predio}", "{nome} ({perfil}) pediu uma demonstração para {predio}{unidades}.\nContato: {contato}\nVeja em Interessados e crie a demonstração externa com o contato já preenchido.", [
+    { name: "nome", desc: "Nome de quem pediu", sample: "Marina Lopes" },
+    { name: "perfil", desc: "Síndico morador, síndico profissional, administradora ou outro", sample: "Síndico profissional" },
+    { name: "predio", desc: "Nome do condomínio informado", sample: "Residencial Aurora" },
+    { name: "unidades", desc: "Número de unidades, quando informado (\", 96 unidades\")", sample: ", 96 unidades" },
+    { name: "contato", desc: "WhatsApp e e-mail", sample: "(11) 98888-7777 · marina@exemplo.com" },
+  ]),
   notification("billing_payment_failed", "Falha no pagamento", "Síndico e superadmins", "Falha no pagamento da assinatura", "{condominio}: não conseguimos cobrar {valor}. Atualize a forma de pagamento.", [
     V.condominio,
     { name: "valor", desc: "Valor da cobrança", sample: "R$ 200,00" },

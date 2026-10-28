@@ -15,11 +15,13 @@ export async function proxy(req: NextRequest) {
   if (pathname === "/api/sair") return NextResponse.next();
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   const isPublic = PUBLIC.some((p) => pathname.startsWith(p));
+  // Página inicial: site de vendas para quem não entrou; quem tem sessão vai para o painel
+  if (!session && pathname === "/") return NextResponse.next();
 
   if (!session && !isPublic) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const url = new URL("/login", req.url);
-    if (pathname !== "/") url.searchParams.set("next", pathname);
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
   if (session && (isPublic || pathname === "/")) {
@@ -32,9 +34,10 @@ export const config = {
   // /api/upload e /api/stripe/webhook ficam fora: fazem a própria autenticação
   // (upload por sessão, webhook pela assinatura do Stripe) e precisam do corpo
   // original — o proxy bufferiza o corpo da requisição em memória.
+  // demo/: fotos de exemplo (demonstração e página inicial), públicas.
   // /api/branding: imagens públicas da tela de login (e upload, que confere o superadmin).
   // /api/checklist (upload de foto, confere a sessão) e /api/cron (CRON_SECRET) também se autenticam sozinhos.
   // /api/financeiro (anexos e exportação) confere a sessão e o acesso ao Financeiro em cada rota.
   // /api/fornecedores (arquivos dos orçamentos) também confere a sessão e o condomínio em cada rota.
-  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/financeiro|api/fornecedores|api/chamados|api/cron|api/stripe/webhook|icon.svg|manifest.webmanifest|favicon.ico|sw.js|icon-192.png|icon-512.png|apple-icon.png|badge-96.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|api/upload|api/branding|api/checklist|api/financeiro|api/fornecedores|api/chamados|api/cron|api/stripe/webhook|demo/|icon.svg|manifest.webmanifest|favicon.ico|sw.js|icon-192.png|icon-512.png|apple-icon.png|badge-96.png).*)"],
 };

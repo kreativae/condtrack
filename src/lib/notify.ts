@@ -24,6 +24,7 @@ function linkFor(n: Payload, layout: (k: string) => string) {
   if (n.referenceType === "ticket" && n.referenceId) return { path: `/chamados/${n.referenceId}`, label: layout("ctaDefault") };
   if (n.referenceType === "supplier_quote" && n.referenceId) return { path: `/fornecedores/orcamento/${n.referenceId}`, label: layout("ctaDefault") };
   if (n.referenceType === "condominium" && n.referenceId) return { path: `/admin/condominios/${n.referenceId}`, label: layout("ctaDefault") };
+  if (n.referenceType === "demo_request") return { path: "/admin/interessados", label: layout("ctaDefault") };
   if (n.referenceType === "unit" || n.referenceType === "parcel") return { path: "/minha-unidade", label: layout("ctaDefault") };
   return { path: "/notificacoes", label: layout("ctaDefault") };
 }

@@ -17,8 +17,9 @@ export const metadata: Metadata = { title: "Condomínios" };
 // A geração do condomínio de demonstração leva alguns segundos
 export const maxDuration = 60;
 
-export default async function CondosPage() {
+export default async function CondosPage({ searchParams }: PageProps<"/admin/condominios">) {
   await requireUser("superadmin");
+  const { pedido } = await searchParams;
   const now = nowMs();
   // Fim do teste das demonstrações: avisa também ao abrir a lista, além do cron. Fora do after(): o aviso monta o link
   // do e-mail com o endereço do pedido, que não existe mais dentro do after() numa página. Sem nada vencido, é uma consulta.
@@ -32,10 +33,12 @@ export default async function CondosPage() {
   const metrics = await Promise.all(condos.map((c) => orderMetrics({ condominiumId: c.id })));
   const demoAccounts = parseDemoAccounts((await db.setting.findUnique({ where: { key: DEMO_ACCOUNTS_KEY } }))?.value);
   const nextExternal = nextExternalNumber((await db.user.findMany({ where: externalEmailFilter(), select: { email: true } })).map((u) => u.email));
+  // Vindo de Interessados: a janela abre como externa, com o contato do pedido preenchido
+  const request = typeof pedido === "string" ? await db.demoRequest.findUnique({ where: { id: pedido }, select: { id: true, name: true, email: true, phone: true } }) : null;
 
   return (
     <div className="animate-in">
-      <PageHeader eyebrow="Multi-condomínio" title="Condomínios" actions={<><DemoCondoButton saved={demoAccounts} nextExternal={nextExternal} /><LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton></>} />
+      <PageHeader eyebrow="Multi-condomínio" title="Condomínios" actions={<><DemoCondoButton saved={demoAccounts} nextExternal={nextExternal} request={request} /><LinkButton href="/admin/condominios/novo"><Plus className="size-4" />Novo condomínio</LinkButton></>} />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {condos.map((c, i) => {
           const m = metrics[i];

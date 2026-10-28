@@ -45,7 +45,19 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   por `node scripts/brand-icons.mjs`: mudou o símbolo, rode de novo.
   **Tela de abertura** (`components/splash-screen.tsx`, no layout raiz; estilos `.splash` em `globals.css`): só no
   celular (até 1023 px) e no app instalado, uma vez por sessão (`sessionStorage`), some sozinha em ~1,6 s ou no toque.
-  HTML/CSS com a página + script logo depois (não espera o React). `background_color` do manifesto = índigo da abertura.
+  HTML/CSS com a página + script logo depois (não espera o React); não aparece na página inicial. `background_color` do manifesto = índigo da abertura.
+- **Página inicial = site de vendas** (`src/app/page.tsx` → `components/landing/landing.tsx`): aberta para quem não entrou
+  (o proxy deixa `/` passar sem sessão; com sessão vai para o painel). Planos lidos de Assinaturas → Planos (`landingPlans()`
+  em `lib/landing.ts`, testado: o 2º de 3 em destaque, anual com a economia em meses), dias grátis = `TRIAL_DAYS`, razão
+  social e CNPJ de Dados legais (só depois de preenchidos). Faixas escuras em `.lp-ink` (tokens `.lp` em `globals.css`,
+  derivados da cor do logo); fotos de `public/demo/servicos` (pasta `demo/` fora do proxy). Sem depoimentos nem números
+  de clientes inventados: entram quando houver de verdade.
+  Formulário "Agende sua demonstração" (`landing/demo-form.tsx`, `requestDemo` em `actions/demo-request.ts`, validação
+  em `lib/demo-request.ts`, testada) → `DemoRequest` + aviso `demo_request` aos superadmins (Mensagens). Campo escondido
+  `website` contra robôs, Turnstile quando ligado em Segurança, limite por IP (5/h) e e-mail (3/dia) com a mesma resposta.
+  **Interessados** (`/admin/interessados`, superadmin): situação (new → contacted → demo → won | lost) e anotação
+  (`updateDemoRequest`, auditado); "Criar demonstração" abre `/admin/condominios?pedido=` com a janela já em Externa e o
+  contato preenchido; ao criar, o pedido passa para `demo` com o `condominiumId`.
 - **Cores**: tudo usa variáveis CSS (`--brand`, `--surface`, `--fg`…) de `src/app/globals.css`, expostas ao Tailwind
   como `bg-surface`, `text-brand` etc. **Não use cores fixas** (`#hex`, `bg-slate-*`) em componentes: elas ignoram a aba Aparência.
 - **Configurações → Aparência** (`?aba=aparencia`): cores do sistema nos temas claro e escuro. `src/lib/theme-appearance.ts`

@@ -72,10 +72,14 @@ export async function createDemoCondo(_prev: DemoState, form: FormData): Promise
   // Externa: as contas de teste entram só até o fim do prazo; os superadmins são avisados quando acaba
   const expiresAt = trial?.days ? trialEnd(trial.days, Date.now()) : null;
   if (trial?.days) await db.condominium.update({ where: { id: condo.id }, data: { demoExpiresAt: expiresAt, ...trial.contact } });
+  // Criada a partir de um pedido do site (Interessados): o pedido passa para "demonstração criada"
+  const requestId = external ? String(form.get("requestId") ?? "") : "";
+  if (requestId) await db.demoRequest.updateMany({ where: { id: requestId }, data: { status: "demo", condominiumId: condo.id } });
   // E-mail com as contas e o prazo para quem vai testar (marcado na janela e com e-mail do contato)
   const invite = trial?.contact.demoContactEmail && form.get("sendInvite") === "1" ? await sendDemoInvite(condo.id) : null;
   await audit(me, "create", "condominium", condo.id, { new: { name: condo.name, demo: true, tipo: external ? "externa" : "interna", contas: accounts, ...(trial?.days && { prazoDias: trial.days, fim: expiresAt, ...trial.contact }), ...(invite && { convite: invite.ok ? `enviado para ${invite.to}` : invite.error }) }, condominiumId: condo.id });
   revalidatePath("/admin/condominios");
+  if (requestId) revalidatePath("/admin/interessados");
   redirect(`/admin/condominios/${condo.id}${invite ? (invite.ok ? "?convite=enviado" : `?convite=${encodeURIComponent(invite.error)}`) : ""}`);
 }
 

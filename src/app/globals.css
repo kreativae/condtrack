@@ -248,3 +248,45 @@ body {
 @media print {
   .splash { display: none !important }
 }
+
+/* ───────────── Página inicial (site de vendas, src/components/landing) ─────────────
+   Faixas escuras derivadas da cor do logo (seguem a Aparência) e o verde de conferido como destaque.
+   As faixas são escuras nos dois temas: o texto sobre elas é sempre claro. */
+.lp {
+  --lp-ink: color-mix(in oklab, var(--logo-3, #4338ca) 16%, #070818);
+  --lp-ink-2: color-mix(in oklab, var(--logo-3, #4338ca) 26%, #0b0c22);
+  --lp-glow: color-mix(in srgb, var(--logo-2, #5b5bd6) 55%, transparent);
+  --lp-violet: #7c3aed;
+}
+html:has(.lp) {
+  scroll-behavior: smooth;
+  scroll-padding-top: 16px;
+}
+.lp-ink {
+  background: var(--lp-ink);
+  color: #fff;
+}
+.lp-glow {
+  background:
+    radial-gradient(60% 55% at 70% 0%, var(--lp-glow) 0%, transparent 70%),
+    radial-gradient(40% 40% at 10% 30%, color-mix(in srgb, var(--mark-accent) 16%, transparent) 0%, transparent 70%);
+}
+.lp-grid {
+  background-image: linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(70% 60% at 50% 20%, #000 10%, transparent 80%);
+}
+.lp-banner {
+  background: linear-gradient(160deg, var(--logo-2, #5b5bd6) 0%, color-mix(in oklab, var(--logo-3, #4338ca) 70%, #000) 100%);
+}
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.lp-float {
+  animation: lp-float 6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.lp) { scroll-behavior: auto; }
+  .lp-float { animation: none; }
+}

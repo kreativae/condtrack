@@ -10,7 +10,7 @@ const SEEN_KEY = "condtrack_splash";
  * `suppressHydrationWarning`: o script muda o atributo antes da hidratação. Estilos em globals.css (`.splash`).
  */
 export function SplashScreen() {
-  const script = `(function(){var s=document.getElementById("splash");if(!s)return;try{var big=!matchMedia("(max-width: 1023px), (display-mode: standalone)").matches;if(big||sessionStorage.getItem("${SEEN_KEY}")){s.setAttribute("data-off","");return}sessionStorage.setItem("${SEEN_KEY}","1")}catch(e){}s.addEventListener("click",function(){s.setAttribute("data-off","")});s.addEventListener("animationend",function(e){if(e.target===s)s.setAttribute("data-off","")})})();`;
+  const script = `(function(){var s=document.getElementById("splash");if(!s)return;try{var big=!matchMedia("(max-width: 1023px), (display-mode: standalone)").matches;if(big||location.pathname==="/"||sessionStorage.getItem("${SEEN_KEY}")){s.setAttribute("data-off","");return}sessionStorage.setItem("${SEEN_KEY}","1")}catch(e){}s.addEventListener("click",function(){s.setAttribute("data-off","")});s.addEventListener("animationend",function(e){if(e.target===s)s.setAttribute("data-off","")})})();`;
   return (
     <>
       <div id="splash" className="splash" aria-hidden suppressHydrationWarning>

@@ -8,15 +8,18 @@ import { DEMO_PASSWORD, DEMO_SLOTS, externalDemoAccounts, type DemoAccounts } fr
 import { createDemoCondo, type DemoState } from "@/app/actions/demo";
 import { DEMO_TRIAL_DEFAULT_DAYS, DEMO_TRIAL_MAX_DAYS } from "@/lib/demo-trial";
 
+type DemoRequestPrefill = { id: string; name: string; email: string; phone: string };
+
 /**
  * Cria um condomínio de demonstração com dados fictícios, vinculado como síndico ao e-mail escolhido. Os outros perfis
  * podem usar contas reais (já vêm com os e-mails da última vez); em branco, entra uma pessoa fictícia.
  * Interna = as contas de apresentação do superadmin; externa = série numerada nova (sindicoN@, zeladorN@…) para testes.
  */
-export function DemoCondoButton({ saved, nextExternal }: { saved: DemoAccounts; nextExternal: number }) {
-  const [open, setOpen] = useState(false);
+export function DemoCondoButton({ saved, nextExternal, request }: { saved: DemoAccounts; nextExternal: number; request?: DemoRequestPrefill | null }) {
+  // Pedido de Interessados: já abre como externa, com o contato preenchido (e liga a demonstração ao pedido)
+  const [open, setOpen] = useState(!!request);
   const [state, action, pending] = useActionState<DemoState, FormData>(createDemoCondo, null);
-  const [mode, setMode] = useState<"internal" | "external">("internal");
+  const [mode, setMode] = useState<"internal" | "external">(request ? "external" : "internal");
   const close = () => !pending && setOpen(false);
   const external = externalDemoAccounts(nextExternal);
   const MODES = [
@@ -98,6 +101,7 @@ export function DemoCondoButton({ saved, nextExternal }: { saved: DemoAccounts; 
               )}
               {mode === "external" && (
                 <div className="space-y-3 rounded-2xl border border-line p-4">
+                  {request && <input type="hidden" name="requestId" value={request.id} />}
                   <div className="flex items-end gap-3">
                     <Field label="Acesso por quantos dias">
                       <Input name="days" type="number" min={1} max={DEMO_TRIAL_MAX_DAYS} inputMode="numeric" required defaultValue={state?.values?.days || DEMO_TRIAL_DEFAULT_DAYS} className="w-28" />
@@ -108,9 +112,9 @@ export function DemoCondoButton({ saved, nextExternal }: { saved: DemoAccounts; 
                     <p className="text-sm font-medium">Quem vai testar <span className="font-normal text-muted">(opcional)</span></p>
                     <p className="mb-2 text-xs text-muted">Fica na página da demonstração e no aviso de fim do teste.</p>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Nome"><Input name="contactName" defaultValue={state?.values?.contactName} placeholder="Nome e empresa" autoComplete="off" /></Field>
-                      <Field label="Telefone"><Input name="contactPhone" type="tel" inputMode="tel" defaultValue={state?.values?.contactPhone} placeholder="(11) 98888-7777" autoComplete="off" /></Field>
-                      <div className="sm:col-span-2"><Field label="E-mail"><Input name="contactEmail" type="email" defaultValue={state?.values?.contactEmail} placeholder="pessoa@empresa.com" autoComplete="off" /></Field></div>
+                      <Field label="Nome"><Input name="contactName" defaultValue={state?.values?.contactName ?? request?.name} placeholder="Nome e empresa" autoComplete="off" /></Field>
+                      <Field label="Telefone"><Input name="contactPhone" type="tel" inputMode="tel" defaultValue={state?.values?.contactPhone ?? request?.phone} placeholder="(11) 98888-7777" autoComplete="off" /></Field>
+                      <div className="sm:col-span-2"><Field label="E-mail"><Input name="contactEmail" type="email" defaultValue={state?.values?.contactEmail ?? request?.email} placeholder="pessoa@empresa.com" autoComplete="off" /></Field></div>
                     </div>
                     <label className="mt-3 flex items-start gap-2.5 text-sm">
                       <input type="checkbox" name="sendInvite" value="1" defaultChecked className="mt-0.5 size-4 accent-[var(--brand)]" />
