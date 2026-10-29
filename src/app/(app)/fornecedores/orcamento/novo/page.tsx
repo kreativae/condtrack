@@ -27,7 +27,7 @@ export default async function NewQuotePage({ searchParams }: { searchParams: Pro
   // Vindo da cotação: o orçamento entra nela (se ainda estiver aberta)
   const group = grupo ? await db.quoteGroup.findFirst({ where: { id: grupo, condominiumId: condoId, status: "open", archivedAt: null }, select: { id: true, title: true } }) : null;
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href={group ? `/fornecedores/cotacao/${group.id}` : "/fornecedores"} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Voltar</Link>
       <PageHeader eyebrow={scope?.name ?? "Fornecedores"} title="Novo orçamento" description="O síndico recebe o aviso e aprova ou recusa." />
       <Card className="p-6 sm:p-8">

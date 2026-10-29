@@ -39,7 +39,7 @@ export default async function EditBudgetPage({ searchParams }: PageProps<"/finan
   const backQS = new URLSearchParams({ ...(user.role === "superadmin" && { condo: condo.id }), ano: String(year) }).toString();
 
   return (
-    <div className="mx-auto max-w-4xl animate-in">
+    <div className="animate-in">
       <Link href={`/financeiro/orcamento?${backQS}`} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Orçamento</Link>
       <PageHeader eyebrow={condo.name} title={`Orçamento ${year}`} description="Valor do ano por categoria. Deixe em branco o que não quiser orçar." />
       <Card className="p-5 sm:p-6">

@@ -20,7 +20,7 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
   if (!q) notFound();
   if (!canChangeQuote(q, user)) redirect(`/fornecedores/orcamento/${id}`);
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href={`/fornecedores/orcamento/${id}`} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Voltar</Link>
       <PageHeader eyebrow={q.supplier.name} title="Editar orçamento" description="Os arquivos são anexados e tirados na tela do orçamento." />
       <Card className="p-6 sm:p-8">

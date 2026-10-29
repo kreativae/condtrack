@@ -49,7 +49,7 @@ export default async function SupplierReportPage({ searchParams }: { searchParam
   const qs = (extra: Record<string, string>) => `/fornecedores/relatorio?${new URLSearchParams({ de: from, ate: to, situacao: situation, ...extra })}`;
 
   return (
-    <div className="mx-auto max-w-4xl animate-in">
+    <div className="animate-in">
       <Link href="/fornecedores" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Fornecedores</Link>
       <PageHeader eyebrow="Relatório" title="Relatório de cotações" description="Escolha as cotações e os orçamentos para apresentar em assembleia ou na prestação de contas. O relatório abre pronto para salvar em PDF." />
 

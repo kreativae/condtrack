@@ -18,7 +18,7 @@ export default async function EditPlanPage({ params }: PageProps<"/manutencao/[i
   if (!p || (user.role !== "superadmin" && p.condominiumId !== user.condominiumId)) notFound();
   const opts = await planOptions(p.condominiumId);
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href="/manutencao" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Voltar</Link>
       <PageHeader eyebrow={p.condominium.name} title="Editar plano" actions={<DeletePlanButton action={deletePlan.bind(null, p.id)} title={p.title} />} />
       <Card className="p-6 sm:p-8">

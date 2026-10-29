@@ -18,7 +18,7 @@ export default async function BookingsPage({ searchParams }: PageProps<"/reserva
   const condoId = await gateCondo(user);
   const header = <PageHeader eyebrow="Áreas comuns" title="Reservas" description="Salão de festas, churrasqueira, quadra e outros espaços do condomínio." />;
   if (!condoId) {
-    return <div className="mx-auto max-w-6xl animate-in">{header}<Card><Empty icon={<CalendarDays />} title="Escolha um condomínio">Use o cartão do condomínio no menu.</Empty></Card></div>;
+    return <div className="animate-in">{header}<Card><Empty icon={<CalendarDays />} title="Escolha um condomínio">Use o cartão do condomínio no menu.</Empty></Card></div>;
   }
   const gate = isGate(user.role);
   const units = myUnits(user, condoId);
@@ -27,7 +27,7 @@ export default async function BookingsPage({ searchParams }: PageProps<"/reserva
   const history = sp.ver === "historico";
 
   if (!gate && !units.length) {
-    return <div className="mx-auto max-w-6xl animate-in">{header}<Card><Empty icon={<CalendarDays />} title="Sem unidade vinculada">Reservas são feitas por quem mora em uma unidade do condomínio.</Empty></Card></div>;
+    return <div className="animate-in">{header}<Card><Empty icon={<CalendarDays />} title="Sem unidade vinculada">Reservas são feitas por quem mora em uma unidade do condomínio.</Empty></Card></div>;
   }
 
   const mineWhere = { condominiumId: condoId, OR: [{ requestedById: user.id }, { unitId: { in: unitIds } }] };
@@ -72,7 +72,7 @@ export default async function BookingsPage({ searchParams }: PageProps<"/reserva
     });
 
   return (
-    <div className="mx-auto max-w-6xl animate-in">
+    <div className="animate-in">
       <PageHeader
         eyebrow="Áreas comuns"
         title="Reservas"

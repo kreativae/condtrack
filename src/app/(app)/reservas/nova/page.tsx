@@ -33,7 +33,7 @@ export default async function NewBookingPage({ searchParams }: PageProps<"/reser
     }),
   ]);
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href="/reservas" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" />Reservas</Link>
       <PageHeader eyebrow="Áreas comuns" title="Nova reserva" description={gate ? "Reservas feitas pela administração ou portaria já saem aprovadas." : "Escolha o espaço, o dia e o horário. Você é avisado quando for aprovada."} />
       <Card className="p-5 sm:p-6">

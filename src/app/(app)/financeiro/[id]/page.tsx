@@ -50,7 +50,7 @@ export default async function FinanceEntryPage({ params }: PageProps<"/financeir
   const today = dateToDay(new Date());
 
   return (
-    <div className="mx-auto max-w-5xl animate-in space-y-6">
+    <div className="animate-in space-y-6">
       <Link href={back} className={buttonClass("ghost", "sm")}><ArrowLeft className="size-4" />Financeiro</Link>
 
       {entry.deletedAt && (

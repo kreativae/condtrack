@@ -18,7 +18,7 @@ export default async function NewPlanPage() {
   if (!condoId) redirect("/manutencao");
   const opts = await planOptions(condoId);
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href="/manutencao" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Voltar</Link>
       <PageHeader eyebrow={scope?.name ?? "Manutenção preventiva"} title="Novo plano" />
       <Card className="p-6 sm:p-8">

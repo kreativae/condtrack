@@ -18,7 +18,7 @@ export default async function EditSupplierPage({ params }: { params: Promise<{ i
   const s = await loadSupplierFor(user, id);
   if (!s) notFound();
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href={`/fornecedores/${id}`} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Voltar</Link>
       <PageHeader eyebrow="Fornecedores" title={`Editar ${s.name}`} />
       <Card className="p-6 sm:p-8">

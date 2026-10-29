@@ -44,7 +44,7 @@ export default async function TicketPage({ params, searchParams }: PageProps<"/c
   ];
 
   return (
-    <div className="mx-auto max-w-6xl animate-in">
+    <div className="animate-in">
       <Link href="/chamados" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Chamados</Link>
 
       <header className="mb-6 flex flex-wrap items-start gap-4">

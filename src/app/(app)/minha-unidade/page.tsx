@@ -22,7 +22,7 @@ export default async function MyUnitPage() {
   const units = condoId ? myUnits(user, condoId) : [];
   const header = <PageHeader eyebrow="Portaria" title="Minha unidade" description="Quem mora com você e quem pode entrar: visitantes, prestadores e entregas, com dias e horários. A portaria consulta esta lista." />;
   if (!condoId || !units.length) {
-    return <div className="mx-auto max-w-4xl animate-in">{header}<Card><Empty icon={<Contact />} title="Sem unidade vinculada">Peça ao síndico para vincular sua unidade ao seu cadastro.</Empty></Card></div>;
+    return <div className="animate-in">{header}<Card><Empty icon={<Contact />} title="Sem unidade vinculada">Peça ao síndico para vincular sua unidade ao seu cadastro.</Empty></Card></div>;
   }
   const ids = units.map((u) => u.id);
   const [grants, accounts, entries, parcels] = await Promise.all([
@@ -42,7 +42,7 @@ export default async function MyUnitPage() {
   const doneParcels = parcels.filter((p) => p.status !== "waiting").slice(0, 10);
 
   return (
-    <div className="mx-auto max-w-6xl animate-in">
+    <div className="animate-in">
       {header}
       {/* Computador: a unidade à esquerda; encomendas e entradas na coluna da direita. Celular: encomendas, unidade, entradas */}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr]">

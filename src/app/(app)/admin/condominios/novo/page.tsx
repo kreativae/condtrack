@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Novo condomínio" };
 export default async function NewCondoPage() {
   await requireUser("superadmin");
   return (
-    <div className="mx-auto max-w-2xl animate-in">
+    <div className="animate-in">
       <PageHeader eyebrow="Condomínios" title="Novo condomínio" />
       <Card className="p-6 sm:p-8"><CondoForm action={saveCondominium.bind(null, null)} /></Card>
     </div>

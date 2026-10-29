@@ -35,7 +35,7 @@ export default async function BookingPage({ params }: PageProps<"/reservas/[id]"
   const arrived = b.guests.filter((g) => g.checkedInAt).length;
 
   return (
-    <div className="mx-auto max-w-4xl animate-in">
+    <div className="animate-in">
       <Link href="/reservas" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" />Reservas</Link>
       <PageHeader eyebrow={b.unit ? unitLabel(b.unit) : "Condomínio"} title={b.commonArea.name} description={fmtPeriod(b.startAt, b.endAt)} actions={<Badge tone={st.tone} dot>{st.label}</Badge>} />
 

@@ -37,7 +37,7 @@ export default async function GatePage({ searchParams }: PageProps<"/portaria">)
   const condoId = await gateCondo(user);
   if (!condoId) {
     return (
-      <div className="mx-auto max-w-6xl animate-in">
+      <div className="animate-in">
         <PageHeader eyebrow="Portaria" title="Portaria" />
         <Card><Empty icon={<DoorOpen />} title="Escolha um condomínio">Use o cartão do condomínio no menu.</Empty></Card>
       </div>

@@ -18,7 +18,7 @@ export default async function NewFinanceEntryPage({ searchParams }: PageProps<"/
   const back = user.role === "superadmin" ? `/financeiro?condo=${condo.id}` : "/financeiro";
   const today = dateToDay(new Date());
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href={back} className={buttonClass("ghost", "sm")}><ArrowLeft className="size-4" />Financeiro</Link>
       <PageHeader eyebrow={condo.name} title="Novo lançamento" description="Registre uma receita ou despesa. Quem lançou e cada alteração ficam no histórico." />
       <Card className="p-5 sm:p-6">

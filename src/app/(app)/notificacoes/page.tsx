@@ -21,7 +21,7 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
   const page = pageParam(sp.page, total, PAGE);
   const items = await db.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, skip: (page - 1) * PAGE, take: PAGE });
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="animate-in">
     <FrozenPage>
       <FrozenTop>
         <PageHeader

@@ -101,6 +101,7 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
   `src/lib/dashboard.ts`; escondidos em `User.dashboardHidden`. Bloco novo no painel = nova chave lá + `show("chave")`.
 - **Navegação no celular** (`components/nav-links.tsx`): barra de atalhos (até 4, no cookie `nav_pins`, por aparelho) + botão
   Menu que abre o menu lateral com todas as páginas e o alfinete para fixar. Itens vêm de `src/lib/nav.ts`.
+- **Largura das páginas**: todas usam a largura do layout (`<main>` com `max-w-7xl` em `(app)/layout.tsx`), para o título e o conteúdo não mudarem de lugar de uma página para outra. Não ponha `mx-auto max-w-*` no contêiner da página (comece com `animate-in`); limite de largura só dentro dela, quando um bloco pedir.
 - **Janelas e sobreposições** (`fixed inset-0`): renderize com `createPortal(..., document.body)`. A animação `animate-in`
   das páginas prende elementos `fixed` dentro dela no Chrome.
 - **Cartões de números** (`Stat` em `ui.tsx`): o tamanho do valor depende só da largura do cartão (`@container`),

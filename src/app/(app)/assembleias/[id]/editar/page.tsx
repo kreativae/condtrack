@@ -19,7 +19,7 @@ export default async function EditAssemblyPage({ params }: PageProps<"/assemblei
   const request = a.status !== "draft";
   if (request && user.role !== "superadmin") redirect(`/assembleias/${a.id}`);
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href={`/assembleias/${a.id}`} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Voltar</Link>
       <PageHeader
         eyebrow={a.condominium.name}

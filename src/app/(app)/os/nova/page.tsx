@@ -38,7 +38,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/os/nova
   }[user.role as string] ?? (ticket ? [`OS do chamado #${ticket.number}`, "Revise o que o morador escreveu, escolha categoria e prioridade. Quem abriu o chamado recebe o aviso e acompanha o andamento."] : ["Nova ordem de serviço", "Um protocolo será gerado automaticamente."]);
 
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <PageHeader eyebrow="Ordens de serviço" title={copy[0]} description={copy[1]} />
       {typeof chamado === "string" && !ticket && <div className="mb-4"><Alert tone="warn">Este chamado não pode mais virar OS (já foi convertido ou encerrado). Você pode abrir uma OS comum.</Alert></div>}
       {ticket && ticket.photos.length > 0 && <p className="mb-4 text-sm text-muted">As {ticket.photos.length} foto(s) do chamado entram na OS como fotos da abertura.</p>}

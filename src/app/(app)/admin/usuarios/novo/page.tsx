@@ -16,7 +16,7 @@ export default async function AdminNewUserPage({ searchParams }: PageProps<"/adm
     db.unit.findMany({ include: { building: true }, orderBy: [{ building: { name: "asc" } }, { number: "asc" }] }),
   ]);
   return (
-    <div className="mx-auto max-w-2xl animate-in">
+    <div className="animate-in">
       <PageHeader eyebrow="Usuários" title="Novo usuário" description="Uma senha provisória será gerada para o primeiro acesso." />
       <Card className="p-6 sm:p-8">
         <UserForm

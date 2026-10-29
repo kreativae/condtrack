@@ -47,7 +47,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
   ];
 
   return (
-    <div className="mx-auto max-w-4xl animate-in">
+    <div className="animate-in">
       <Link href={group ? `/fornecedores/cotacao/${group.id}` : "/fornecedores"} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> {group ? `Cotação: ${group.title}` : "Cotações"}</Link>
       <PageHeader
         eyebrow="Orçamento"

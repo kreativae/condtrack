@@ -15,7 +15,7 @@ export default async function NewTicketPage() {
   const condoId = user.condominiumId ?? "__none__";
   const areas = await db.commonArea.findMany({ where: { condominiumId: condoId }, select: { id: true, name: true }, orderBy: { name: "asc" } });
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href="/chamados" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Chamados</Link>
       <PageHeader eyebrow="Chamados" title="Abrir chamado" description="Conte o problema, a reclamação ou a sugestão. O síndico recebe o aviso e responde por aqui." />
       <Card className="p-5 sm:p-8">

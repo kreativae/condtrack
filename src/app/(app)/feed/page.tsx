@@ -71,7 +71,7 @@ export default async function FeedPage({ searchParams }: PageProps<"/feed">) {
   const showCondo = admin && !condo;
 
   return (
-    <div className="mx-auto max-w-6xl animate-in">
+    <div className="animate-in">
       <PageHeader
         eyebrow="Transparência"
         title="Serviços realizados"

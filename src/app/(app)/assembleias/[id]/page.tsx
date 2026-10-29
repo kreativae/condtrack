@@ -54,7 +54,7 @@ export default async function AssemblyPage({ params }: PageProps<"/assembleias/[
     : [];
 
   return (
-    <div className="mx-auto max-w-4xl animate-in space-y-6">
+    <div className="animate-in space-y-6">
       <Link href="/assembleias" className="inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Assembleias</Link>
       <PageHeader
         eyebrow={ASSEMBLY_KINDS[a.kind as AssemblyKind]}

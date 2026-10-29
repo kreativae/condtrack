@@ -28,7 +28,7 @@ export default async function ProfilePage() {
     legalMessages({ data: user.deletionRequestedAt ? fmtDate(user.deletionRequestedAt) : "" }),
   ]);
   return (
-    <div className="mx-auto max-w-6xl animate-in">
+    <div className="animate-in">
       <PageHeader eyebrow="Conta" title="Meu perfil" />
       <Card brand className="mb-6 flex flex-col items-center gap-5 p-6 sm:flex-row">
         <Avatar name={user.name} src={user.avatarUrl} size={72} />

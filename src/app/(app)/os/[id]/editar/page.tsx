@@ -31,7 +31,7 @@ export default async function EditOrderPage({ params }: PageProps<"/os/[id]/edit
   const materials: { item: string; qty: string }[] = JSON.parse(o.materialsUsed || "[]");
 
   return (
-    <div className="mx-auto max-w-3xl animate-in">
+    <div className="animate-in">
       <Link href={`/os/${id}`} className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand">
         <ArrowLeft className="size-3.5" /> {o.protocol}
       </Link>

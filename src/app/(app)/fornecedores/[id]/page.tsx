@@ -34,7 +34,7 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
   ];
 
   return (
-    <div className="mx-auto max-w-4xl animate-in">
+    <div className="animate-in">
       <Link href="/fornecedores?aba=agenda" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" /> Agenda de fornecedores</Link>
       <PageHeader
         eyebrow={s.category ?? "Fornecedor"}

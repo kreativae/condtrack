@@ -13,7 +13,7 @@ export default async function NewPersonPage({ searchParams }: PageProps<"/usuari
   const { role } = await searchParams;
   const units = await db.unit.findMany({ where: { building: { condominiumId: me.condominiumId! } }, include: { building: true }, orderBy: [{ building: { name: "asc" } }, { number: "asc" }] });
   return (
-    <div className="mx-auto max-w-2xl animate-in">
+    <div className="animate-in">
       <PageHeader eyebrow="Pessoas" title="Novo cadastro" description="Uma senha provisória será gerada para o primeiro acesso." />
       <Card className="p-6 sm:p-8">
         <UserForm

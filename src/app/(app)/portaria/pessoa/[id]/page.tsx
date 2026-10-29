@@ -40,7 +40,7 @@ export default async function PersonPage({ params }: PageProps<"/portaria/pessoa
   const dateLabel = (d: Date) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" }).format(d);
 
   return (
-    <div className="mx-auto max-w-6xl animate-in">
+    <div className="animate-in">
       <Link href="/portaria" className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-muted hover:text-brand"><ArrowLeft className="size-3.5" />Portaria</Link>
 
       <Card className="mb-6 p-5 sm:p-6">
