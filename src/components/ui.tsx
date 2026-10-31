@@ -31,7 +31,7 @@ export function Card({ className, children, brand, ...rest }: ComponentProps<"di
   return (
     <div
       className={cx(
-        "rounded-2xl border bg-surface shadow-card",
+        "card rounded-2xl border bg-surface",
         brand ? "border-brand/30" : "border-line",
         className,
       )}
@@ -58,9 +58,14 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
   return (
     <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        {eyebrow && <p className="mb-1.5 text-sm font-medium first-letter:uppercase text-brand">{eyebrow}</p>}
-        <h1 className="font-display text-2xl font-bold leading-tight sm:text-[32px]">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-sm text-muted">{description}</p>}
+        {eyebrow && (
+          <p className="mb-2 flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-brand">
+            <span aria-hidden className="h-px w-5 bg-gradient-to-r from-brand to-transparent" />
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="text-balance font-display text-2xl font-bold leading-tight tracking-[-0.03em] sm:text-[34px]">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-pretty text-sm leading-relaxed text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">{actions}</div>}
     </header>
@@ -77,7 +82,7 @@ const variantClass: Record<Variant, string> = {
 };
 export function buttonClass(variant: Variant = "brand", size: "sm" | "md" = "md") {
   return cx(
-    "inline-flex items-center justify-center gap-2 rounded-xl transition disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+    "inline-flex items-center justify-center gap-2 rounded-xl transition duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:active:scale-100 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
     size === "sm" ? "h-8 px-3 text-xs" : "h-10 px-4 text-sm",
     variantClass[variant],
   );
@@ -92,7 +97,7 @@ export function LinkButton({ variant, size, className, ...rest }: ComponentProps
 }
 
 const fieldBase =
-  "w-full rounded-xl border border-line-strong bg-surface px-3.5 text-sm text-fg shadow-card placeholder:text-muted/70 transition focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15";
+  "w-full rounded-xl border border-line-strong bg-surface px-3.5 text-sm text-fg shadow-card placeholder:text-muted/70 transition duration-200 hover:border-fg/20 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={cx(fieldBase, "h-10", props.className)} />;
@@ -128,7 +133,7 @@ export function FieldGroup({ label, hint, children, className }: { label: string
 /** Abas de página: pílulas roláveis no celular, sublinhadas a partir do sm. Use num contêiner com `tabRowClass`. */
 export function tabClass(active: boolean) {
   return cx(
-    "shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition sm:-mb-px sm:rounded-none sm:border-0 sm:border-b-2 sm:px-3 sm:py-2 sm:font-medium",
+    "shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-colors duration-200 sm:-mb-px sm:rounded-none sm:border-0 sm:border-b-2 sm:px-3 sm:py-2 sm:font-medium",
     active ? "border-fg bg-fg text-bg sm:border-brand sm:bg-transparent sm:text-brand" : "border-line-strong bg-surface text-fg-2 sm:border-transparent sm:bg-transparent sm:text-muted sm:hover:text-fg",
   );
 }
@@ -137,7 +142,7 @@ export const tabRowClass = "no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 s
 /** Cartão de número; com `href`, o cartão inteiro abre a lista correspondente. */
 export function Stat({ label, value, hint, tone, href }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone; href?: string }) {
   const card = (
-    <Card className={cx("@container h-full p-4 sm:p-5", href && "transition group-hover:border-line-strong group-active:scale-[0.98]")}>
+    <Card className={cx("@container h-full p-4 sm:p-5", href && "group-active:scale-[0.98]")}>
       <p className="text-xs font-medium leading-snug text-muted [overflow-wrap:anywhere] sm:text-[13px]">{label}</p>
       <p
         className={cx(
@@ -173,7 +178,7 @@ export function Avatar({ name, src, size = 36 }: { name: string; src?: string | 
 export function Empty({ title, children, icon }: { title: string; children?: ReactNode; icon?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      {icon && <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-brand-soft text-brand [&>svg]:size-6">{icon}</div>}
+      {icon && <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-brand-soft text-brand ring-8 ring-brand/[0.04] [&>svg]:size-6">{icon}</div>}
       <p className="font-display text-base font-semibold">{title}</p>
       {children && <div className="mt-1 max-w-sm text-sm text-muted">{children}</div>}
     </div>

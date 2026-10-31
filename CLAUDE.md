@@ -102,6 +102,13 @@ como trabalhamos, o que não pode quebrar e onde cada coisa mora. Atualize-o jun
 - **Navegação no celular** (`components/nav-links.tsx`): barra de atalhos (até 4, no cookie `nav_pins`, por aparelho) + botão
   Menu que abre o menu lateral com todas as páginas e o alfinete para fixar. Itens vêm de `src/lib/nav.ts`.
 - **Largura das páginas**: todas usam a largura do layout (`<main>` com `max-w-7xl` em `(app)/layout.tsx`), para o título e o conteúdo não mudarem de lugar de uma página para outra. Não ponha `mx-auto max-w-*` no contêiner da página (comece com `animate-in`); limite de largura só dentro dela, quando um bloco pedir.
+- **Movimento e acabamento** (tudo em `globals.css`, só variáveis do tema, desligado com `prefers-reduced-motion`):
+  troca de página pela View Transitions API (`(app)/template.tsx` com `<ViewTransition enter="page-in" exit="page-out">`;
+  menu e barra do topo ficam parados; atualizar a mesma página não anima); blocos da página entram em cascata
+  (`.animate-in > *`); `(app)/loading.tsx` mostra o esqueleto com brilho (`.skeleton`) enquanto a página busca dados;
+  `Card` tem a classe `.card` (brilho na borda de cima, `--card-hi`) e sobe ao passar o mouse quando está dentro de um
+  link; botões afundam ao tocar e o da marca tem gradiente e brilho; fundo do conteúdo com brilho leve da marca
+  (`.app-canvas`); no menu "Seções" um destaque desliza até o item ativo (`.nav-pill`, medido em `SectionsNav`).
 - **Janelas e sobreposições** (`fixed inset-0`): renderize com `createPortal(..., document.body)`. A animação `animate-in`
   das páginas prende elementos `fixed` dentro dela no Chrome.
 - **Cartões de números** (`Stat` em `ui.tsx`): o tamanho do valor depende só da largura do cartão (`@container`),

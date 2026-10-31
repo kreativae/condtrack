@@ -29,6 +29,9 @@
   --chart-2: #0e9384;
   --shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.03);
   --shadow-lg: 0 12px 32px -12px rgb(15 23 42 / 0.18);
+  /* Brilho na borda de cima dos cartões e sombra de cartão levantado (passar o mouse) */
+  --card-hi: inset 0 1px 0 rgb(255 255 255 / 0.7);
+  --shadow-hover: 0 1px 2px rgb(15 23 42 / 0.04), 0 14px 32px -14px rgb(15 23 42 / 0.22);
   color-scheme: light;
 }
 
@@ -55,6 +58,8 @@
   --chart-2: #14a89a;
   --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset;
   --shadow-lg: 0 16px 40px -16px rgb(0 0 0 / 0.7);
+  --card-hi: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-hover: 0 18px 40px -18px rgb(0 0 0 / 0.8);
   color-scheme: dark;
 }
 
@@ -114,12 +119,15 @@ body {
 }
 
 .btn-brand {
-  background: var(--brand);
+  /* Gradiente leve da própria cor da marca (segue a Aparência) e brilho ao passar o mouse */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 88%, white), var(--brand));
   color: var(--brand-ink);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.18) inset, 0 1px 2px rgb(15 23 42 / 0.12);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.22) inset, 0 1px 2px rgb(15 23 42 / 0.14);
+  transition: box-shadow 0.2s ease, transform 0.15s ease, filter 0.2s ease;
 }
 .btn-brand:hover {
-  background: var(--brand-2);
+  background: linear-gradient(180deg, var(--brand), var(--brand-2));
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.22) inset, 0 8px 20px -8px color-mix(in srgb, var(--brand) 70%, transparent);
 }
 
 /* Logo: gradiente da marca, igual nos dois temas (Aparência pode trocar). O verde de "conferido" é parte do
@@ -166,9 +174,96 @@ body {
 .animate-in {
   animation: fade-up 0.3s ease both;
 }
+/* Fundo da área de conteúdo do app: um brilho bem leve da cor da marca no alto (segue a Aparência e o tema) */
+.app-canvas {
+  background:
+    radial-gradient(900px 340px at 85% -120px, color-mix(in srgb, var(--brand) 9%, transparent), transparent 70%),
+    radial-gradient(700px 300px at 0% -140px, color-mix(in srgb, var(--chart-2) 6%, transparent), transparent 70%);
+  background-repeat: no-repeat;
+}
+
+/* Entrada em cascata: os blocos da página (cabeçalho, números, listas) chegam um depois do outro */
+.animate-in > * {
+  animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-in > :nth-child(2) { animation-delay: 50ms; }
+.animate-in > :nth-child(3) { animation-delay: 100ms; }
+.animate-in > :nth-child(4) { animation-delay: 150ms; }
+.animate-in > :nth-child(5) { animation-delay: 200ms; }
+.animate-in > :nth-child(n + 6) { animation-delay: 240ms; }
+
+/* Cartões (Card em ui.tsx): brilho na borda de cima; dentro de um link, sobem um pouco ao passar o mouse */
+.card {
+  box-shadow: var(--shadow), var(--card-hi);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, border-color 0.2s ease;
+}
+@media (hover: hover) {
+  a:hover > .card,
+  a.group:hover .card {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover), var(--card-hi);
+    border-color: var(--line-strong);
+  }
+}
+
+/* Menu lateral "Seções": o destaque desliza até o item ativo; medido, o item ativo deixa o próprio fundo para ele */
+.nav-pill-host[data-pill] .nav-pill {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), height 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+}
+.nav-pill-host[data-pill] [data-active] {
+  background: transparent;
+}
+
+/* Carregando (app)/loading.tsx: blocos com brilho que passa */
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(100deg, var(--bg-2) 30%, color-mix(in srgb, var(--bg-2) 40%, var(--surface)) 50%, var(--bg-2) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Troca de página ((app)/template.tsx): a página que sai some rápido e a nova sobe com um leve desfoque.
+   Menu e barra do topo ficam parados (só o conteúdo participa). Sem suporte no navegador, troca normal. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-old(.page-out) {
+  animation: 120ms ease-in both vt-fade reverse;
+}
+::view-transition-new(.page-in) {
+  animation: 260ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both vt-fade, 360ms cubic-bezier(0.22, 1, 0.36, 1) both vt-rise;
+}
+@keyframes vt-fade {
+  from { opacity: 0; filter: blur(2px); }
+  to { opacity: 1; filter: blur(0); }
+}
+@keyframes vt-rise {
+  from { transform: translateY(8px); }
+  to { transform: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-in { animation: none; }
+  .animate-in,
+  .animate-in > * { animation: none; }
+  .card { transition: none; }
+  a:hover > .card,
+  a.group:hover .card { transform: none; }
+  .skeleton { animation: none; }
+  .nav-pill-host[data-pill] .nav-pill { transition: none; }
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }
 
 /* Tela de abertura (components/splash-screen.tsx): só no celular e no app instalado, uma vez por sessão.

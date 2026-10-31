@@ -139,7 +139,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         )}
       </aside>
 
-      <div className="flex min-w-0 flex-col">
+      <div className="app-canvas flex min-w-0 flex-col">
         {user.impersonator && (
           // Faixas de aviso sempre em uma linha (h-8): a altura entra no --chrome
           <div className="flex h-8 items-center justify-center gap-3 overflow-hidden whitespace-nowrap bg-brand px-4 text-xs font-medium text-brand-ink">
@@ -156,7 +156,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <span className="truncate sm:hidden">{billingNotice.short}</span><span className="hidden truncate sm:inline">{billingNotice.full}</span> <span className="shrink-0 underline">Ver assinatura</span>
           </Link>
         )}
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-8">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-bg/70 px-4 backdrop-blur-xl backdrop-saturate-150 sm:px-8">
           <div className="flex items-center gap-1 lg:hidden">
             <MenuButton />
             <Logo tagline={false} size={30} />

@@ -254,17 +254,18 @@ function SideItem({ it, active, compact, lk, handlers, hidden }: {
       {...handlers}
       style={lk.style}
       hidden={hidden}
+      data-active={active || undefined}
       // A classe "flex" anularia o atributo hidden: o item escondido precisa da classe "hidden"
       className={clsx(
         hidden ? "hidden" : "flex",
-        "items-center rounded-xl transition-colors",
+        "group/item relative items-center rounded-xl transition-colors duration-200",
         compact ? "gap-2.5 px-3 py-[5px] text-[13.5px]" : "gap-3 px-3 py-2 text-sm",
         NO_TOUCH_MENU,
         lk.lifted ? LIFTED : active ? "bg-brand-soft" : "hover:bg-bg-2",
         active ? "font-semibold text-brand" : clsx("font-medium", lk.lifted ? "text-fg" : "text-fg-2 hover:text-fg"),
       )}
     >
-      <Icon className={compact ? "size-[17px]" : "size-[18px]"} strokeWidth={active ? 2.1 : 1.8} />
+      <Icon className={clsx(compact ? "size-[17px]" : "size-[18px]", "transition-transform duration-200 group-hover/item:scale-110")} strokeWidth={active ? 2.1 : 1.8} />
       {it.label}
       {lk.lifted && <GripVertical className="ml-auto size-4 text-muted" />}
     </Link>
@@ -386,8 +387,29 @@ function SectionsNav({ items, customized }: { items: NavItem[]; customized?: boo
     const shown = sections.flatMap((g) => (g.key === key ? order : g.items.map((it) => it.href)));
     await saveNavOrder([...shown, ...items.map((it) => it.href).filter((h) => !shown.includes(h))]);
   };
+  // Destaque que desliza até o item da página aberta (medido no navegador; até lá, o item usa o próprio fundo)
+  const pathname = usePathname();
+  const host = useRef<HTMLElement>(null);
+  const pill = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const nav = host.current;
+    const el = nav?.querySelector<HTMLElement>("[data-active]");
+    if (!nav || !pill.current) return;
+    if (!el) {
+      pill.current.style.opacity = "0";
+      return;
+    }
+    pill.current.style.opacity = "1";
+    pill.current.style.transform = `translateY(${el.offsetTop}px)`;
+    pill.current.style.height = `${el.offsetHeight}px`;
+    // Na primeira medida o destaque aparece no lugar, sem deslizar do topo
+    if (!nav.dataset.pill) requestAnimationFrame(() => (nav.dataset.pill = "ready"));
+  }, [pathname, items]);
   return (
-    <nav className="no-scrollbar -mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1" aria-label="Menu">
+    <nav ref={host} className="nav-pill-host no-scrollbar relative -mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1" aria-label="Menu">
+      <span ref={pill} aria-hidden className="nav-pill pointer-events-none absolute inset-x-1 top-0 rounded-xl bg-brand-soft opacity-0">
+        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-brand" />
+      </span>
       {sections.map((g) => (
         <div key={g.key} className={clsx(g.key === "plataforma" && "border-t border-line pt-2.5")}>
           {g.label && <p className="px-3 pb-0.5 text-[10.5px] font-bold uppercase tracking-[0.09em] text-muted">{g.label}</p>}
